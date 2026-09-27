@@ -43,6 +43,16 @@ export const KING_CONFIG = {
   FOUNDATION_COST_KING: 1000,
 }
 
+export const ALPHA_LAUNCH_CONFIG = {
+  // Apertura oficial: 18:30 Hora Perú (UTC-5) del 27 de Septiembre de 2026 = 23:30:00 UTC
+  // Sincronizado con el ciclo oficial de reparto de tokens por ranking a las 00:00 UTC
+  LAUNCH_TIMESTAMP: new Date('2026-09-27T18:30:00-05:00').getTime(),
+  LOCAL_TIME_LABEL: '18:30 (Hora Perú)',
+  UTC_TIME_LABEL: '00:00 UTC',
+  RANKING_PAYOUT_UTC_LABEL: '00:00 UTC',
+  DAILY_POOL_KING: 40,
+}
+
 /**
  * Calcula el tiempo exacto restante hacia el siguiente corte a las 00:00 UTC
  * o hacia la fecha de inicio oficial (29/09/2026 a las 00:00 UTC).

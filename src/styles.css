@@ -5611,4 +5611,330 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   font-weight: 800;
 }
 
+/* ============================================================== */
+/* SALA DE ESPERA PRE-LANZAMIENTO ALPHA (18:30 HORA PERÚ / 00:00 UTC) */
+/* ============================================================== */
+.prelaunch-screen-root {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(circle at 50% 15%, #15273f 0%, #08111c 60%, #03070d 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #e2e8f0;
+}
+
+.prelaunch-card {
+  width: 100%;
+  max-width: 580px;
+  background: linear-gradient(180deg, #102135 0%, #09131f 100%);
+  border: 1px solid rgba(255, 214, 90, 0.45);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 214, 90, 0.15);
+  border-radius: 20px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+.prelaunch-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.prelaunch-logo-img {
+  height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
+}
+
+.prelaunch-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 214, 90, 0.12);
+  border: 1px solid rgba(255, 214, 90, 0.4);
+  color: #ffd65a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 14px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.pulsing-beacon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: pulseBeacon 1s infinite alternate;
+}
+@keyframes pulseBeacon {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+.prelaunch-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 4px 0 0;
+  line-height: 1.25;
+}
+
+.prelaunch-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+}
+.prelaunch-subtitle strong {
+  color: #ffd65a;
+}
+
+.prelaunch-countdown-wrap {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 214, 90, 0.25);
+  border-radius: 16px;
+  padding: 18px 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.countdown-grid {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.countdown-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #08111a;
+  border: 1px solid rgba(255, 214, 90, 0.35);
+  border-radius: 12px;
+  min-width: 82px;
+  padding: 8px 10px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.countdown-digits {
+  font-family: monospace;
+  font-size: 36px;
+  font-weight: 900;
+  color: #ffd65a;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 15px rgba(255, 214, 90, 0.35);
+  line-height: 1.1;
+}
+
+.countdown-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.countdown-separator {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffd65a;
+  margin-bottom: 12px;
+}
+
+.btn-enter-kingdom-epic {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
+  transition: all 0.2s ease;
+  animation: pulseBeacon 1.2s infinite alternate;
+}
+.btn-enter-kingdom-epic:hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+}
+
+.unlocked-header-box {
+  text-align: center;
+}
+.unlocked-title {
+  color: #4ade80;
+  font-size: 22px;
+  font-weight: 900;
+  margin: 0;
+}
+.unlocked-subtitle {
+  color: #cbd5e1;
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.prelaunch-ranking-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 214, 90, 0.08);
+  border: 1px solid rgba(255, 214, 90, 0.25);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.ranking-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(255, 214, 90, 0.15);
+  border: 1px solid rgba(255, 214, 90, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ranking-banner-icon .trophy-icon {
+  color: #ffd65a;
+}
+.ranking-banner-text strong {
+  display: block;
+  font-size: 12px;
+  color: #ffd65a;
+  margin-bottom: 2px;
+}
+.ranking-banner-text p {
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.prelaunch-user-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.user-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #4ade80;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.text-green { color: #4ade80; }
+.text-gold { color: #ffd65a; }
+
+.user-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.user-stat-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.user-stat-cell small {
+  display: block;
+  font-size: 9.5px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+.user-stat-cell strong {
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.user-ref-cell {
+  background: rgba(255, 214, 90, 0.08);
+  border: 1px dashed rgba(255, 214, 90, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.user-ref-cell small {
+  font-size: 10.5px;
+  color: #cbd5e1;
+}
+.user-ref-cell code {
+  font-family: monospace;
+  font-weight: 900;
+  color: #ffd65a;
+  font-size: 13px;
+}
+
+.prelaunch-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+}
+.btn-prelaunch-back {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn-prelaunch-back:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.btn-prelaunch-logout {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn-prelaunch-logout:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+}
+
 

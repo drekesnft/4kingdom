@@ -279,7 +279,88 @@
   color: var(--text-secondary);
   font-size: 17px;
   line-height: 1.6;
-  margin: 0 0 32px;
+  margin: 0 0 20px;
+}
+
+/* Hero Countdown Box */
+.hero-countdown-box {
+  background: rgba(8, 20, 35, 0.9);
+  border: 1px solid var(--border-gold-bright);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin: 0 0 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  backdrop-filter: blur(10px);
+}
+.countdown-pill-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ffd65a;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.live-pulsing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: pulseBeacon 1s infinite alternate;
+}
+.countdown-clock-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.clock-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 214, 90, 0.4);
+  border-radius: 8px;
+  padding: 4px 10px;
+  min-width: 58px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.clock-num {
+  font-family: monospace;
+  font-size: 22px;
+  font-weight: 900;
+  color: #ffd65a;
+  line-height: 1.1;
+  text-shadow: 0 0 10px rgba(255, 214, 90, 0.3);
+}
+.clock-lbl {
+  font-size: 8px;
+  color: #94a3b8;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.clock-dots {
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffd65a;
+  margin-bottom: 6px;
+}
+.countdown-ranking-hint {
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+.countdown-ranking-hint strong {
+  color: #ffd65a;
+}
+.countdown-unlocked-tag {
+  color: #4ade80;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .hero-actions {

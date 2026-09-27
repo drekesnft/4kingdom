@@ -19,14 +19,27 @@ import {
 import '../landing.css'
 import AuthModal from './AuthModal'
 import { authService } from '../services/authService'
+import { ALPHA_LAUNCH_CONFIG } from '../game/config'
 
 export default function LandingPage({ onPlay }) {
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser())
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
     setCurrentUser(authService.getCurrentUser())
+    const timer = setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+    return () => clearInterval(timer)
   }, [])
+
+  const remainingMs = Math.max(0, ALPHA_LAUNCH_CONFIG.LAUNCH_TIMESTAMP - now)
+  const isLaunched = remainingMs <= 0
+  const hours = Math.floor(remainingMs / (1000 * 60 * 60))
+  const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((remainingMs % (1000 * 60)) / 1000)
+  const padZero = (n) => String(n).padStart(2, '0')
 
   const handlePlayClick = () => {
     if (currentUser) {
@@ -118,6 +131,42 @@ export default function LandingPage({ onPlay }) {
                 Un juego de estrategia medieval en tiempo real. Cuatro reinos en guerra constante.
                 Funda tu reino, entrena macroejércitos y compite por el trono supremo.
               </p>
+
+              {/* Countdown Banner hacia la apertura de las 18:30 Hora Perú / 00:00 UTC */}
+              <div className="hero-countdown-box">
+                <div className="countdown-pill-top">
+                  <span className="live-pulsing-dot"></span>
+                  <span>APERTURA OFICIAL ALPHA · 00:00 UTC (18:30 HORA PERÚ)</span>
+                </div>
+                {!isLaunched ? (
+                  <>
+                    <div className="countdown-clock-row">
+                      <div className="clock-cell">
+                        <span className="clock-num">{padZero(hours)}</span>
+                        <span className="clock-lbl">HORAS</span>
+                      </div>
+                      <span className="clock-dots">:</span>
+                      <div className="clock-cell">
+                        <span className="clock-num">{padZero(minutes)}</span>
+                        <span className="clock-lbl">MIN</span>
+                      </div>
+                      <span className="clock-dots">:</span>
+                      <div className="clock-cell">
+                        <span className="clock-num">{padZero(seconds)}</span>
+                        <span className="clock-lbl">SEG</span>
+                      </div>
+                    </div>
+                    <small className="countdown-ranking-hint">
+                      🏆 Ciclo oficial de reparto diario de 40 KING por ranking: <strong>00:00 UTC</strong> (validación automática).
+                    </small>
+                  </>
+                ) : (
+                  <div className="countdown-unlocked-tag">
+                    <span>⚔️ ¡SERVIDORES ALPHA ABIERTOS EN VIVO!</span>
+                  </div>
+                )}
+              </div>
+
               <div className="hero-actions">
                 <button type="button" className="btn-gold" onClick={handlePlayClick}>
                   Jugar ahora

@@ -14,8 +14,10 @@ import KingdomAssignmentModal from './components/KingdomAssignmentModal'
 import OnboardingModal from './components/OnboardingModal'
 import WhitelistDashboard from './components/WhitelistDashboard'
 import ReferralModal from './components/ReferralModal'
+import PreLaunchModal from './components/PreLaunchModal'
 import { authService } from './services/authService'
 import { useGameState } from './game/useGameState'
+import { ALPHA_LAUNCH_CONFIG } from './game/config'
 
 const MAP_SIZE = 50
 const TILE_SIZE = 112
@@ -166,6 +168,7 @@ export default function App() {
   const [activeMenu, setActiveMenu] = useState('build')
   const [coordQuery, setCoordQuery] = useState('')
   const [currentView, setCurrentView] = useState('landing')
+  const [forceUnlocked, setForceUnlocked] = useState(false)
 
   useEffect(() => {
     setTiles(initialMap)
@@ -784,6 +787,24 @@ export default function App() {
     return (
       <WhitelistDashboard
         user={currentUser}
+        onLogout={() => {
+          authService.logout()
+          setCurrentUser(null)
+          setCurrentView('landing')
+        }}
+      />
+    )
+  }
+
+  // Control de Apertura Oficial Alpha (18:30 Hora Perú / Sincronizado a 00:00 UTC)
+  const isAlphaLocked = Date.now() < ALPHA_LAUNCH_CONFIG.LAUNCH_TIMESTAMP && !forceUnlocked
+
+  if (currentUser?.role === 'alpha_player' && isAlphaLocked) {
+    return (
+      <PreLaunchModal
+        user={currentUser}
+        onEnter={() => setForceUnlocked(true)}
+        onBackToLanding={() => setCurrentView('landing')}
         onLogout={() => {
           authService.logout()
           setCurrentUser(null)

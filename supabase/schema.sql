@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Seed de cuentas de evaluadores Alpha autorizados (14 cuentas) con rol alpha_player y códigos de referido
+-- Seed de cuentas de evaluadores Alpha autorizados (17 cuentas) con rol alpha_player y códigos de referido
 INSERT INTO public.user_accounts (email, temp_password, password_hash, must_change_password, role, referral_code)
 VALUES
     ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true, 'alpha_player', 'FK-ANTO-77'),
@@ -41,7 +41,10 @@ VALUES
     ('kanekighol1423@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-KANE-GHOL'),
     ('adrianlopezrod@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-ADRI-LOPE'),
     ('rjnieves35@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-RJNI-EVES'),
-    ('henrycamposhdc@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-HENR-CAMP')
+    ('henrycamposhdc@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-HENR-CAMP'),
+    ('jesusgimenezjc@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JESU-GIME'),
+    ('jenifersoriano223@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JENI-SORI'),
+    ('jhill.sanchez@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JHIL-SANC')
 ON CONFLICT (email) DO UPDATE SET 
     role = 'alpha_player',
     referral_code = COALESCE(public.user_accounts.referral_code, EXCLUDED.referral_code);

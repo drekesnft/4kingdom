@@ -69,7 +69,7 @@ export const TOP_REFERRAL_PRIZES = [
   { rank: 5, king: 8, vip: false, label: '🎖️ Top 5' },
 ]
 
-// Cuentas semilla de evaluadores Alpha autorizados (14 cuentas)
+// Cuentas semilla de evaluadores Alpha autorizados (17 cuentas)
 const DEFAULT_ACCOUNTS = [
   {
     email: 'antoniox4253@gmail.com',
@@ -286,6 +286,54 @@ const DEFAULT_ACCOUNTS = [
     role: 'alpha_player',
     provider: 'email',
     referralCode: 'FK-HENR-CAMP',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'jesusgimenezjc@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-JESU-GIME',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'jenifersoriano223@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-JENI-SORI',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'jhill.sanchez@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-JHIL-SANC',
     referredBy: null,
     referralsCount: 0,
     airdropTokens: 0,
@@ -1121,12 +1169,26 @@ export const authService = {
       return { success: false, error: 'La nueva contraseña debe tener al menos 5 caracteres.' }
     }
 
-    // 1. Verificar si el correo pertenece a la lista Alpha autorizada o a Supabase
+    // 1. Verificar si el correo pertenece a la Whitelist (sin acceso a Alpha)
+    const storedWl = getStoredWhitelist()
+    const foundInWl = storedWl.find((w) => w.email.toLowerCase() === email)
+    const isSeedAlpha = DEFAULT_ACCOUNTS.some((a) => a.email.toLowerCase() === email)
+
+    if (foundInWl && !isSeedAlpha) {
+      return {
+        success: false,
+        notRegistered: false,
+        isWhitelistOnly: true,
+        error: 'Este correo está registrado en la Whitelist Oficial (Dashboard de Pre-registro y Airdrop). El acceso a la Alpha está reservado exclusivamente a evaluadores designados.',
+      }
+    }
+
+    // 2. Verificar si el correo pertenece a la lista Alpha autorizada o a Supabase
     let matchedAccount = null
     const accounts = getStoredAccounts()
     const localFound = accounts.find((a) => a.email.toLowerCase() === email)
 
-    if (localFound) {
+    if (localFound && localFound.role === 'alpha_player') {
       matchedAccount = localFound
     } else {
       const defFound = DEFAULT_ACCOUNTS.find((a) => a.email.toLowerCase() === email)
@@ -1146,25 +1208,35 @@ export const authService = {
           .maybeSingle()
 
         if (!error && data) {
-          if (!matchedAccount) {
-            matchedAccount = {
-              email: data.email,
-              role: data.role || 'alpha_player',
-              provider: data.provider || 'email',
-              referralCode: data.referral_code,
-              referredBy: data.referred_by,
-              referralsCount: data.referrals_count || 0,
-              airdropTokens: data.airdrop_tokens || 0,
-              mustChangePassword: false,
-              assignedKingdom: data.assigned_kingdom || null,
-              baseCoord: normalizeBaseCoord(data.base_coord),
-              onboardingCompleted: Boolean(data.onboarding_completed),
+          if (data.role === 'alpha_player') {
+            if (!matchedAccount) {
+              matchedAccount = {
+                email: data.email,
+                role: 'alpha_player',
+                provider: data.provider || 'email',
+                referralCode: data.referral_code,
+                referredBy: data.referred_by,
+                referralsCount: data.referrals_count || 0,
+                airdropTokens: data.airdrop_tokens || 0,
+                mustChangePassword: false,
+                assignedKingdom: data.assigned_kingdom || null,
+                baseCoord: normalizeBaseCoord(data.base_coord),
+                onboardingCompleted: Boolean(data.onboarding_completed),
+              }
+              accounts.push(matchedAccount)
+            } else {
+              if (data.assigned_kingdom) matchedAccount.assignedKingdom = data.assigned_kingdom
+              if (data.base_coord) matchedAccount.baseCoord = normalizeBaseCoord(data.base_coord)
+              if (data.onboarding_completed) matchedAccount.onboardingCompleted = true
             }
-            accounts.push(matchedAccount)
           } else {
-            if (data.assigned_kingdom) matchedAccount.assignedKingdom = data.assigned_kingdom
-            if (data.base_coord) matchedAccount.baseCoord = normalizeBaseCoord(data.base_coord)
-            if (data.onboarding_completed) matchedAccount.onboardingCompleted = true
+            // Usuario con rol 'whitelist' en backend -> No tiene acceso a Alpha
+            return {
+              success: false,
+              notRegistered: false,
+              isWhitelistOnly: true,
+              error: 'Este correo está registrado en la Whitelist Oficial (Dashboard de Pre-registro y Airdrop). El acceso a la Alpha está reservado exclusivamente a evaluadores designados.',
+            }
           }
         }
       } catch (err) {
@@ -1173,11 +1245,11 @@ export const authService = {
     }
 
     // Si no está ni en backend ni en lista autorizada Alpha
-    if (!matchedAccount) {
+    if (!matchedAccount || matchedAccount.role !== 'alpha_player') {
       return {
         success: false,
         notRegistered: true,
-        error: 'Este correo no está registrado en la lista de evaluadores Alpha. Únete primero a la Whitelist Oficial.',
+        error: 'Este correo no está registrado en la lista de evaluadores Alpha autorizados. Únete a la Whitelist Oficial para participar.',
       }
     }
 

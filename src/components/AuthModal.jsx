@@ -76,6 +76,18 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         setTimeout(() => {
           onLoginSuccess(res.user)
         }, 700)
+      } else if (res.isWhitelistOnly) {
+        setError(res.error)
+        setTimeout(() => {
+          setShowRecovery(false)
+          const wl = authService.getStoredWhitelist().find((w) => w.email.toLowerCase() === recoveryEmail.toLowerCase())
+          if (wl) {
+            onLoginSuccess(wl)
+          } else {
+            setEmail(recoveryEmail)
+            setShowHypeWhitelist(true)
+          }
+        }, 1800)
       } else if (res.notRegistered) {
         setError(res.error)
         setEmail(recoveryEmail)

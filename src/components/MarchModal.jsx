@@ -4,7 +4,7 @@ import { calculateArmyCarry, totalTroopCount, calculateArmyAttack } from '../gam
 import { X, Send, Compass, ShieldAlert, AlertTriangle, Sparkles, Flag, Users } from 'lucide-react'
 
 export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClose }) {
-  const { troops, dispatchMarch, createRally, clan, isHungry, maxSimultaneousMarches, marches, shieldUntil } = gameState
+  const { troops, dispatchMarch, createRally, clan, isHungry, maxSimultaneousMarches, marches, shieldUntil, calculateKingCostForSec } = gameState
 
   const [isRallyMode, setIsRallyMode] = useState(false)
   const [selectedArmy, setSelectedArmy] = useState({
@@ -279,7 +279,8 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
           <div><small>Tropas enviadas:</small><strong>{totalTroops}</strong></div>
           <div><small>Poder de Ataque:</small><strong>⚔️ {totalAttack}</strong></div>
           <div><small>Carga total:</small><strong>🎒 {totalCarry}</strong></div>
-          <div><small>Marchas en curso:</small><strong>{marches.length}/{maxSimultaneousMarches}</strong></div>
+          <div><small>Distancia / Viaje:</small><strong>📍 {distance} casillas ({travelDurationSec}s)</strong></div>
+          <div><small>Coste Acelerar:</small><strong>⚡ {calculateKingCostForSec ? calculateKingCostForSec(travelDurationSec) : Number((travelDurationSec / 30).toFixed(2))} KING</strong></div>
         </div>
 
         {/* Botón de Enviar */}

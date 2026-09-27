@@ -387,8 +387,48 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   gap: 12px;
 }
 .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* TOP VIEW MODE TOGGLE (Base vs Mapa) */
+.view-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 6px 12px 6px;
+  background: #0d1e31;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.mode-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #a0bed8;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.mode-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+.mode-btn.active {
+  background: linear-gradient(180deg, #1f7cc4, #12558c);
+  border-color: #64b5f6;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
 }
 .panel-title-wrap {
   display: flex;

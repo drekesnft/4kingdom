@@ -124,7 +124,7 @@ export default function App() {
   const [nextGemIn, setNextGemIn] = useState(GEM_SPAWN_MS)
   const [notice, setNotice] = useState('FourKingdoms Alpha v0.1 · Toca recursos, bases, o campamentos para interactuar.')
   const [playerNumber, setPlayerNumber] = useState(2)
-  const [activeMenu, setActiveMenu] = useState('home')
+  const [activeMenu, setActiveMenu] = useState('build')
   const [coordQuery, setCoordQuery] = useState('')
   const [currentView, setCurrentView] = useState('landing')
 
@@ -771,6 +771,30 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {/* Selector Rápido: Mi Base vs Mapa Mundial */}
+        <div className="view-mode-toggle">
+          <button
+            type="button"
+            className={`mode-btn ${activeMenu === 'build' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveMenu('build')
+              setPopupOpen(false)
+            }}
+          >
+            🏰 Mi Ciudad / Base
+          </button>
+          <button
+            type="button"
+            className={`mode-btn ${activeMenu === 'home' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveMenu('home')
+              setPopupOpen(false)
+            }}
+          >
+            🗺️ Mapa Mundial (50×50)
+          </button>
+        </div>
 
         {/* Modal de Desglose Económico Rápido */}
         {showResourceDetails && (

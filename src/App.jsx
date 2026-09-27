@@ -832,10 +832,9 @@ export default function App() {
                 type="button"
                 className="btn-top-referral"
                 onClick={() => setReferralModalOpen(true)}
-                title="Airdrop de Referidos: Gana 5 Tokens KING por amigo"
+                title="Airdrop de Referidos & Hitos Comunitarios"
               >
-                <Coins size={13} className="gold" />
-                <span>🎁 Hitos & 5 KING</span>
+                <span>🎁 </span>
               </button>
               <button
                 type="button"

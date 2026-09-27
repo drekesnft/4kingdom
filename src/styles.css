@@ -4840,17 +4840,16 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 .btn-top-referral {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   background: rgba(255, 214, 90, 0.15);
   border: 1px solid rgba(255, 214, 90, 0.45);
-  color: #ffd65a;
-  padding: 5px 9px;
+  padding: 4px 7px;
   border-radius: 8px;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 0 10px rgba(255, 214, 90, 0.1);
+  box-shadow: 0 0 10px rgba(255, 214, 90, 0.12);
 }
 .btn-top-referral:hover {
   background: rgba(255, 214, 90, 0.28);

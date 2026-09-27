@@ -171,6 +171,19 @@ export default function App() {
     setSelectedId(currentBaseId)
   }, [initialMap, currentBaseId])
 
+  // Escuchar retorno de Google OAuth y persistencia de 7 días
+  useEffect(() => {
+    const unsubscribe = authService.initSupabaseAuthListener((authenticatedUser) => {
+      if (authenticatedUser) {
+        setCurrentUser(authenticatedUser)
+        setCurrentView('game')
+      }
+    })
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
+
   // Modales
   const [marchModalTarget, setMarchModalTarget] = useState(null) // tile
   const [selectedReport, setSelectedReport] = useState(null)

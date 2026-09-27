@@ -1,5 +1,6 @@
 /**
  * FourKingdom — Cliente Supabase y Configuración de Conexión Backend
+ * Con soporte para sesiones persistentes de 7 días y OAuth de Google
  */
 import { createClient } from '@supabase/supabase-js'
 
@@ -13,11 +14,17 @@ export const isSupabaseConfigured = Boolean(
   supabaseAnonKey.length > 20
 )
 
+// 7 días de duración estricta de sesión (604,800 segundos = 604,800,000 ms)
+export const SEVEN_DAYS_SECONDS = 7 * 24 * 60 * 60
+export const SEVEN_DAYS_MS = SEVEN_DAYS_SECONDS * 1000
+
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'fourkingdoms_auth_session_v1',
       },
       realtime: {
         params: {

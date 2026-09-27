@@ -97,13 +97,28 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   }
 
   // Flujo de Registro / Acceso con Google
-  const handleGoogleClick = () => {
-    // Si ya ingresó un email de gmail en el input, usarlo directamente
-    if (email && email.toLowerCase().includes('@')) {
-      processGoogleAuth(email)
-    } else {
-      setGoogleInputEmail('')
-      setGooglePromptOpen(true)
+  const handleGoogleClick = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await authService.loginWithGoogle(email, referralCode)
+      if (res.redirecting) {
+        // Redirección oficial de Google OAuth en curso
+        return
+      }
+      if (res.success && res.user) {
+        onLoginSuccess(res.user)
+      } else if (res.needEmailInput) {
+        setGoogleInputEmail(email || '')
+        setGooglePromptOpen(true)
+      } else if (res.error) {
+        setError(res.error)
+      }
+    } catch (err) {
+      console.error('[AuthModal] Error en Google Auth:', err)
+      setError('Error al autenticar con Google.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -120,7 +135,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
     try {
       const res = await authService.loginWithGoogle(clean, referralCode)
-      if (res.success) {
+      if (res.redirecting) return
+      if (res.success && res.user) {
         onLoginSuccess(res.user)
       } else if (res.needEmailInput) {
         setGooglePromptOpen(true)

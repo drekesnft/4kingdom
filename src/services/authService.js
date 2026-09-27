@@ -1,12 +1,12 @@
 /**
  * FourKingdom — Servicio de Autenticación, Whitelist y Sistema de Referidos (Alpha v0.1)
- * Gestiona el acceso por email con contraseñas temporales, acceso por Google,
+ * Gestiona el acceso por email con contraseñas temporales, acceso por Google OAuth,
  * Whitelist de pre-registro, sistema de códigos de referido con 5 tokens KING de Airdrop,
- * asignación de Reinos y persistencia en Supabase y Almacenamiento Local.
+ * asignación de Reinos y persistencia en Supabase con Sesiones Estrictas de 7 Días.
  * REGLA CERO FALLBACKS: Cualquier error se audita y muestra en consola con detalle.
  */
 
-import { supabase, isSupabaseConfigured } from './supabaseClient'
+import { supabase, isSupabaseConfigured, SEVEN_DAYS_MS } from './supabaseClient'
 import { REGIONAL_KINGDOMS } from '../game/config'
 
 const AUTH_STORAGE_KEY = 'fourkingdoms_alpha_accounts_v1'
@@ -182,33 +182,56 @@ function saveStoredReferrals(list) {
 
 export const authService = {
   /**
-   * Obtiene la sesión del usuario actual
+   * Obtiene la sesión del usuario actual verificando la duración estricta de 7 días.
+   * Si pasaron más de 7 días, invalida la sesión y solicita nuevo ingreso.
    */
   getCurrentUser() {
     try {
       const raw = localStorage.getItem(SESSION_STORAGE_KEY)
-      return raw ? JSON.parse(raw) : null
+      if (!raw) return null
+      const user = JSON.parse(raw)
+
+      if (user.sessionExpiresAt && Date.now() > user.sessionExpiresAt) {
+        console.warn('[authService] La sesión de 7 días ha expirado. Limpiando credenciales.')
+        this.logout()
+        return null
+      }
+
+      return user
     } catch {
       return null
     }
   },
 
   /**
-   * Guarda la sesión activa
+   * Guarda la sesión activa estampando la fecha de expiración a 7 días exactos
    */
   setCurrentUser(user) {
     if (!user) {
       localStorage.removeItem(SESSION_STORAGE_KEY)
+      if (isSupabaseConfigured && supabase) {
+        supabase.auth.signOut().catch(() => {})
+      }
     } else {
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user))
+      const sessionExpiresAt = user.sessionExpiresAt || Date.now() + SEVEN_DAYS_MS
+      const userWithExpiry = {
+        ...user,
+        sessionExpiresAt,
+      }
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(userWithExpiry))
     }
   },
 
   /**
-   * Cierra la sesión
+   * Cierra la sesión activa
    */
   logout() {
     localStorage.removeItem(SESSION_STORAGE_KEY)
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.signOut().catch((err) => {
+        console.error('[Supabase SignOut Error]:', err)
+      })
+    }
   },
 
   /**
@@ -255,6 +278,7 @@ export const authService = {
             assignedKingdom: data.assigned_kingdom ?? null,
             baseCoord: data.base_coord ?? null,
             onboardingCompleted: data.onboarding_completed ?? false,
+            sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
           }
 
           this.setCurrentUser(user)
@@ -298,6 +322,7 @@ export const authService = {
         assignedKingdom: found.assignedKingdom || null,
         baseCoord: found.baseCoord || null,
         onboardingCompleted: Boolean(found.onboardingCompleted),
+        sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
       }
 
       this.setCurrentUser(user)
@@ -308,11 +333,12 @@ export const authService = {
     const whitelist = getStoredWhitelist()
     const foundWl = whitelist.find((w) => w.email.toLowerCase() === email)
     if (foundWl) {
+      foundWl.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
       this.setCurrentUser(foundWl)
       return { success: true, user: foundWl }
     }
 
-    // 4. Si el correo NO está registrado en absoluto -> Señal para activar Whitelist Hype
+    // 4. Si el correo NO está registrado -> Activar Hype de Whitelist
     return {
       success: false,
       notRegistered: true,
@@ -321,7 +347,7 @@ export const authService = {
   },
 
   /**
-   * Registra a un usuario en la Whitelist / Pre-Registro Oficial.
+   * Registra a un usuario en la Whitelist / Pre-Registro Oficial en Supabase y localmente.
    * Si incluye un código de referido válido, acredita inmediatamente 5 tokens KING al referente.
    */
   async registerWhitelist({ email, provider = 'google', referralCode = '' }) {
@@ -337,6 +363,7 @@ export const authService = {
     const alphaAccounts = getStoredAccounts()
     const existingAlpha = alphaAccounts.find((a) => a.email.toLowerCase() === normalized)
     if (existingAlpha) {
+      existingAlpha.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
       this.setCurrentUser(existingAlpha)
       return { success: true, user: existingAlpha, isAlpha: true }
     }
@@ -344,6 +371,7 @@ export const authService = {
     const whitelist = getStoredWhitelist()
     const existingWl = whitelist.find((w) => w.email.toLowerCase() === normalized)
     if (existingWl) {
+      existingWl.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
       this.setCurrentUser(existingWl)
       return { success: true, user: existingWl, isExisting: true }
     }
@@ -359,11 +387,9 @@ export const authService = {
         matchedReferrer.referralsCount = (matchedReferrer.referralsCount || 0) + 1
         matchedReferrer.airdropTokens = (matchedReferrer.airdropTokens || 0) + 5
 
-        // Guardar actualización del referente
         saveStoredAccounts(alphaAccounts)
         saveStoredWhitelist(whitelist)
 
-        // Registrar transacción de referido
         const referralsList = getStoredReferrals()
         referralsList.push({
           referrerCode: codeUsed,
@@ -376,7 +402,7 @@ export const authService = {
       }
     }
 
-    // 3. Crear nuevo usuario de Whitelist
+    // 3. Crear nuevo usuario de Whitelist con sesión de 7 días
     const newWhitelistUser = {
       email: normalized,
       role: 'whitelist',
@@ -385,6 +411,7 @@ export const authService = {
       referredBy: matchedReferrer ? codeUsed : null,
       referralsCount: 0,
       airdropTokens: 0,
+      sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
       createdAt: new Date().toISOString(),
     }
 
@@ -407,8 +434,19 @@ export const authService = {
           console.error('[Supabase Whitelist Insert Error]:', wlErr)
         }
 
+        const { error: accErr } = await supabase.from('user_accounts').upsert({
+          email: normalized,
+          role: 'whitelist',
+          provider,
+          referral_code: myReferralCode,
+          referred_by: matchedReferrer ? codeUsed : null,
+          must_change_password: false,
+        })
+        if (accErr) {
+          console.error('[Supabase user_accounts Insert Error]:', accErr)
+        }
+
         if (matchedReferrer) {
-          // Actualizar conteo del referente en Supabase
           await supabase
             .from('whitelist_signups')
             .update({
@@ -445,50 +483,228 @@ export const authService = {
   },
 
   /**
-   * Inicia o registra sesión utilizando cuenta de Google
+   * Inicia o registra sesión utilizando cuenta de Google.
+   * Si Supabase está configurado con OAuth, invoca signInWithOAuth redirigiendo a Google.
+   * Si no está configurado (entorno local sin .env), permite la validación interactiva inmediata.
    */
   async loginWithGoogle(emailHint = '', referralCode = '') {
+    const codeToUse = (referralCode || getUrlReferralCode() || '').trim().toUpperCase()
+    if (codeToUse) {
+      localStorage.setItem(PENDING_REF_STORAGE_KEY, codeToUse)
+    }
+
+    // 1. Si Supabase está configurado, disparar Google OAuth nativo
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+          },
+        })
+
+        if (error) {
+          console.error('[Supabase Google Auth Error]:', error)
+          return { success: false, error: error.message }
+        }
+
+        return { success: true, redirecting: true, data }
+      } catch (err) {
+        console.error('[Supabase Google Auth Exception]:', err)
+        return { success: false, error: err?.message || String(err) }
+      }
+    }
+
+    // 2. Si no hay Supabase configurado (modo local o pruebas), usar email interactivo
     const email = (emailHint || '').trim().toLowerCase()
     if (!email) {
-      // Si se ejecuta en navegador con Supabase OAuth
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: window.location.origin },
-          })
-          if (error) {
-            console.error('[Supabase Google Auth Error]:', error)
-          }
-        } catch (err) {
-          console.error('[Supabase Google Auth Exception]:', err)
-        }
-      }
       return { success: false, needEmailInput: true }
     }
 
-    // Si ya existe en Alpha, inicia sesión directo
     const alphaAccounts = getStoredAccounts()
     const foundAlpha = alphaAccounts.find((a) => a.email.toLowerCase() === email)
     if (foundAlpha) {
+      foundAlpha.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
       this.setCurrentUser(foundAlpha)
       return { success: true, user: foundAlpha, role: 'alpha_player' }
     }
 
-    // Si ya existe en Whitelist, inicia sesión
     const whitelist = getStoredWhitelist()
     const foundWl = whitelist.find((w) => w.email.toLowerCase() === email)
     if (foundWl) {
+      foundWl.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
       this.setCurrentUser(foundWl)
       return { success: true, user: foundWl, role: 'whitelist' }
     }
 
-    // Si es nuevo registro, lo inscribe a Whitelist con Google
     return this.registerWhitelist({
       email,
       provider: 'google',
-      referralCode,
+      referralCode: codeToUse,
     })
+  },
+
+  /**
+   * Listener global de autenticación de Supabase.
+   * Maneja el retorno de Google OAuth, auto-registra al usuario en `whitelist_signups` y `user_accounts`
+   * y establece la vigencia estricta de 7 días.
+   */
+  initSupabaseAuthListener(onUserAuthenticated) {
+    if (!isSupabaseConfigured || !supabase) return () => {}
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        const email = session.user.email?.trim().toLowerCase()
+        if (!email) return
+
+        const pendingRef = (localStorage.getItem(PENDING_REF_STORAGE_KEY) || getUrlReferralCode() || '').trim().toUpperCase()
+
+        try {
+          // Consultar si ya existe en user_accounts
+          const { data: existingUser, error: fetchErr } = await supabase
+            .from('user_accounts')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle()
+
+          if (fetchErr) {
+            console.error('[Supabase Auth Listener Fetch Error]:', fetchErr)
+          }
+
+          let userRole = existingUser?.role || 'whitelist'
+          let myRefCode = existingUser?.referral_code || generateReferralCode(email)
+          let referredBy = existingUser?.referred_by || (pendingRef || null)
+
+          if (!existingUser) {
+            // Verificar si es cuenta semilla de evaluador
+            const alphaAccounts = getStoredAccounts()
+            const isSeedAlpha = alphaAccounts.find((a) => a.email.toLowerCase() === email && a.role === 'alpha_player')
+            if (isSeedAlpha) {
+              userRole = 'alpha_player'
+              myRefCode = isSeedAlpha.referralCode || myRefCode
+            }
+
+            // Registrar en user_accounts
+            await supabase.from('user_accounts').upsert({
+              email,
+              role: userRole,
+              provider: 'google',
+              referral_code: myRefCode,
+              referred_by: referredBy,
+              must_change_password: false,
+            })
+
+            // Si es rol Whitelist, registrar en whitelist_signups
+            if (userRole === 'whitelist') {
+              await supabase.from('whitelist_signups').upsert({
+                email,
+                referral_code: myRefCode,
+                referred_by: referredBy,
+                provider: 'google',
+                airdrop_tokens: 0,
+                referrals_count: 0,
+              })
+            }
+
+            // Acreditar 5 tokens KING al referente si venía con código
+            if (referredBy) {
+              await this.creditReferralInDatabase(referredBy, email)
+              localStorage.removeItem(PENDING_REF_STORAGE_KEY)
+            }
+          }
+
+          const userObj = {
+            email,
+            role: userRole,
+            provider: 'google',
+            referralCode: myRefCode,
+            referredBy,
+            referralsCount: existingUser?.referrals_count || 0,
+            airdropTokens: existingUser?.airdrop_tokens || 0,
+            mustChangePassword: false,
+            assignedKingdom: existingUser?.assigned_kingdom || null,
+            baseCoord: existingUser?.base_coord || null,
+            onboardingCompleted: existingUser?.onboarding_completed || false,
+            sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
+          }
+
+          this.setCurrentUser(userObj)
+          if (onUserAuthenticated) {
+            onUserAuthenticated(userObj)
+          }
+        } catch (err) {
+          console.error('[Supabase Auth Listener Exception]:', err)
+        }
+      }
+    })
+
+    return () => {
+      subscription?.unsubscribe()
+    }
+  },
+
+  /**
+   * Acredita un referido en base de datos y cache local otorgando 5 tokens KING
+   */
+  async creditReferralInDatabase(referrerCode, referredEmail) {
+    if (!referrerCode || !referredEmail) return
+
+    const alphaAccounts = getStoredAccounts()
+    const whitelist = getStoredWhitelist()
+
+    const matchedReferrer =
+      alphaAccounts.find((a) => (a.referralCode || '').toUpperCase() === referrerCode.toUpperCase()) ||
+      whitelist.find((w) => (w.referralCode || '').toUpperCase() === referrerCode.toUpperCase())
+
+    if (matchedReferrer && matchedReferrer.email.toLowerCase() !== referredEmail.toLowerCase()) {
+      matchedReferrer.referralsCount = (matchedReferrer.referralsCount || 0) + 1
+      matchedReferrer.airdropTokens = (matchedReferrer.airdropTokens || 0) + 5
+      saveStoredAccounts(alphaAccounts)
+      saveStoredWhitelist(whitelist)
+
+      const referralsList = getStoredReferrals()
+      referralsList.push({
+        referrerCode,
+        referrerEmail: matchedReferrer.email,
+        referredEmail,
+        tokensRewarded: 5,
+        createdAt: new Date().toISOString(),
+      })
+      saveStoredReferrals(referralsList)
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase
+            .from('whitelist_signups')
+            .update({
+              referrals_count: matchedReferrer.referralsCount,
+              airdrop_tokens: matchedReferrer.airdropTokens,
+            })
+            .eq('email', matchedReferrer.email)
+
+          await supabase
+            .from('user_accounts')
+            .update({
+              referrals_count: matchedReferrer.referralsCount,
+              airdrop_tokens: matchedReferrer.airdropTokens,
+            })
+            .eq('email', matchedReferrer.email)
+
+          await supabase.from('referrals').insert({
+            referrer_code: referrerCode,
+            referrer_email: matchedReferrer.email,
+            referred_email: referredEmail,
+            tokens_rewarded: 5,
+          })
+        } catch (err) {
+          console.error('[Supabase Referral Credit Exception]:', err)
+        }
+      }
+    }
   },
 
   /**
@@ -526,7 +742,7 @@ export const authService = {
   },
 
   /**
-   * Obtiene la cantidad total global de pre-registros (sumando comunidad + registros reales)
+   * Obtiene la cantidad total global de pre-registros
    */
   getGlobalPreRegistrationCount() {
     const whitelist = getStoredWhitelist()
@@ -541,7 +757,6 @@ export const authService = {
     const whitelist = getStoredWhitelist()
     const allUsers = [...alphaAccounts, ...whitelist]
 
-    // Líderes comunitarios auditados de la tabla
     const baseLeaders = [
       { name: 'Lord Valkor (Norte)', code: 'FK-VALK-91', referralsCount: 24, email: 'valkor***@gmail.com' },
       { name: 'Sovereign Kael (Sur)', code: 'FK-KAEL-44', referralsCount: 18, email: 'kael***@gmail.com' },
@@ -550,7 +765,6 @@ export const authService = {
       { name: 'General Ronald', code: 'FK-RONA-05', referralsCount: 5, email: 'ronald***@gmail.com' },
     ]
 
-    // Incorporar cuentas reales que tengan referidos
     const realWithRefs = allUsers
       .filter((u) => (u.referralsCount || 0) > 0)
       .map((u) => ({
@@ -561,7 +775,6 @@ export const authService = {
         isRealUser: true,
       }))
 
-    // Unir sin duplicar códigos
     const combined = [...realWithRefs]
     for (const leader of baseLeaders) {
       if (!combined.find((c) => c.code === leader.code || c.email === leader.email)) {
@@ -569,10 +782,8 @@ export const authService = {
       }
     }
 
-    // Ordenar descendente por referidos
     combined.sort((a, b) => (b.referralsCount || 0) - (a.referralsCount || 0))
 
-    // Asignar premios del Top 5 (100 KING + 3 VIP)
     return combined.slice(0, 5).map((item, idx) => ({
       ...item,
       rank: idx + 1,
@@ -593,7 +804,6 @@ export const authService = {
       return { success: false, error: 'La nueva contraseña debe tener al menos 5 caracteres.' }
     }
 
-    // 1. Actualizar en Supabase si está disponible
     if (isSupabaseConfigured && supabase) {
       try {
         const { error } = await supabase
@@ -614,7 +824,6 @@ export const authService = {
       }
     }
 
-    // 2. Actualizar en cache local
     const accounts = getStoredAccounts()
     const target = accounts.find((a) => a.email.toLowerCase() === email)
     if (target) {
@@ -642,7 +851,6 @@ export const authService = {
     const chosenKey = kingdomKeys[Math.floor(Math.random() * kingdomKeys.length)]
     const kingdomData = REGIONAL_KINGDOMS[chosenKey]
 
-    // Generar coordenadas de base dentro del cuadrante regional
     let baseCoord
     if (chosenKey === 'north') {
       baseCoord = {
@@ -666,7 +874,6 @@ export const authService = {
       }
     }
 
-    // 1. Guardar en Supabase si está disponible
     if (isSupabaseConfigured && supabase) {
       try {
         const { error: accErr } = await supabase
@@ -697,7 +904,6 @@ export const authService = {
       }
     }
 
-    // 2. Guardar en cache local
     const accounts = getStoredAccounts()
     const target = accounts.find((a) => a.email.toLowerCase() === email)
     if (target) {
@@ -763,7 +969,7 @@ export const authService = {
   },
 
   /**
-   * Registra una nueva cuenta de prueba (para asignar futuros correos fácilmente)
+   * Registra una nueva cuenta de prueba
    */
   registerTesterAccount(email, tempPassword = 'k9t4m') {
     const accounts = getStoredAccounts()
@@ -790,6 +996,7 @@ export const authService = {
       assignedKingdom: null,
       baseCoord: null,
       onboardingCompleted: false,
+      sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
       createdAt: new Date().toISOString(),
     }
     accounts.push(newAcc)

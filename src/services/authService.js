@@ -69,7 +69,7 @@ export const TOP_REFERRAL_PRIZES = [
   { rank: 5, king: 8, vip: false, label: '🎖️ Top 5' },
 ]
 
-// Cuentas semilla de prueba Alpha
+// Cuentas semilla de evaluadores Alpha autorizados (14 cuentas)
 const DEFAULT_ACCOUNTS = [
   {
     email: 'antoniox4253@gmail.com',
@@ -78,6 +78,214 @@ const DEFAULT_ACCOUNTS = [
     role: 'alpha_player',
     provider: 'email',
     referralCode: 'FK-ANTO-77',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: '2026-09-20T00:00:00.000Z',
+  },
+  {
+    email: 'anghelito091.ron@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-ANGH-RON1',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'emanuelleon6892@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-EMAN-LEO2',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'cegarramichael@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-CEGA-MICH',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'noeliacorrea0898@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-NOEL-CORR',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'juanchaval83@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-JUAN-CHAV',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'ycintrahernandez@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-YCIN-HERN',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'reggad22@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-REGG-AD22',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'jaimeropa987@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-JAIM-ROPA',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'ediberthantonio@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-EDIB-ANTO',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'kanekighol1423@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-KANE-GHOL',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'adrianlopezrod@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-ADRI-LOPE',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'rjnieves35@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-RJNI-EVES',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'henrycamposhdc@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-HENR-CAMP',
     referredBy: null,
     referralsCount: 0,
     airdropTokens: 0,
@@ -132,13 +340,24 @@ function getStoredAccounts() {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      const target = parsed.find((a) => a.email.toLowerCase() === 'antoniox4253@gmail.com')
-      if (!target) {
-        parsed.push(DEFAULT_ACCOUNTS[0])
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed))
-      } else if (!target.referralCode) {
-        target.referralCode = 'FK-ANTO-77'
-        target.role = 'alpha_player'
+      let changed = false
+      for (const def of DEFAULT_ACCOUNTS) {
+        const found = parsed.find((a) => a.email.toLowerCase() === def.email.toLowerCase())
+        if (!found) {
+          parsed.push({ ...def })
+          changed = true
+        } else {
+          if (!found.referralCode) {
+            found.referralCode = def.referralCode
+            changed = true
+          }
+          if (!found.role) {
+            found.role = 'alpha_player'
+            changed = true
+          }
+        }
+      }
+      if (changed) {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed))
       }
       return parsed
@@ -541,12 +760,63 @@ export const authService = {
   },
 
   /**
+   * Sincroniza todas las cuentas de evaluadores Alpha autorizadas en la tabla `user_accounts` de Supabase.
+   */
+  async syncAlphaAccountsToSupabase() {
+    if (!isSupabaseConfigured || !supabase) return
+    try {
+      for (const acc of DEFAULT_ACCOUNTS) {
+        const { data: existing, error: selectErr } = await supabase
+          .from('user_accounts')
+          .select('email, referral_code, must_change_password')
+          .eq('email', acc.email.toLowerCase())
+          .maybeSingle()
+
+        if (selectErr) {
+          console.warn('[authService] Error al verificar cuenta Alpha en Supabase:', selectErr.message)
+          continue
+        }
+
+        if (!existing) {
+          const { error: insErr } = await supabase.from('user_accounts').insert({
+            email: acc.email.toLowerCase(),
+            role: 'alpha_player',
+            provider: 'email',
+            referral_code: acc.referralCode,
+            temp_password: acc.tempPassword,
+            password_hash: acc.passwordHash,
+            must_change_password: true,
+          })
+          if (insErr) {
+            console.warn('[authService] Error insertando cuenta Alpha en Supabase:', insErr.message)
+          }
+        } else if (!existing.referral_code) {
+          await supabase
+            .from('user_accounts')
+            .update({
+              referral_code: acc.referralCode,
+              role: 'alpha_player',
+            })
+            .eq('email', acc.email.toLowerCase())
+        }
+      }
+    } catch (err) {
+      console.error('[authService] Excepción al sincronizar cuentas Alpha con Supabase:', err)
+    }
+  },
+
+  /**
    * Listener global de autenticación de Supabase.
    * Maneja el retorno de Google OAuth, auto-registra al usuario en `whitelist_signups` y `user_accounts`
    * y establece la vigencia estricta de 7 días.
    */
   initSupabaseAuthListener(onUserAuthenticated) {
     if (!isSupabaseConfigured || !supabase) return () => {}
+
+    // Sincronizar en segundo plano las 14 cuentas Alpha semilla autorizadas
+    this.syncAlphaAccountsToSupabase().catch((err) =>
+      console.warn('[authService] Sync alpha background:', err)
+    )
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
@@ -832,6 +1102,145 @@ export const authService = {
     }
 
     return { success: true, user: currentUser }
+  },
+
+  /**
+   * Recupera o establece formalmente la contraseña de una cuenta de evaluador Alpha autorizada.
+   * Valida existencia en backend Supabase o lista semilla de evaluadores, actualiza la clave,
+   * remueve la necesidad de cambio (must_change_password: false) y genera una sesión activa de 7 días.
+   */
+  async recoverPassword(emailInput, newPasswordInput) {
+    const email = (emailInput || '').trim().toLowerCase()
+    const newPassword = (newPasswordInput || '').trim()
+
+    if (!email || !email.includes('@')) {
+      return { success: false, error: 'Ingresa un correo electrónico válido.' }
+    }
+
+    if (newPassword.length < 5) {
+      return { success: false, error: 'La nueva contraseña debe tener al menos 5 caracteres.' }
+    }
+
+    // 1. Verificar si el correo pertenece a la lista Alpha autorizada o a Supabase
+    let matchedAccount = null
+    const accounts = getStoredAccounts()
+    const localFound = accounts.find((a) => a.email.toLowerCase() === email)
+
+    if (localFound) {
+      matchedAccount = localFound
+    } else {
+      const defFound = DEFAULT_ACCOUNTS.find((a) => a.email.toLowerCase() === email)
+      if (defFound) {
+        matchedAccount = { ...defFound }
+        accounts.push(matchedAccount)
+      }
+    }
+
+    // Si Supabase está disponible, verificar en backend
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('user_accounts')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (!error && data) {
+          if (!matchedAccount) {
+            matchedAccount = {
+              email: data.email,
+              role: data.role || 'alpha_player',
+              provider: data.provider || 'email',
+              referralCode: data.referral_code,
+              referredBy: data.referred_by,
+              referralsCount: data.referrals_count || 0,
+              airdropTokens: data.airdrop_tokens || 0,
+              mustChangePassword: false,
+              assignedKingdom: data.assigned_kingdom || null,
+              baseCoord: normalizeBaseCoord(data.base_coord),
+              onboardingCompleted: Boolean(data.onboarding_completed),
+            }
+            accounts.push(matchedAccount)
+          } else {
+            if (data.assigned_kingdom) matchedAccount.assignedKingdom = data.assigned_kingdom
+            if (data.base_coord) matchedAccount.baseCoord = normalizeBaseCoord(data.base_coord)
+            if (data.onboarding_completed) matchedAccount.onboardingCompleted = true
+          }
+        }
+      } catch (err) {
+        console.error('[Supabase Recover Check Exception]:', err)
+      }
+    }
+
+    // Si no está ni en backend ni en lista autorizada Alpha
+    if (!matchedAccount) {
+      return {
+        success: false,
+        notRegistered: true,
+        error: 'Este correo no está registrado en la lista de evaluadores Alpha. Únete primero a la Whitelist Oficial.',
+      }
+    }
+
+    // 2. Actualizar en Supabase si está disponible
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error: updateErr } = await supabase
+          .from('user_accounts')
+          .upsert({
+            email,
+            password_hash: newPassword,
+            temp_password: null,
+            must_change_password: false,
+            role: matchedAccount.role || 'alpha_player',
+            provider: matchedAccount.provider || 'email',
+            referral_code: matchedAccount.referralCode || generateReferralCode(email),
+            referred_by: matchedAccount.referredBy || null,
+            updated_at: new Date().toISOString(),
+          })
+
+        if (updateErr) {
+          console.error('[Supabase Recover Password Error]:', updateErr)
+        }
+      } catch (err) {
+        console.error('[Supabase Recover Password Exception]:', err)
+      }
+    }
+
+    // 3. Actualizar almacenamiento local
+    matchedAccount.passwordHash = newPassword
+    matchedAccount.tempPassword = null
+    matchedAccount.mustChangePassword = false
+    const existingIdx = accounts.findIndex((a) => a.email.toLowerCase() === email)
+    if (existingIdx >= 0) {
+      accounts[existingIdx] = matchedAccount
+    } else {
+      accounts.push(matchedAccount)
+    }
+    saveStoredAccounts(accounts)
+
+    // 4. Crear sesión activa de 7 días
+    const user = {
+      email: matchedAccount.email,
+      role: matchedAccount.role || 'alpha_player',
+      provider: matchedAccount.provider || 'email',
+      referralCode: matchedAccount.referralCode || generateReferralCode(matchedAccount.email),
+      referredBy: matchedAccount.referredBy || null,
+      referralsCount: matchedAccount.referralsCount || 0,
+      airdropTokens: matchedAccount.airdropTokens || 0,
+      mustChangePassword: false,
+      assignedKingdom: matchedAccount.assignedKingdom || null,
+      baseCoord: normalizeBaseCoord(matchedAccount.baseCoord),
+      onboardingCompleted: Boolean(matchedAccount.onboardingCompleted),
+      sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
+    }
+
+    this.setCurrentUser(user)
+
+    return {
+      success: true,
+      user,
+      message: '¡Contraseña establecida exitosamente! Accediendo a tu Reino...',
+    }
   },
 
   /**

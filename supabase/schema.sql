@@ -25,10 +25,26 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Seed de cuenta de prueba asignada Alpha: antoniox4253@gmail.com con clave k9t4m y código de referido propio
+-- Seed de cuentas de evaluadores Alpha autorizados (14 cuentas) con rol alpha_player y códigos de referido
 INSERT INTO public.user_accounts (email, temp_password, password_hash, must_change_password, role, referral_code)
-VALUES ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true, 'alpha_player', 'FK-ANTO-77')
-ON CONFLICT (email) DO UPDATE SET referral_code = 'FK-ANTO-77';
+VALUES
+    ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true, 'alpha_player', 'FK-ANTO-77'),
+    ('anghelito091.ron@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-ANGH-RON1'),
+    ('emanuelleon6892@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-EMAN-LEO2'),
+    ('cegarramichael@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-CEGA-MICH'),
+    ('noeliacorrea0898@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-NOEL-CORR'),
+    ('juanchaval83@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JUAN-CHAV'),
+    ('ycintrahernandez@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-YCIN-HERN'),
+    ('reggad22@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-REGG-AD22'),
+    ('jaimeropa987@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JAIM-ROPA'),
+    ('ediberthantonio@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-EDIB-ANTO'),
+    ('kanekighol1423@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-KANE-GHOL'),
+    ('adrianlopezrod@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-ADRI-LOPE'),
+    ('rjnieves35@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-RJNI-EVES'),
+    ('henrycamposhdc@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-HENR-CAMP')
+ON CONFLICT (email) DO UPDATE SET 
+    role = 'alpha_player',
+    referral_code = COALESCE(public.user_accounts.referral_code, EXCLUDED.referral_code);
 
 -- 0.1 TABLA: PRE-REGISTROS Y WHITELIST (whitelist_signups)
 CREATE TABLE IF NOT EXISTS public.whitelist_signups (

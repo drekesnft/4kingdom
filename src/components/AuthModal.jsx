@@ -30,8 +30,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [password, setPassword] = useState('')
   const [referralCode, setReferralCode] = useState(() => getUrlReferralCode())
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
   const [showHypeWhitelist, setShowHypeWhitelist] = useState(false)
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoveryPassword, setRecoveryPassword] = useState('')
+  const [recoveryConfirm, setRecoveryConfirm] = useState('')
 
   useEffect(() => {
     if (isOpen) {
@@ -42,10 +47,58 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
   if (!isOpen) return null
 
+  // Manejo de Recuperación y Establecimiento Formal de Contraseña
+  const handleRecoverySubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccessMsg('')
+
+    if (!recoveryEmail || !recoveryEmail.includes('@')) {
+      setError('Ingresa un correo electrónico válido.')
+      return
+    }
+
+    if (recoveryPassword.length < 5) {
+      setError('La contraseña debe tener al minímo 5 caracteres.')
+      return
+    }
+
+    if (recoveryPassword !== recoveryConfirm) {
+      setError('Las contraseñas no coinciden. Por favor verifícalas.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await authService.recoverPassword(recoveryEmail, recoveryPassword)
+      if (res.success) {
+        setSuccessMsg('✅ ¡Contraseña establecida con éxito! Ingresando a tu Reino...')
+        setTimeout(() => {
+          onLoginSuccess(res.user)
+        }, 700)
+      } else if (res.notRegistered) {
+        setError(res.error)
+        setEmail(recoveryEmail)
+        setTimeout(() => {
+          setShowRecovery(false)
+          setShowHypeWhitelist(true)
+        }, 1600)
+      } else {
+        setError(res.error || 'No se pudo actualizar la contraseña.')
+      }
+    } catch (err) {
+      console.error('[AuthModal] Error al recuperar clave:', err)
+      setError('Error al conectar con el servidor de autenticación.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Manejo de Inicio de Sesión / Validación de Acceso
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccessMsg('')
     setLoading(true)
 
     try {
@@ -222,9 +275,113 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               <span>5 Tokens KING de Airdrop por cada referido + Escudo de Paz Día 1</span>
             </div>
           </div>
+        ) : showRecovery ? (
+          /* ============================================================== */
+          /* PANTALLA 2: RECUPERACIÓN / CREACIÓN FORMAL DE CONTRASEÑA       */
+          /* ============================================================== */
+          <div className="auth-recovery-view">
+            <div className="auth-modal-header">
+              <img
+                src="/assets/ui/logo-fourkingdoms.png"
+                alt="FourKingdoms Logo"
+                className="auth-logo-img"
+              />
+              <p className="auth-eyebrow">EVALUADORES ALPHA · SEGURIDAD FORMAL</p>
+              <h2 id="auth-modal-title">Crear o Recuperar Contraseña</h2>
+              <p className="auth-subtitle">
+                Si estás en la lista de evaluadores Alpha, ingresa tu correo y define tu contraseña formal para acceder a la conquista.
+              </p>
+            </div>
+
+            {error && (
+              <div className="auth-error-banner" role="alert">
+                <ShieldAlert size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="auth-success-banner" role="status">
+                <Check size={16} />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleRecoverySubmit} className="auth-form">
+              <div className="auth-input-group">
+                <label htmlFor="recovery-email">Correo Electrónico Autorizado</label>
+                <div className="auth-input-wrap">
+                  <Mail size={16} className="input-icon" />
+                  <input
+                    id="recovery-email"
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    placeholder="ejemplo@correo.com"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              <div className="auth-input-group">
+                <label htmlFor="recovery-pass">Nueva Contraseña</label>
+                <div className="auth-input-wrap">
+                  <Lock size={16} className="input-icon" />
+                  <input
+                    id="recovery-pass"
+                    type="password"
+                    value={recoveryPassword}
+                    onChange={(e) => setRecoveryPassword(e.target.value)}
+                    placeholder="Mínimo 5 caracteres"
+                    required
+                    minLength={5}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+
+              <div className="auth-input-group">
+                <label htmlFor="recovery-confirm">Confirmar Nueva Contraseña</label>
+                <div className="auth-input-wrap">
+                  <Lock size={16} className="input-icon" />
+                  <input
+                    id="recovery-confirm"
+                    type="password"
+                    value={recoveryConfirm}
+                    onChange={(e) => setRecoveryConfirm(e.target.value)}
+                    placeholder="Repite tu nueva contraseña"
+                    required
+                    minLength={5}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="auth-submit-btn"
+                disabled={loading}
+              >
+                {loading ? 'Validando y guardando...' : '🛡️ Establecer Contraseña y Entrar'}
+              </button>
+
+              <button
+                type="button"
+                className="btn-back-to-login"
+                onClick={() => {
+                  setShowRecovery(false)
+                  setError('')
+                  setSuccessMsg('')
+                }}
+              >
+                <ArrowLeft size={14} /> Volver a Iniciar Sesión
+              </button>
+            </form>
+          </div>
         ) : (
           /* ============================================================== */
-          /* PANTALLA 2: FORMULARIO DE ACCESO ALPHA LIMPIO Y ELEGANTE       */
+          /* PANTALLA 3: FORMULARIO DE ACCESO ALPHA LIMPIO Y ELEGANTE       */
           /* ============================================================== */
           <>
             <div className="auth-modal-header">
@@ -244,6 +401,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               <div className="auth-error-banner" role="alert">
                 <ShieldAlert size={16} />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="auth-success-banner" role="status">
+                <Check size={16} />
+                <span>{successMsg}</span>
               </div>
             )}
 
@@ -280,7 +444,21 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               </div>
 
               <div className="auth-input-group">
-                <label htmlFor="auth-password">Contraseña o Clave Temporal</label>
+                <div className="auth-label-row">
+                  <label htmlFor="auth-password">Contraseña</label>
+                  <button
+                    type="button"
+                    className="auth-link-btn"
+                    onClick={() => {
+                      setShowRecovery(true)
+                      setRecoveryEmail(email || '')
+                      setError('')
+                      setSuccessMsg('')
+                    }}
+                  >
+                    ¿Olvidaste o quieres crear tu clave?
+                  </button>
+                </div>
                 <div className="auth-input-wrap">
                   <Lock size={16} className="input-icon" />
                   <input

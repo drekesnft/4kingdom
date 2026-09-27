@@ -288,7 +288,7 @@ export default function App() {
   }, [focusTile])
 
   function onPointerDown(event) {
-    if (event.target.closest('.map-search, .zoom-controls, .tile-popup, .floating-marches-bar')) return
+    if (event.target.closest('.map-search, .zoom-controls, .tile-popup, .floating-marches-bar, .modal-overlay, .map-quick-bar, .bottom-nav, .top-bar')) return
 
     cancelAnimationFrame(animationFrameRef.current)
     updateViewportSize()
@@ -409,11 +409,18 @@ export default function App() {
   }
 
   function onPointerUp(event) {
+    const isOverlay = Boolean(event.target.closest('.map-search, .zoom-controls, .tile-popup, .floating-marches-bar, .modal-overlay, .map-quick-bar, .bottom-nav, .top-bar'))
+
     if (activePointers.current.has(event.pointerId)) {
       try {
         event.currentTarget.releasePointerCapture(event.pointerId)
       } catch {}
       activePointers.current.delete(event.pointerId)
+    }
+
+    if (isOverlay) {
+      dragRef.current.isDragging = false
+      return
     }
 
     const remaining = Array.from(activePointers.current.values())
@@ -551,19 +558,20 @@ export default function App() {
   }, [])
 
   function popupData(tile) {
-    const def = TILE_TYPES[tile.type]
+    const targetTile = tile
+    const def = TILE_TYPES[targetTile.type]
     const tileLabel = `Tile ${def.tileNumber}`
-    const isOwnBase = tile.worldX === DEMO_BASE.worldX && tile.worldY === DEMO_BASE.worldY
+    const isOwnBase = targetTile.worldX === DEMO_BASE.worldX && targetTile.worldY === DEMO_BASE.worldY
 
-    if (tile.isPlayerBase) return {
-      title: isOwnBase ? '🏰 Tu Reino (Base Principal)' : (tile.owner || 'Base Rival'),
-      subtitle: isOwnBase ? `Coordenadas (${tile.worldX}, ${tile.worldY}) · Ciudadela Nv.${gameState.buildings.castle}` : 'Jugador Rival en los 4 Reinos',
+    if (targetTile.isPlayerBase) return {
+      title: isOwnBase ? '🏰 Tu Reino (Base Principal)' : (targetTile.owner || 'Base Rival'),
+      subtitle: isOwnBase ? `Coordenadas (${targetTile.worldX}, ${targetTile.worldY}) · Ciudadela Nv.${gameState.buildings.castle}` : 'Jugador Rival en los 4 Reinos',
       lines: isOwnBase ? [
         `🏛️ Castillo Nv.${gameState.buildings.castle} · 🛡️ Muralla Nv.${gameState.buildings.wall} · ⚔️ Cuartel Nv.${gameState.buildings.barracks}`,
         `Producción pasiva: 🪵 +${gameState.passiveProductionPerHour.wood} / 🪨 +${gameState.passiveProductionPerHour.stone} / 🌾 +${gameState.passiveProductionPerHour.food} por hora`,
         `Tropas en guarnición: ${gameState.troops.infantry} Infantería, ${gameState.troops.archer} Arqueros, ${gameState.troops.cavalry} Caballería`,
       ] : [
-        `Posición: (${tile.worldX}, ${tile.worldY})`,
+        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
         'Base rival. Asalta su ciudadela para saquear recursos y KING expuesto.',
       ],
       image: BASE_ASSET,
@@ -573,7 +581,7 @@ export default function App() {
         if (isOwnBase) {
           setActiveMenu('build')
         } else {
-          setMarchModalTarget(tile)
+          setMarchModalTarget(targetTile)
         }
       },
     }
@@ -582,7 +590,7 @@ export default function App() {
       title: def.name,
       subtitle: `${tileLabel} · Recurso: ${def.resource.toUpperCase()}`,
       lines: [
-        `Posición: (${tile.worldX}, ${tile.worldY})`,
+        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
         'Nodo de recursos naturales. Envía una marcha para recolectar.',
         `Tropas disponibles en tu ciudadela: ${gameState.troops.infantry} Inf, ${gameState.troops.archer} Arq, ${gameState.troops.cavalry} Cab`,
       ],
@@ -590,7 +598,7 @@ export default function App() {
       action: 'Enviar a Recolectar',
       onClick: () => {
         setPopupOpen(false)
-        setMarchModalTarget(tile)
+        setMarchModalTarget(targetTile)
       },
     }
 
@@ -598,14 +606,14 @@ export default function App() {
       title: 'Gemas doradas',
       subtitle: `${tileLabel} · Evento temporal`,
       lines: [
-        `Posición: (${tile.worldX}, ${tile.worldY})`,
+        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
         'Aparición especial limitada en el mapa.',
       ],
       image: def.assets?.[0],
       action: 'Recolectar Gemas',
       onClick: () => {
         setPopupOpen(false)
-        setMarchModalTarget(tile)
+        setMarchModalTarget(targetTile)
       },
     }
 
@@ -613,14 +621,14 @@ export default function App() {
       title: 'Campamento Hostil (NPC)',
       subtitle: `${tileLabel} · Campamento Enemigo`,
       lines: [
-        `Posición: (${tile.worldX}, ${tile.worldY})`,
+        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
         'Asalta este campamento hostil para conseguir botín de recursos y probabilidad de drop de KING.',
       ],
       image: def.assets?.[0],
       action: 'Asaltar Campamento',
       onClick: () => {
         setPopupOpen(false)
-        setMarchModalTarget(tile)
+        setMarchModalTarget(targetTile)
       },
     }
 
@@ -628,21 +636,21 @@ export default function App() {
       title: 'Escombros y Ruinas',
       subtitle: `${tileLabel} · Punto de Interés`,
       lines: [
-        `Posición: (${tile.worldX}, ${tile.worldY})`,
+        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
         'Restos arqueológicos. Envía una expedición para registrar los restos.',
       ],
       image: def.assets?.[0],
       action: 'Explorar Ruinas',
       onClick: () => {
         setPopupOpen(false)
-        setMarchModalTarget(tile)
+        setMarchModalTarget(targetTile)
       },
     }
 
     return {
       title: def.name,
       subtitle: `${tileLabel} · Terreno`,
-      lines: [`Posición: (${tile.worldX}, ${tile.worldY})`, 'Terreno del continente.'],
+      lines: [`Posición: (${targetTile.worldX}, ${targetTile.worldY})`, 'Terreno del continente.'],
       image: def.assets?.[0],
       action: 'Cerrar',
       onClick: () => setPopupOpen(false),
@@ -687,6 +695,7 @@ export default function App() {
   }
 
   const detail = selected ? popupData(selected) : null
+  const netFoodRate = Math.round(gameState.passiveProductionPerHour.food - gameState.totalFoodUpkeepPerHour)
 
   if (currentView === 'landing') {
     return <LandingPage onPlay={() => setCurrentView('game')} />
@@ -714,7 +723,7 @@ export default function App() {
                 type="button"
                 className="btn-top-action reset"
                 onClick={() => {
-                  if (window.confirm('¿Reiniciar partida con cuenta nueva limpia de Alpha v0.1? (1,500W, 1,500S, 1,800F, 120 KING, 10 Infanterías y edificios Nv.1)')) {
+                  if (window.confirm('¿Reiniciar partida con cuenta nueva limpia de Alpha v0.1? (1,500W, 1,500S, 1,800F, 120 KING, 10 Infanterías y solo Castillo Nv.1)')) {
                     gameState.resetGame()
                     setActiveMenu('home')
                   }
@@ -757,11 +766,14 @@ export default function App() {
               <strong>{Math.floor(gameState.resources.stone).toLocaleString()}</strong>
               <small>+{gameState.passiveProductionPerHour.stone}/h</small>
             </div>
-            <div className={gameState.isHungry ? 'hungry-pill' : ''}>
+            <div
+              className={gameState.isHungry ? 'hungry-pill' : ''}
+              title={`Producción: +${gameState.passiveProductionPerHour.food}/h | Consumo ejército: -${gameState.totalFoodUpkeepPerHour}/h | Balance neto: ${netFoodRate >= 0 ? '+' : ''}${netFoodRate}/h`}
+            >
               <span>🌾</span>
               <strong>{Math.floor(gameState.resources.food).toLocaleString()}</strong>
-              <small className={gameState.isHungry ? 'red-text' : ''}>
-                {gameState.isHungry ? '¡HAMBRE!' : `-${gameState.totalFoodUpkeepPerHour}/h`}
+              <small className={gameState.isHungry ? 'red-text' : (netFoodRate >= 0 ? 'green-text' : 'orange-text')}>
+                {gameState.isHungry ? '¡HAMBRE!' : `${netFoodRate >= 0 ? '+' : ''}${netFoodRate}/h`}
               </small>
             </div>
             <div className="king-resource">
@@ -955,7 +967,15 @@ export default function App() {
 
             {/* Popup Informativo de Casilla */}
             {popupOpen && selected && detail && (
-              <section className="tile-popup" role="dialog" aria-modal="false" aria-label="Información de la casilla">
+              <section
+                className="tile-popup"
+                role="dialog"
+                aria-modal="false"
+                aria-label="Información de la casilla"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button className="popup-close" type="button" onClick={() => setPopupOpen(false)} aria-label="Cerrar"><X size={20} /></button>
                 <div className="popup-art"><img src={detail.image} alt="" /></div>
                 <div className="popup-copy">

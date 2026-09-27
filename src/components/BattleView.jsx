@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { TROOPS_CONFIG, BUILDINGS_CONFIG, HERO_MISSIONS } from '../game/config'
-import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles, ArrowRight } from 'lucide-react'
+import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles, ArrowRight, Compass } from 'lucide-react'
 
 export default function BattleView({ gameState, onOpenReport, onClose, onGoToBuild }) {
   const {
@@ -248,16 +248,33 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
                           <div className="quantity-selector">
                             <button
                               type="button"
-                              onClick={() => setRecruitCounts((c) => ({ ...c, [t.id]: Math.max(1, countToRecruit - 5) }))}
+                              onClick={() => setRecruitCounts((c) => ({ ...c, [t.id]: Math.max(1, countToRecruit - 1) }))}
+                              disabled={countToRecruit <= 1}
                             >
-                              -5
+                              -1
                             </button>
-                            <span>{countToRecruit} uds.</span>
+                            <span className="qty-number">{countToRecruit} uds.</span>
                             <button
                               type="button"
-                              onClick={() => setRecruitCounts((c) => ({ ...c, [t.id]: Math.min(barracksDef.maxQueue, countToRecruit + 5) }))}
+                              onClick={() => setRecruitCounts((c) => ({ ...c, [t.id]: Math.min(barracksDef.maxQueue - currentQueueCount, countToRecruit + 1) }))}
+                              disabled={countToRecruit >= barracksDef.maxQueue - currentQueueCount}
                             >
-                              +5
+                              +1
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-max-qty"
+                              onClick={() => {
+                                const spaceLeft = Math.max(1, barracksDef.maxQueue - currentQueueCount)
+                                const maxByWood = Math.floor(resources.wood / (t.cost.wood || 1))
+                                const maxByStone = Math.floor(resources.stone / (t.cost.stone || 1))
+                                const maxByFood = Math.floor(resources.food / (t.cost.food || 1))
+                                const maxAffordable = Math.min(maxByWood, maxByStone, maxByFood)
+                                const finalCount = Math.max(1, Math.min(spaceLeft, maxAffordable > 0 ? maxAffordable : spaceLeft))
+                                setRecruitCounts((c) => ({ ...c, [t.id]: finalCount }))
+                              }}
+                            >
+                              MÁX
                             </button>
                           </div>
 
@@ -307,106 +324,192 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
         </div>
       )}
 
+      {/* PESTAÑA 2: SANTUARIO DEL HÉROE (REDESIGN GAMING AAA) */}
       {activeTab === 'hero' && (
         <div className="tab-content hero-content">
-          <div className="hero-status-card">
-            <div className="hero-status-header">
-              <div>
-                <h3>Héroe del Reino (Alpha v0.1)</h3>
-                <p>Sin niveles ni muerte permanente · Misiones tácticas</p>
+          {/* Ficha Principal del Héroe */}
+          <div className="hero-sanctuary-card">
+            <div className="hero-sanctuary-header">
+              <div className="hero-avatar-frame">
+                <span className="hero-avatar-icon">👑</span>
+                <span className="hero-rank-tag">Rango S</span>
               </div>
-              <div className="hero-energy-badge">
-                <span className="energy-icon">⚡</span>
-                <strong>{hero.energy} / {hero.maxEnergy}</strong>
-                <small>+1 cada 4h</small>
+              <div className="hero-sanctuary-title">
+                <div className="hero-name-row">
+                  <h3>Comandante del Reino</h3>
+                  <span className="hero-badge">Alpha v0.1</span>
+                </div>
+                <p className="hero-perk-text">Líder táctico inmortal · Otorga bonos en misiones secretas de expedición</p>
+                
+                {/* Orbes de Energía */}
+                <div className="hero-energy-orbs-wrap">
+                  <span className="energy-label">Energía Táctica:</span>
+                  <div className="energy-orbs-row">
+                    {[1, 2, 3].map((slot) => {
+                      const isFilled = slot <= hero.energy
+                      return (
+                        <div key={slot} className={`energy-orb ${isFilled ? 'charged' : 'empty'}`}>
+                          <Zap size={14} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <small className="energy-cooldown-text">
+                    {hero.energy < hero.maxEnergy ? '⚡ +1 cada 4h' : '✨ Al Máximo (3/3)'}
+                  </small>
+                </div>
               </div>
             </div>
 
+            {/* Misión Activa en Tiempo Real */}
             {hero.activeMission ? (
-              <div className="hero-active-mission">
-                <div className="hero-mission-pulse">
-                  <span>En Misión: <strong>{HERO_MISSIONS[hero.activeMission.missionId].name}</strong></span>
-                  <span className="mission-timer">{heroRemainingSec}s restantes</span>
+              <div className="hero-live-mission-card">
+                <div className="live-mission-top">
+                  <div className="live-mission-title">
+                    <Compass size={18} className="live-compass-icon" />
+                    <div>
+                      <strong>Misión en Curso: {HERO_MISSIONS[hero.activeMission.missionId]?.name}</strong>
+                      <small>El Héroe se encuentra explorando las tierras salvajes...</small>
+                    </div>
+                  </div>
+                  <span className="live-mission-timer">⏱️ {heroRemainingSec}s</span>
                 </div>
-                <button type="button" className="hero-speed-btn" onClick={speedupHeroMission}>
-                  <Zap size={13} /> Acelerar con {heroSpeedCost} KING
-                </button>
+
+                <div className="hero-progress-track">
+                  <div
+                    className="hero-progress-bar"
+                    style={{
+                      width: `${Math.max(5, 100 - (heroRemainingSec / (hero.activeMission.totalSec || 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="live-mission-actions">
+                  <small>Aceleración con KING (1 KING = 30s):</small>
+                  <button type="button" className="hero-speed-btn" onClick={speedupHeroMission}>
+                    <Zap size={13} /> Completar Ya ({heroSpeedCost} KING)
+                  </button>
+                </div>
               </div>
             ) : (
-              <p className="hero-ready-text">El Héroe está descansando en la fortaleza listo para una misión.</p>
+              <div className="hero-idle-state">
+                <Sparkles size={16} className="sparkle-icon" />
+                <span>El Héroe está descansando en la fortaleza. Selecciona una expedición táctica abajo.</span>
+              </div>
             )}
           </div>
 
-          <div className="hero-missions-list">
-            {Object.values(HERO_MISSIONS).map((m) => {
-              const canAffordEnergy = hero.energy >= m.energyCost
-              const isHeroBusy = Boolean(hero.activeMission)
+          {/* Lista de Misiones Tácticas */}
+          <div className="hero-missions-section">
+            <h4 className="missions-section-title">Expediciones Tácticas Disponibles</h4>
+            <div className="hero-missions-grid">
+              {Object.values(HERO_MISSIONS).map((m) => {
+                const canAffordEnergy = hero.energy >= m.energyCost
+                const isHeroBusy = Boolean(hero.activeMission)
+                const isKingDrop = Boolean(m.hasKingDrop)
 
-              return (
-                <div key={m.id} className="hero-mission-card">
-                  <div className="mission-card-top">
-                    <div>
-                      <h4>{m.name}</h4>
-                      <p>{m.description}</p>
+                return (
+                  <div key={m.id} className={`hero-mission-gaming-card ${isKingDrop ? 'special-drop' : ''}`}>
+                    <div className="mission-gaming-header">
+                      <div className="mission-title-group">
+                        <h5>{m.name}</h5>
+                        <p>{m.description}</p>
+                      </div>
+                      <span className="mission-energy-cost-badge">
+                        <Zap size={12} /> {m.energyCost}⚡
+                      </span>
                     </div>
-                    <span className="mission-energy-pill">⚡ {m.energyCost} Energía</span>
-                  </div>
 
-                  <div className="mission-meta-grid">
-                    <div><small>Duración</small><strong>{Math.round(m.durationSec / 60)} min</strong></div>
-                    <div><small>Probabilidad</small><strong>{Math.round(m.successRate * 100)}%</strong></div>
-                    <div><small>Recompensa</small><strong>{m.rewardMin}–{m.rewardMax}</strong></div>
-                    <div><small>KING Drop</small><strong>{m.hasKingDrop ? `${Math.round(m.kingDropChance * 100)}% (+1)` : 'No'}</strong></div>
-                  </div>
+                    <div className="mission-stats-chips">
+                      <div className="stat-chip">
+                        <span>⏱️ Tiempo</span>
+                        <strong>{Math.round(m.durationSec / 60)} min</strong>
+                      </div>
+                      <div className="stat-chip">
+                        <span>🎯 Prob. Éxito</span>
+                        <strong className="green-chip">{Math.round(m.successRate * 100)}%</strong>
+                      </div>
+                      <div className="stat-chip">
+                        <span>🎁 Recursos</span>
+                        <strong>{m.rewardMin}–{m.rewardMax}</strong>
+                      </div>
+                      {isKingDrop && (
+                        <div className="stat-chip king-chip">
+                          <span>👑 Drop KING</span>
+                          <strong>{Math.round(m.kingDropChance * 100)}% (+{m.kingAmount})</strong>
+                        </div>
+                      )}
+                    </div>
 
-                  <button
-                    type="button"
-                    className="mission-launch-btn"
-                    disabled={isHeroBusy || !canAffordEnergy}
-                    onClick={() => startHeroMission(m.id)}
-                  >
-                    {isHeroBusy
-                      ? 'Héroe en misión'
-                      : !canAffordEnergy
-                      ? 'Energía insuficiente'
-                      : `Comenzar ${m.name}`}
-                  </button>
-                </div>
-              )
-            })}
+                    <button
+                      type="button"
+                      className={`mission-launch-btn ${!canAffordEnergy || isHeroBusy ? 'disabled' : ''}`}
+                      disabled={isHeroBusy || !canAffordEnergy}
+                      onClick={() => startHeroMission(m.id)}
+                    >
+                      {isHeroBusy
+                        ? '⏳ Héroe Ocupado en Misión'
+                        : !canAffordEnergy
+                        ? '⚡ Requiere Más Energía'
+                        : `⚔️ Iniciar ${m.name}`}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
 
+      {/* PESTAÑA 3: REPORTES DE BATALLA */}
       {activeTab === 'reports' && (
         <div className="tab-content reports-content">
           <div className="reports-header-row">
-            <h3>Informes de Combate Recientes</h3>
+            <div className="reports-title-wrap">
+              <ScrollText size={18} />
+              <div>
+                <h3>Informes de Combate Recientes</h3>
+                <small>Alpha v0.1 · Últimos asaltos, defensas y recolecciones</small>
+              </div>
+            </div>
             <span className="reports-counter">{battleReports.length} informes</span>
           </div>
 
           {battleReports.length === 0 ? (
             <div className="no-reports-card">
-              <ScrollText size={32} />
-              <p>No tienes informes de batalla recientes.</p>
-              <small>Envía marchas a atacar campamentos NPC o rivales para ver el desglose de combate.</small>
+              <ScrollText size={36} className="empty-scroll-icon" />
+              <h4>Sin actividad bélica reciente</h4>
+              <p>Envía marchas o convoca Rallies contra campamentos NPC, fortalezas o rivales en el mapa para ver el registro táctico.</p>
             </div>
           ) : (
             <div className="reports-list">
-              {battleReports.map((r) => (
-                <div
-                  key={r.id}
-                  className={`report-item-card ${r.result === 'VICTORIA' ? 'victory' : 'defeat'}`}
-                  onClick={() => onOpenReport(r)}
-                >
-                  <div className="report-badge-result">{r.result}</div>
-                  <div className="report-info">
-                    <strong>Vs. {r.enemyName}</strong>
-                    <small>{r.date} · Bajas: -{r.casualties.infantry + r.casualties.archer + r.casualties.cavalry} tropas</small>
+              {battleReports.map((r) => {
+                const isVic = r.result === 'VICTORIA'
+                const totalCasualties = (r.casualties?.infantry || 0) + (r.casualties?.archer || 0) + (r.casualties?.cavalry || 0)
+
+                return (
+                  <div
+                    key={r.id}
+                    className={`report-item-card ${isVic ? 'victory' : 'defeat'}`}
+                    onClick={() => onOpenReport(r)}
+                  >
+                    <div className="report-badge-result">
+                      {isVic ? 'VICTORIA' : 'DERROTA'}
+                    </div>
+                    <div className="report-info">
+                      <strong>Vs. {r.enemyName || r.targetName || 'Enemigo'}</strong>
+                      <div className="report-mini-meta">
+                        <span>{r.date}</span>
+                        <span className={totalCasualties > 0 ? 'red-cas' : ''}>
+                          Bajas: -{totalCasualties}
+                        </span>
+                        {r.kingLoot > 0 && <span className="gold-drop">+{r.kingLoot} KING</span>}
+                      </div>
+                    </div>
+                    <div className="report-arrow"><ArrowRight size={16} /></div>
                   </div>
-                  <div className="report-arrow"><ArrowRight size={16} /></div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

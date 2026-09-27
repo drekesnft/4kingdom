@@ -22,11 +22,14 @@ import {
   totalTroopCount,
 } from './combat'
 
-const STORAGE_KEY = 'fourkingdoms_alpha_save_v1'
+const STORAGE_KEY = 'fourkingdoms_alpha_save_v2'
 
 export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
   // Estado persistente o inicial
   const [resources, setResources] = useState(() => {
+    try {
+      localStorage.removeItem('fourkingdoms_alpha_save_v1')
+    } catch {}
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try { return JSON.parse(saved).resources } catch {}
@@ -45,7 +48,10 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
   const [buildings, setBuildings] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
-      try { return JSON.parse(saved).buildings } catch {}
+      try {
+        const parsed = JSON.parse(saved).buildings
+        if (parsed && typeof parsed.castle === 'number') return parsed
+      } catch {}
     }
     return { ...INITIAL_PLAYER_DATA.buildings }
   })
@@ -1320,6 +1326,9 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
   // Reiniciar partida a valores limpios de cuenta nueva (Alpha v0.1)
   const resetGame = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
+    try {
+      localStorage.removeItem('fourkingdoms_alpha_save_v1')
+    } catch {}
     setResources({ ...INITIAL_PLAYER_DATA.resources })
     setKing({ ...INITIAL_PLAYER_DATA.king })
     setBuildings({ ...INITIAL_PLAYER_DATA.buildings })

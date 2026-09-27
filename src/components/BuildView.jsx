@@ -467,7 +467,15 @@ export default function BuildView({ gameState, onClose }) {
                   </div>
                   <div className="cost-chip time">
                     <Clock size={12} />
-                    <strong>{Math.round(nextLevelStats.timeSec / 60)} min ({nextLevelStats.timeSec}s)</strong>
+                    <span>⏱️ Obra:</span>
+                    <strong>
+                      {(() => {
+                        const sec = nextLevelStats.upgradeTimeSec ?? nextLevelStats.timeSec ?? 0
+                        if (sec >= 3600) return `${(sec / 3600).toFixed(1)}h`
+                        if (sec >= 60) return `${Math.round(sec / 60)} min`
+                        return `${sec}s`
+                      })()}
+                    </strong>
                   </div>
                 </div>
 

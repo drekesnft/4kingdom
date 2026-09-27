@@ -133,7 +133,6 @@ export default function App() {
   const [offset, setOffset] = useState({ x: -1500, y: -1500 })
   const [nextGemIn, setNextGemIn] = useState(GEM_SPAWN_MS)
   const [notice, setNotice] = useState('FourKingdoms Alpha v0.1 · Toca recursos, bases, o campamentos para interactuar.')
-  const [playerNumber, setPlayerNumber] = useState(2)
   const [activeMenu, setActiveMenu] = useState('build')
   const [coordQuery, setCoordQuery] = useState('')
   const [currentView, setCurrentView] = useState('landing')
@@ -717,21 +716,6 @@ export default function App() {
     setNotice(`Coordenada encontrada: (${worldX}, ${worldY}) · ${tile.isPlayerBase ? 'Base de jugador' : TILE_TYPES[tile.type].name}`)
   }
 
-  function simulatePlayerJoin() {
-    const owner = `Jugador ${String(playerNumber).padStart(2, '0')}`
-    const result = assignRandomPlayerBase(tiles, owner)
-    if (!result.assigned) {
-      setNotice(result.reason)
-      return
-    }
-    setTiles(result.tiles)
-    setSelectedId(result.target.id)
-    setPopupOpen(true)
-    setPlayerNumber((value) => value + 1)
-    focusTile(result.target.worldX, result.target.worldY)
-    setNotice(`${owner} se ha establecido en (${result.target.worldX}, ${result.target.worldY}).`)
-  }
-
   const detail = selected ? popupData(selected) : null
   const netFoodRate = Math.round(gameState.passiveProductionPerHour.food - gameState.totalFoodUpkeepPerHour)
 
@@ -757,27 +741,6 @@ export default function App() {
               </div>
             </div>
             <div className="top-bar-controls">
-              <button
-                type="button"
-                className="btn-top-action reset"
-                onClick={() => {
-                  if (window.confirm('¿Reiniciar partida con cuenta nueva limpia de Alpha v0.1? (1,500W, 1,500S, 1,800F, 120 KING, 10 Infanterías y solo Castillo Nv.1)')) {
-                    gameState.resetGame()
-                    setActiveMenu('home')
-                  }
-                }}
-                title="Reiniciar a cuenta nueva"
-              >
-                🔄 Nueva Cuenta
-              </button>
-              <button
-                type="button"
-                className="btn-top-action sandbox"
-                onClick={gameState.grantTestResources}
-                title="Otorgar recursos y KING para pruebas rápidas"
-              >
-                ⚡ Sandbox
-              </button>
               <button
                 type="button"
                 className="back-to-landing-btn"
@@ -1048,12 +1011,9 @@ export default function App() {
         {activeMenu === 'clan' && <ClanView gameState={gameState} onClose={() => setActiveMenu('home')} />}
         {activeMenu === 'market' && <MarketView gameState={gameState} onClose={() => setActiveMenu('home')} />}
 
-        {/* Barra de Notificaciones y Spawn de Jugadores */}
+        {/* Barra de Notificaciones */}
         <div className="notice-bar">
           <span>{notice}</span>
-          {activeMenu === 'home' && (
-            <button type="button" className="spawn-player-button" onClick={simulatePlayerJoin}>+ Jugador</button>
-          )}
         </div>
 
         {/* Barra de Navegación Inferior */}

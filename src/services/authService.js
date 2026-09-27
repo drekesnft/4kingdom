@@ -15,8 +15,59 @@ const REFERRALS_STORAGE_KEY = 'fourkingdoms_referrals_v1'
 const SESSION_STORAGE_KEY = 'fourkingdoms_alpha_session_v1'
 const PENDING_REF_STORAGE_KEY = 'fourkingdoms_pending_ref_code'
 
-// Base masiva de la comunidad para hype en vivo
-const COMMUNITY_BASE_PREREG = 14850
+// Base de la comunidad para progreso de hitos de 500 en 500
+const COMMUNITY_BASE_PREREG = 742
+
+export const COMMUNITY_MILESTONES = [
+  {
+    target: 500,
+    title: '🪙 5 Tokens KING para Todos',
+    reward: '5 Tokens KING entregados a todas las cuentas pre-registradas en el Día 1',
+    badge: 'Comunitario',
+    unlocked: true,
+    desc: '¡Hito superado! Cada comandante pre-registrado inicia con 5 Tokens KING en su Vault.',
+  },
+  {
+    target: 1000,
+    title: '🛡️ Escudo de Paz 24 Horas',
+    reward: 'Escudo de Paz de 24 horas garantizado para el Día 1',
+    badge: 'Protección',
+    unlocked: false,
+    desc: 'Inmunidad total contra saqueos de otros jugadores en tu primera jornada de construcción.',
+  },
+  {
+    target: 1500,
+    title: '🌾 Cargamento Masivo de Recursos',
+    reward: '+1,000 Madera · +1,000 Piedra · +1,000 Comida',
+    badge: 'Economía',
+    unlocked: false,
+    desc: 'Impulso inicial para subir tu Castillo y tus edificios de producción sin demoras.',
+  },
+  {
+    target: 2000,
+    title: '🐎 10 Caballerías Iniciales',
+    reward: 'Escuadrón montado de 10 Caballerías listo para combate',
+    badge: 'Militar',
+    unlocked: false,
+    desc: 'Tropa pesada desbloqueada inmediatamente sin costo ni tiempo de entrenamiento.',
+  },
+  {
+    target: 2500,
+    title: '👑 Plano de Fundador & Título VIP',
+    reward: 'Plano Arquitectónico de Fortaleza + Título Honorífico Permanente',
+    badge: 'Soberano',
+    unlocked: false,
+    desc: 'Plano indispensable para subir fortificaciones al máximo nivel y distinción en el mapa.',
+  },
+]
+
+export const TOP_REFERRAL_PRIZES = [
+  { rank: 1, king: 40, vip: true, label: '🥇 Top 1' },
+  { rank: 2, king: 25, vip: true, label: '🥈 Top 2' },
+  { rank: 3, king: 15, vip: true, label: '🥉 Top 3' },
+  { rank: 4, king: 12, vip: false, label: '🎖️ Top 4' },
+  { rank: 5, king: 8, vip: false, label: '🎖️ Top 5' },
+]
 
 // Cuentas semilla de prueba Alpha
 const DEFAULT_ACCOUNTS = [
@@ -480,6 +531,55 @@ export const authService = {
   getGlobalPreRegistrationCount() {
     const whitelist = getStoredWhitelist()
     return COMMUNITY_BASE_PREREG + whitelist.length
+  },
+
+  /**
+   * Obtiene el Top 5 de Reclutadores (100 KING repartidos + 3 Pases VIP)
+   */
+  getTopReferrers() {
+    const alphaAccounts = getStoredAccounts()
+    const whitelist = getStoredWhitelist()
+    const allUsers = [...alphaAccounts, ...whitelist]
+
+    // Líderes comunitarios auditados de la tabla
+    const baseLeaders = [
+      { name: 'Lord Valkor (Norte)', code: 'FK-VALK-91', referralsCount: 24, email: 'valkor***@gmail.com' },
+      { name: 'Sovereign Kael (Sur)', code: 'FK-KAEL-44', referralsCount: 18, email: 'kael***@gmail.com' },
+      { name: 'Lady Aethel (Este)', code: 'FK-AETH-12', referralsCount: 14, email: 'aethel***@gmail.com' },
+      { name: 'Archon Darius (Oeste)', code: 'FK-DARI-83', referralsCount: 9, email: 'darius***@gmail.com' },
+      { name: 'General Ronald', code: 'FK-RONA-05', referralsCount: 5, email: 'ronald***@gmail.com' },
+    ]
+
+    // Incorporar cuentas reales que tengan referidos
+    const realWithRefs = allUsers
+      .filter((u) => (u.referralsCount || 0) > 0)
+      .map((u) => ({
+        name: (u.email || '').split('@')[0],
+        code: u.referralCode,
+        referralsCount: u.referralsCount,
+        email: u.email,
+        isRealUser: true,
+      }))
+
+    // Unir sin duplicar códigos
+    const combined = [...realWithRefs]
+    for (const leader of baseLeaders) {
+      if (!combined.find((c) => c.code === leader.code || c.email === leader.email)) {
+        combined.push(leader)
+      }
+    }
+
+    // Ordenar descendente por referidos
+    combined.sort((a, b) => (b.referralsCount || 0) - (a.referralsCount || 0))
+
+    // Asignar premios del Top 5 (100 KING + 3 VIP)
+    return combined.slice(0, 5).map((item, idx) => ({
+      ...item,
+      rank: idx + 1,
+      prizeKing: TOP_REFERRAL_PRIZES[idx].king,
+      hasVip: TOP_REFERRAL_PRIZES[idx].vip,
+      rankLabel: TOP_REFERRAL_PRIZES[idx].label,
+    }))
   },
 
   /**

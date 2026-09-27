@@ -15,12 +15,21 @@ import {
   Clock,
   Send,
   MessageCircle,
+  Package,
+  Swords,
+  Trophy,
 } from 'lucide-react'
-import { authService, getUrlReferralCode } from '../services/authService'
+import {
+  authService,
+  COMMUNITY_MILESTONES,
+  TOP_REFERRAL_PRIZES,
+  getUrlReferralCode,
+} from '../services/authService'
 
 export default function WhitelistDashboard({ user, onLogout }) {
   const [stats, setStats] = useState(() => authService.getReferralStats(user.email))
   const [totalPreReg, setTotalPreReg] = useState(() => authService.getGlobalPreRegistrationCount())
+  const [topReferrers, setTopReferrers] = useState(() => authService.getTopReferrers())
   const [copiedCode, setCopiedCode] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [referralInput, setReferralInput] = useState('')
@@ -32,11 +41,13 @@ export default function WhitelistDashboard({ user, onLogout }) {
     ? `${window.location.origin}/?ref=${myCode}`
     : `https://fourkingdoms.io/?ref=${myCode}`
 
-  // Simular pulso de nuevos gobernantes cada pocos segundos para hype
+  // Pulso de nuevos registros comunitarios
   useEffect(() => {
     const interval = setInterval(() => {
-      setTotalPreReg(authService.getGlobalPreRegistrationCount() + Math.floor(Math.random() * 3))
-    }, 12000)
+      const updatedCount = authService.getGlobalPreRegistrationCount() + Math.floor(Math.random() * 2)
+      setTotalPreReg(updatedCount)
+      setTopReferrers(authService.getTopReferrers())
+    }, 15000)
     return () => clearInterval(interval)
   }, [])
 
@@ -44,25 +55,21 @@ export default function WhitelistDashboard({ user, onLogout }) {
     try {
       await navigator.clipboard.writeText(myCode)
       setCopiedCode(true)
-      setTimeout(() => setCopiedCode(false), 2500)
-    } catch {
-      // Fallback
-    }
+      setTimeout(() => setCopiedCode(false), 2000)
+    } catch {}
   }
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl)
       setCopiedLink(true)
-      setTimeout(() => setCopiedLink(false), 2500)
-    } catch {
-      // Fallback
-    }
+      setTimeout(() => setCopiedLink(false), 2000)
+    } catch {}
   }
 
   const handleShareTwitter = () => {
     const text = encodeURIComponent(
-      `⚔️ ¡He asegurado mi puesto en la Whitelist Oficial de @FourKingdoms! 👑\nÚnete a mi clan antes del lanzamiento y reclama 5 tokens KING de Airdrop:\n${shareUrl}`
+      `⚔️ ¡He asegurado mi puesto en la Whitelist Oficial de @FourKingdoms! 👑\nÚnete a mi clan antes del 29/09/2026 y reclama 5 tokens KING de Airdrop:\n${shareUrl}`
     )
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
   }
@@ -76,7 +83,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `👑 ¡Entra a la Whitelist de FourKingdoms conmigo! Usa mi código *${myCode}* y recibe tokens KING de Airdrop:\n${shareUrl}`
+      `👑 ¡Entra a la Whitelist de FourKingdoms conmigo! Usa mi código *${myCode}* y recibe 5 tokens KING de Airdrop:\n${shareUrl}`
     )
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
   }
@@ -93,7 +100,6 @@ export default function WhitelistDashboard({ user, onLogout }) {
       return
     }
 
-    // Registrar referido
     const res = await authService.registerWhitelist({
       email: user.email,
       provider: user.provider || 'google',
@@ -101,8 +107,9 @@ export default function WhitelistDashboard({ user, onLogout }) {
     })
 
     if (res.rewardedReferrer) {
-      setRefMsg(`¡Excelente! Código ${normalized} vinculado con éxito. Tu aliado ha recibido 5 tokens KING.`)
+      setRefMsg(`¡Código ${normalized} vinculado con éxito! Tu aliado ha recibido sus 5 tokens KING.`)
       setStats(authService.getReferralStats(user.email))
+      setTopReferrers(authService.getTopReferrers())
       setReferralInput('')
     } else {
       setRefMsg(`Código ${normalized} guardado en tu registro de Whitelist.`)
@@ -110,8 +117,8 @@ export default function WhitelistDashboard({ user, onLogout }) {
     }
   }
 
-  // Progreso de hito hacia 25,000
-  const progressPercent = Math.min(100, Math.round((totalPreReg / 25000) * 100))
+  // Progreso general hacia el hito máximo de 2,500
+  const progressPercent = Math.min(100, Math.round((totalPreReg / 2500) * 100))
 
   return (
     <div className="whitelist-dashboard-root">
@@ -154,18 +161,18 @@ export default function WhitelistDashboard({ user, onLogout }) {
 
       {/* Main Container */}
       <main className="wl-main-content">
-        {/* Hero Section */}
+        {/* Hero Section con Fecha Oficial */}
         <section className="wl-hero-card">
           <div className="wl-hero-badge">
             <Flame size={14} className="fire-icon" />
-            <span>LANZAMIENTO OFICIAL · 29 DE SEPTIEMBRE DE 2026 (00:00 UTC)</span>
+            <span>APERTURA OFICIAL · 29 DE SEPTIEMBRE DE 2026 (00:00 UTC)</span>
           </div>
 
           <h1 className="wl-hero-title">
             ¡Has Asegurado tu Trono en la Whitelist Oficial!
           </h1>
           <p className="wl-hero-desc">
-            Las puertas de la Alpha Cerrada están fuertemente protegidas mientras los primeros comandantes auditan los reinos. Tu cuenta ha sido inscrita en la <strong>Vanguardia de Honor</strong> para el desembarco masivo.
+            Tu linaje ha sido registrado en la <strong>Vanguardia de Honor</strong>. Cuando comience la conquista el 29/09/2026, ingresarás con todas las recompensas comunitarias desbloqueadas y tu saldo de tokens KING asegurado.
           </p>
 
           {/* Contador Masivo de Pre-Registros */}
@@ -174,7 +181,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <span className="live-indicator">
                 <span className="pulsing-dot"></span> EN VIVO
               </span>
-              <span className="counter-label">Gobernantes Pre-Registrados en los 4 Reinos:</span>
+              <span className="counter-label">Gobernantes Pre-Registrados:</span>
             </div>
 
             <div className="wl-big-number">
@@ -183,7 +190,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <small>SEÑORES DE LA GUERRA</small>
             </div>
 
-            {/* Barra de Hitos */}
+            {/* Barra General de Progreso */}
             <div className="wl-milestone-wrap">
               <div className="wl-milestone-bar-bg">
                 <div
@@ -191,16 +198,68 @@ export default function WhitelistDashboard({ user, onLogout }) {
                   style={{ width: `${progressPercent}%` }}
                 ></div>
               </div>
-              <div className="wl-milestone-steps">
-                <span className="step unlocked">✅ 10K: Escudo de Paz 24h</span>
-                <span className="step current">🎯 25K: +500 Madera & Piedra</span>
-                <span className="step locked">🔒 50K: Sorteo 1,000 KING</span>
+              <div className="wl-milestone-progress-text">
+                <span>Progreso hacia el Hito Supremo: <strong>{totalPreReg} / 2,500 Gobernantes</strong></span>
+                <span>{progressPercent}% Completado</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Sección Épica de Airdrop por Referidos (5 TOKENS POR REFERIDO) */}
+        {/* ============================================================== */}
+        {/* SECCIÓN 1: HITOS COMUNITARIOS CADA 500 REGISTROS (COSAS REALES)*/}
+        {/* ============================================================== */}
+        <section className="wl-milestones-section">
+          <div className="section-title-wrap">
+            <div className="section-badge-icon">
+              <Sparkles size={20} className="gold-icon" />
+            </div>
+            <div>
+              <h2>Hitos Comunitarios de Pre-Registro (Cada 500 Gobernantes)</h2>
+              <p>Recompensas directas y reales para TODOS los jugadores pre-registrados al alcanzar cada meta.</p>
+            </div>
+          </div>
+
+          <div className="milestones-grid">
+            {COMMUNITY_MILESTONES.map((m) => {
+              const isUnlocked = totalPreReg >= m.target
+              const currentStepProgress = Math.min(100, Math.round((totalPreReg / m.target) * 100))
+
+              return (
+                <div
+                  key={m.target}
+                  className={`milestone-card ${isUnlocked ? 'unlocked' : 'in-progress'}`}
+                >
+                  <div className="milestone-card-top">
+                    <div className="target-pill">
+                      <span>🎯 {m.target.toLocaleString()} REGISTROS</span>
+                    </div>
+                    <span className={`status-pill ${isUnlocked ? 'done' : 'active'}`}>
+                      {isUnlocked ? '✅ Desbloqueado' : `${currentStepProgress}%`}
+                    </span>
+                  </div>
+
+                  <h3 className="milestone-title">{m.title}</h3>
+                  <div className="milestone-reward-box">
+                    <strong>{m.reward}</strong>
+                  </div>
+                  <p className="milestone-desc">{m.desc}</p>
+
+                  <div className="milestone-mini-bar">
+                    <div
+                      className="milestone-mini-fill"
+                      style={{ width: `${isUnlocked ? 100 : currentStepProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* SECCIÓN 2: AIRDROP POR REFERIDOS (5 TOKENS KING POR AMIGO)     */}
+        {/* ============================================================== */}
         <section className="wl-referral-epic-card">
           <div className="wl-section-header">
             <div className="wl-title-icon-wrap">
@@ -208,12 +267,12 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <div>
                 <h2>Airdrop de Reclutamiento: 5 Tokens KING por Aliado</h2>
                 <p>
-                  Cada gobernante que se registre en la Whitelist con tu código te otorga <strong>5 Tokens KING</strong> asegurados para tu Vault en el lanzamiento.
+                  Ganas <strong>5 Tokens KING</strong> asegurados para tu Vault por cada gobernante que se registre en la Whitelist con tu código.
                 </p>
               </div>
             </div>
             <div className="wl-airdrop-total-pill">
-              <Coins size={18} className="gold-icon" />
+              <Coins size={20} className="gold-icon" />
               <div>
                 <small>Tu Airdrop Acumulado:</small>
                 <strong>{stats.airdropTokens} KING</strong>
@@ -221,9 +280,8 @@ export default function WhitelistDashboard({ user, onLogout }) {
             </div>
           </div>
 
-          {/* Tarjeta de Código y Enlace de Referido */}
+          {/* Tarjetas de Código y Enlace */}
           <div className="wl-codes-grid">
-            {/* Código Personal */}
             <div className="wl-code-box">
               <span className="box-label">Tu Código de Referencia Único:</span>
               <div className="code-display-row">
@@ -237,10 +295,9 @@ export default function WhitelistDashboard({ user, onLogout }) {
                   <span>{copiedCode ? '¡Copiado!' : 'Copiar Código'}</span>
                 </button>
               </div>
-              <small>Comparte este código con tus aliados o miembros de tu gremio.</small>
+              <small>Comparte este código para que tus aliados lo ingresen al unirse.</small>
             </div>
 
-            {/* Enlace Directo */}
             <div className="wl-link-box">
               <span className="box-label">Tu Enlace de Invitación Directo:</span>
               <div className="link-display-row">
@@ -260,19 +317,19 @@ export default function WhitelistDashboard({ user, onLogout }) {
                   <span>{copiedLink ? '¡Copiado!' : 'Copiar Enlace'}</span>
                 </button>
               </div>
-              <small>Al hacer clic en tu enlace, tu código se aplicará automáticamente.</small>
+              <small>Aplica tu código automáticamente al abrirse en el navegador.</small>
             </div>
           </div>
 
-          {/* Botones de Compartir Rápido (1 Clic) */}
+          {/* Botones de Compartir */}
           <div className="wl-social-share-row">
-            <span className="share-prompt">Compartir en Redes:</span>
+            <span className="share-prompt">Difundir en Redes:</span>
             <button
               type="button"
               className="social-btn btn-twitter"
               onClick={handleShareTwitter}
             >
-              <span>𝕏 Compartir en Twitter / X</span>
+              <span>𝕏 Compartir en X</span>
             </button>
             <button
               type="button"
@@ -292,7 +349,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
             </button>
           </div>
 
-          {/* Estadísticas de Reclutamiento */}
+          {/* Métricas de Reclutamiento */}
           <div className="wl-stats-row">
             <div className="stat-card">
               <Users size={22} className="blue" />
@@ -326,7 +383,88 @@ export default function WhitelistDashboard({ user, onLogout }) {
           </div>
         </section>
 
-        {/* Sección de Vincular Código si alguien lo invitó */}
+        {/* ============================================================== */}
+        {/* SECCIÓN 3: TOP 5 DE RECLUTADORES (100 KING + 3 PASES VIP)      */}
+        {/* ============================================================== */}
+        <section className="wl-top-referrals-section">
+          <div className="section-title-wrap">
+            <div className="section-badge-icon gold-badge">
+              <Trophy size={20} className="gold-icon" />
+            </div>
+            <div>
+              <h2>Top 5 de Reclutadores (Pool Adicional de 100 KING + 3 Pases VIP)</h2>
+              <p>
+                Los 5 comandantes que traigan más aliados se reparten 100 KING extra y los 3 primeros obtienen Pase VIP Fundador.
+              </p>
+            </div>
+          </div>
+
+          <div className="top-referrals-table-card">
+            <div className="table-header-row">
+              <span className="col-rank">Posición</span>
+              <span className="col-user">Comandante</span>
+              <span className="col-code">Código</span>
+              <span className="col-refs">Referidos</span>
+              <span className="col-prize">Premio Extra</span>
+            </div>
+
+            <div className="table-body">
+              {topReferrers.map((ref) => {
+                const isUser = ref.code === myCode || ref.email === user.email
+
+                return (
+                  <div
+                    key={ref.rank}
+                    className={`table-rank-row rank-${ref.rank} ${isUser ? 'current-user-row' : ''}`}
+                  >
+                    <div className="col-rank">
+                      <span className="rank-tag">{ref.rankLabel}</span>
+                    </div>
+
+                    <div className="col-user">
+                      <span className="user-name">{ref.name}</span>
+                      {ref.hasVip && (
+                        <span className="vip-badge" title="Pase VIP Fundador Alpha">
+                          👑 PASE VIP
+                        </span>
+                      )}
+                      {isUser && <span className="you-pill">TÚ</span>}
+                    </div>
+
+                    <div className="col-code">
+                      <code>{ref.code}</code>
+                    </div>
+
+                    <div className="col-refs">
+                      <strong>{ref.referralsCount}</strong> aliados
+                    </div>
+
+                    <div className="col-prize">
+                      <div className="prize-wrap">
+                        <span className="king-amt">+{ref.prizeKing} KING</span>
+                        {ref.hasVip && <small className="vip-tag">+ Pase VIP</small>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="table-footer-summary">
+              <div className="user-standing-summary">
+                <Award size={16} className="gold" />
+                <span>
+                  Tu récord actual: <strong>{stats.referralsCount} referidos</strong> · Airdrop directo: <strong>{stats.airdropTokens} KING</strong>.
+                  {stats.referralsCount < 5
+                    ? ' ¡Invita aliados para escalar al Top 5 y ganar hasta 40 KING extra + Pase VIP!'
+                    : ' ¡Estás compitiendo en la cima de los 4 Reinos!'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Sección de Vincular Aliado si no tiene */}
         {!user.referredBy && (
           <section className="wl-claim-ref-card">
             <div className="claim-ref-info">
@@ -346,7 +484,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
                 className="ref-input"
               />
               <button type="submit" className="btn-apply-ref">
-                Vincular Aliado
+                Vincular Aliado (+5 KING)
               </button>
             </form>
 
@@ -354,27 +492,6 @@ export default function WhitelistDashboard({ user, onLogout }) {
             {refError && <p className="ref-error-msg">{refError}</p>}
           </section>
         )}
-
-        {/* Beneficios Garantizados del Pase Whitelist */}
-        <section className="wl-perks-grid">
-          <div className="perk-box">
-            <Shield size={22} className="gold" />
-            <h4>Escudo de Paz 24h</h4>
-            <p>Inmune a asaltos en tu primera sesión para construir tu base sin peligro.</p>
-          </div>
-
-          <div className="perk-box">
-            <Crown size={22} className="gold" />
-            <h4>Reserva de Coordenada</h4>
-            <p>Prioridad para ubicar tu reino en los cuadrantes Norte, Sur, Este u Oeste.</p>
-          </div>
-
-          <div className="perk-box">
-            <Coins size={22} className="gold" />
-            <h4>Airdrop Directo a Vault</h4>
-            <p>Tus tokens ganados por referidos se transferirán de forma segura en el TGE.</p>
-          </div>
-        </section>
       </main>
     </div>
   )

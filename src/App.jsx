@@ -822,7 +822,7 @@ export default function App() {
                 title="Airdrop de Referidos: Gana 5 Tokens KING por amigo"
               >
                 <Coins size={13} className="gold" />
-                <span>5 KING / Ref</span>
+                <span>🎁 Hitos & 5 KING</span>
               </button>
               <button
                 type="button"

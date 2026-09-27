@@ -5039,3 +5039,448 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 .btn-social-tg { background: #0088cc; }
 .btn-social-wa { background: #25d366; }
 
+/* ============================================================== */
+/* ESTILOS DE HITOS CADA 500 REGISTROS & TABLA TOP 5              */
+/* ============================================================== */
+.wl-milestone-progress-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-top: 4px;
+}
+.wl-milestone-progress-text strong {
+  color: #ffd65a;
+}
+
+.wl-milestones-section,
+.wl-top-referrals-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-badge-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 214, 90, 0.15);
+  border: 1px solid rgba(255, 214, 90, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.section-badge-icon.gold-badge {
+  background: radial-gradient(circle, rgba(255, 214, 90, 0.3) 0%, rgba(19, 34, 53, 0.8) 100%);
+}
+.section-title-wrap h2 {
+  font-size: 18px;
+  color: #ffffff;
+  margin: 0;
+  font-weight: 800;
+}
+.section-title-wrap p {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 2px 0 0;
+}
+
+/* Grid de Hitos de 500 en 500 */
+.milestones-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.milestone-card {
+  background: rgba(13, 23, 36, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.milestone-card.unlocked {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.08) 0%, rgba(13, 23, 36, 0.7) 100%);
+}
+.milestone-card.in-progress {
+  border-color: rgba(255, 214, 90, 0.35);
+}
+
+.milestone-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.target-pill {
+  font-size: 10px;
+  font-weight: 800;
+  color: #cbd5e1;
+  letter-spacing: 0.06em;
+}
+.status-pill {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.status-pill.done {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+.status-pill.active {
+  background: rgba(255, 214, 90, 0.15);
+  color: #ffd65a;
+  border: 1px solid rgba(255, 214, 90, 0.35);
+}
+
+.milestone-title {
+  font-size: 15px;
+  color: #ffffff;
+  margin: 0;
+  font-weight: 800;
+}
+.milestone-reward-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #ffd65a;
+}
+.milestone-card.unlocked .milestone-reward-box {
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #86efac;
+}
+.milestone-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 0;
+  flex: 1;
+}
+.milestone-mini-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.milestone-mini-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #ffd65a 100%);
+  border-radius: 4px;
+}
+.milestone-card.unlocked .milestone-mini-fill {
+  background: #22c55e;
+}
+
+/* Tabla de Top 5 Reclutadores */
+.top-referrals-table-card {
+  background: linear-gradient(180deg, #132235 0%, #09131f 100%);
+  border: 1px solid rgba(255, 214, 90, 0.35);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.table-header-row {
+  display: grid;
+  grid-template-columns: 80px 1.5fr 1fr 100px 130px;
+  padding: 12px 18px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.table-rank-row {
+  display: grid;
+  grid-template-columns: 80px 1.5fr 1fr 100px 130px;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+.table-rank-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.table-rank-row.rank-1 {
+  background: rgba(255, 214, 90, 0.06);
+}
+.table-rank-row.current-user-row {
+  background: rgba(59, 130, 246, 0.12);
+  border-left: 3px solid #3b82f6;
+}
+
+.rank-tag {
+  font-weight: 900;
+  color: #ffffff;
+  font-size: 12px;
+}
+.col-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.user-name {
+  font-weight: 700;
+  color: #ffffff;
+}
+.vip-badge {
+  font-size: 9px;
+  font-weight: 900;
+  color: #ffd65a;
+  background: rgba(255, 214, 90, 0.15);
+  border: 1px solid rgba(255, 214, 90, 0.4);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.you-pill {
+  font-size: 9px;
+  font-weight: 900;
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.2);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.col-code code {
+  font-family: monospace;
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.col-refs strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+.prize-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.prize-wrap .king-amt {
+  font-size: 14px;
+  font-weight: 900;
+  color: #ffd65a;
+}
+.prize-wrap .vip-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.table-footer-summary {
+  padding: 12px 18px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.user-standing-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+/* Modal dentro del juego (In-Game Modal) */
+.referral-modal-card.in-game-modal {
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-subtabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.modal-subtabs button {
+  flex: 1;
+  padding: 8px 6px;
+  border: none;
+  background: none;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.modal-subtabs button.active {
+  background: #1a2a3e;
+  color: #ffd65a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tab-pane-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: modalFadeIn 0.2s ease;
+}
+
+.in-modal-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 214, 90, 0.08);
+  border: 1px solid rgba(255, 214, 90, 0.2);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.in-modal-counter strong {
+  color: #ffd65a;
+  font-size: 14px;
+}
+
+.modal-milestones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.modal-milestone-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.modal-milestone-item.unlocked {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.06);
+}
+.milestone-badge-top {
+  display: flex;
+  justify-content: space-between;
+}
+.milestone-badge-top .target-num {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+.milestone-badge-top .status-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.milestone-badge-top .status-badge.done {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.15);
+}
+.milestone-badge-top .status-badge.prog {
+  color: #ffd65a;
+  background: rgba(255, 214, 90, 0.15);
+}
+.modal-milestone-item strong {
+  font-size: 12px;
+  color: #ffffff;
+}
+.modal-milestone-item p {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+/* Modal Leaderboard */
+.leaderboard-pool-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 214, 90, 0.1);
+  border: 1px solid rgba(255, 214, 90, 0.3);
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+.leaderboard-pool-banner strong {
+  display: block;
+  font-size: 12px;
+  color: #ffd65a;
+}
+.leaderboard-pool-banner small {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.modal-rankings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.modal-rank-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.modal-rank-item.is-me {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+.rank-pos {
+  font-weight: 800;
+  font-size: 11px;
+  color: #ffd65a;
+  width: 70px;
+}
+.rank-name-box {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.rank-name-box strong {
+  color: #ffffff;
+  font-size: 12px;
+}
+.rank-name-box small {
+  color: #64748b;
+  font-family: monospace;
+}
+.rank-refs-count {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-right: 12px;
+}
+.modal-rank-item .rank-prize-badge {
+  text-align: right;
+}
+.modal-rank-item .rank-prize-badge span {
+  display: block;
+  font-weight: 900;
+  color: #ffd65a;
+  font-size: 12px;
+}
+.modal-rank-item .rank-prize-badge small {
+  font-size: 9px;
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+

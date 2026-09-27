@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2, HelpCircle, LogOut } from 'lucide-react'
+import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2, HelpCircle, LogOut, Coins } from 'lucide-react'
 import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap, removeOldestGemTile, spawnGemTile } from './data/tileTypes'
 import LandingPage from './components/LandingPage'
 import BuildView from './components/BuildView'
@@ -12,6 +12,8 @@ import MapMarchesOverlay from './components/MapMarchesOverlay'
 import ChangePasswordModal from './components/ChangePasswordModal'
 import KingdomAssignmentModal from './components/KingdomAssignmentModal'
 import OnboardingModal from './components/OnboardingModal'
+import WhitelistDashboard from './components/WhitelistDashboard'
+import ReferralModal from './components/ReferralModal'
 import { authService } from './services/authService'
 import { useGameState } from './game/useGameState'
 
@@ -117,6 +119,7 @@ const MapGrid = memo(function MapGrid({
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser())
   const [manualOnboardingOpen, setManualOnboardingOpen] = useState(false)
+  const [referralModalOpen, setReferralModalOpen] = useState(false)
 
   const currentBase = useMemo(() => {
     if (currentUser?.baseCoord) {
@@ -761,6 +764,20 @@ export default function App() {
     )
   }
 
+  // Si el usuario es de Whitelist / Pre-Registro, ve su Dashboard Épico (no ve el juego)
+  if (currentUser?.role === 'whitelist') {
+    return (
+      <WhitelistDashboard
+        user={currentUser}
+        onLogout={() => {
+          authService.logout()
+          setCurrentUser(null)
+          setCurrentView('landing')
+        }}
+      />
+    )
+  }
+
   const kingdomBadge = currentUser?.assignedKingdom === 'north'
     ? '❄️ REINO DEL NORTE'
     : currentUser?.assignedKingdom === 'south'
@@ -797,6 +814,15 @@ export default function App() {
               >
                 <HelpCircle size={14} />
                 <span>Tutorial</span>
+              </button>
+              <button
+                type="button"
+                className="btn-top-referral"
+                onClick={() => setReferralModalOpen(true)}
+                title="Airdrop de Referidos: Gana 5 Tokens KING por amigo"
+              >
+                <Coins size={13} className="gold" />
+                <span>5 KING / Ref</span>
               </button>
               <button
                 type="button"
@@ -1162,6 +1188,13 @@ export default function App() {
             }}
           />
         )}
+
+        {/* Modal de Airdrop de Referidos para Jugadores Alpha */}
+        <ReferralModal
+          isOpen={referralModalOpen}
+          onClose={() => setReferralModalOpen(false)}
+          user={currentUser}
+        />
       </section>
     </main>
   )

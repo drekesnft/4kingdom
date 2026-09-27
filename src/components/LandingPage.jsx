@@ -41,7 +41,9 @@ export default function LandingPage({ onPlay }) {
     setCurrentUser(null)
   }
 
-  const kingdomLabel = currentUser?.assignedKingdom === 'north'
+  const kingdomLabel = currentUser?.role === 'whitelist'
+    ? '✨ Aspirante Whitelist (5 KING Airdrop)'
+    : currentUser?.assignedKingdom === 'north'
     ? '❄️ Reino del Norte'
     : currentUser?.assignedKingdom === 'south'
     ? '☀️ Reino del Sur'
@@ -76,7 +78,7 @@ export default function LandingPage({ onPlay }) {
               <span className="user-kingdom-tag">{kingdomLabel}</span>
             </div>
             <button type="button" className="btn-gold" onClick={handlePlayClick}>
-              Continuar Partida
+              {currentUser?.role === 'whitelist' ? '🛡️ Ver mi Whitelist' : 'Continuar Partida'}
             </button>
             <button
               type="button"

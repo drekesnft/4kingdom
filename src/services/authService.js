@@ -1,22 +1,35 @@
 /**
- * FourKingdom — Servicio de Autenticación y Control de Usuarios (Alpha v0.1)
- * Gestiona el acceso por email con contraseñas temporales, forzado de cambio de clave,
- * asignación aleatoria a uno de los 4 Reinos y progreso de Onboarding.
- * Validado tanto con Supabase Backend como con sincronización persistente.
+ * FourKingdom — Servicio de Autenticación, Whitelist y Sistema de Referidos (Alpha v0.1)
+ * Gestiona el acceso por email con contraseñas temporales, acceso por Google,
+ * Whitelist de pre-registro, sistema de códigos de referido con 5 tokens KING de Airdrop,
+ * asignación de Reinos y persistencia en Supabase y Almacenamiento Local.
+ * REGLA CERO FALLBACKS: Cualquier error se audita y muestra en consola con detalle.
  */
 
 import { supabase, isSupabaseConfigured } from './supabaseClient'
 import { REGIONAL_KINGDOMS } from '../game/config'
 
 const AUTH_STORAGE_KEY = 'fourkingdoms_alpha_accounts_v1'
+const WHITELIST_STORAGE_KEY = 'fourkingdoms_whitelist_signups_v1'
+const REFERRALS_STORAGE_KEY = 'fourkingdoms_referrals_v1'
 const SESSION_STORAGE_KEY = 'fourkingdoms_alpha_session_v1'
+const PENDING_REF_STORAGE_KEY = 'fourkingdoms_pending_ref_code'
+
+// Base masiva de la comunidad para hype en vivo
+const COMMUNITY_BASE_PREREG = 14850
 
 // Cuentas semilla de prueba Alpha
 const DEFAULT_ACCOUNTS = [
   {
     email: 'antoniox4253@gmail.com',
-    tempPassword: 'k9t4m', // 5 caracteres aleatorios asignados
+    tempPassword: 'k9t4m',
     passwordHash: 'k9t4m',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-ANTO-77',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
     mustChangePassword: true,
     assignedKingdom: null,
     baseCoord: null,
@@ -25,19 +38,49 @@ const DEFAULT_ACCOUNTS = [
   },
 ]
 
+export function generateReferralCode(email) {
+  const clean = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase()
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase()
+  return `FK-${clean || 'KING'}-${rand}`
+}
+
+export function getUrlReferralCode() {
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const ref = params.get('ref')
+      if (ref) {
+        const cleaned = ref.trim().toUpperCase()
+        localStorage.setItem(PENDING_REF_STORAGE_KEY, cleaned)
+        return cleaned
+      }
+      return localStorage.getItem(PENDING_REF_STORAGE_KEY) || ''
+    }
+  } catch (err) {
+    console.error('[authService] Error al leer referral code de URL:', err)
+  }
+  return ''
+}
+
 function getStoredAccounts() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      // Asegurar que antoniox4253 esté presente si es la primera vez
-      if (!parsed.find((a) => a.email.toLowerCase() === 'antoniox4253@gmail.com')) {
+      const target = parsed.find((a) => a.email.toLowerCase() === 'antoniox4253@gmail.com')
+      if (!target) {
         parsed.push(DEFAULT_ACCOUNTS[0])
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed))
+      } else if (!target.referralCode) {
+        target.referralCode = 'FK-ANTO-77'
+        target.role = 'alpha_player'
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed))
       }
       return parsed
     }
-  } catch {}
+  } catch (err) {
+    console.error('[authService] Error leyendo cuentas locales:', err)
+  }
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(DEFAULT_ACCOUNTS))
   return [...DEFAULT_ACCOUNTS]
 }
@@ -46,7 +89,43 @@ function saveStoredAccounts(accounts) {
   try {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(accounts))
   } catch (err) {
-    console.warn('[authService] Error al guardar cuentas locales:', err)
+    console.error('[authService] Error al guardar cuentas locales:', err)
+  }
+}
+
+function getStoredWhitelist() {
+  try {
+    const raw = localStorage.getItem(WHITELIST_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch (err) {
+    console.error('[authService] Error leyendo whitelist local:', err)
+    return []
+  }
+}
+
+function saveStoredWhitelist(list) {
+  try {
+    localStorage.setItem(WHITELIST_STORAGE_KEY, JSON.stringify(list))
+  } catch (err) {
+    console.error('[authService] Error guardando whitelist local:', err)
+  }
+}
+
+function getStoredReferrals() {
+  try {
+    const raw = localStorage.getItem(REFERRALS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch (err) {
+    console.error('[authService] Error leyendo lista de referidos:', err)
+    return []
+  }
+}
+
+function saveStoredReferrals(list) {
+  try {
+    localStorage.setItem(REFERRALS_STORAGE_KEY, JSON.stringify(list))
+  } catch (err) {
+    console.error('[authService] Error guardando referidos:', err)
   }
 }
 
@@ -105,7 +184,7 @@ export const authService = {
           .maybeSingle()
 
         if (error) {
-          console.error('[Supabase Auth Error]: Fallo al consultar usuario en base de datos:', error.message, error)
+          console.error('[Supabase Auth Error]: Fallo al consultar usuario en base de datos:', error)
         } else if (data) {
           const isValidPass = data.password_hash === password || data.temp_password === password
           if (!isValidPass) {
@@ -115,6 +194,12 @@ export const authService = {
 
           const user = {
             email: data.email,
+            role: data.role || 'alpha_player',
+            provider: data.provider || 'email',
+            referralCode: data.referral_code || generateReferralCode(data.email),
+            referredBy: data.referred_by || null,
+            referralsCount: data.referrals_count || 0,
+            airdropTokens: data.airdrop_tokens || 0,
             mustChangePassword: data.must_change_password ?? true,
             assignedKingdom: data.assigned_kingdom ?? null,
             baseCoord: data.base_coord ?? null,
@@ -122,6 +207,7 @@ export const authService = {
           }
 
           this.setCurrentUser(user)
+
           // Sincronizar en cache local
           const accounts = getStoredAccounts()
           const idx = accounts.findIndex((a) => a.email.toLowerCase() === email)
@@ -136,35 +222,264 @@ export const authService = {
       }
     }
 
-    // 2. Validación con almacenamiento sincronizado
+    // 2. Validación con almacenamiento sincronizado local de evaluadores Alpha
     const accounts = getStoredAccounts()
     const found = accounts.find((a) => a.email.toLowerCase() === email)
 
-    if (!found) {
-      return {
-        success: false,
-        error: 'Este correo no está registrado en la lista de evaluadores Alpha. Solicita acceso.',
+    if (found) {
+      const valid = found.passwordHash === password || found.tempPassword === password
+      if (!valid) {
+        return {
+          success: false,
+          error: 'Contraseña incorrecta. Usa la clave temporal asignada.',
+        }
+      }
+
+      const user = {
+        email: found.email,
+        role: found.role || 'alpha_player',
+        provider: found.provider || 'email',
+        referralCode: found.referralCode || generateReferralCode(found.email),
+        referredBy: found.referredBy || null,
+        referralsCount: found.referralsCount || 0,
+        airdropTokens: found.airdropTokens || 0,
+        mustChangePassword: Boolean(found.mustChangePassword),
+        assignedKingdom: found.assignedKingdom || null,
+        baseCoord: found.baseCoord || null,
+        onboardingCompleted: Boolean(found.onboardingCompleted),
+      }
+
+      this.setCurrentUser(user)
+      return { success: true, user }
+    }
+
+    // 3. Verificar si ya es un usuario registrado en Whitelist
+    const whitelist = getStoredWhitelist()
+    const foundWl = whitelist.find((w) => w.email.toLowerCase() === email)
+    if (foundWl) {
+      this.setCurrentUser(foundWl)
+      return { success: true, user: foundWl }
+    }
+
+    // 4. Si el correo NO está registrado en absoluto -> Señal para activar Whitelist Hype
+    return {
+      success: false,
+      notRegistered: true,
+      error: 'Este correo no está registrado en la lista de evaluadores Alpha.',
+    }
+  },
+
+  /**
+   * Registra a un usuario en la Whitelist / Pre-Registro Oficial.
+   * Si incluye un código de referido válido, acredita inmediatamente 5 tokens KING al referente.
+   */
+  async registerWhitelist({ email, provider = 'google', referralCode = '' }) {
+    const normalized = (email || '').trim().toLowerCase()
+    if (!normalized || !normalized.includes('@')) {
+      return { success: false, error: 'Ingresa un correo electrónico válido.' }
+    }
+
+    const myReferralCode = generateReferralCode(normalized)
+    const codeUsed = (referralCode || getUrlReferralCode() || '').trim().toUpperCase()
+
+    // 1. Verificar si ya existe en Alpha o Whitelist
+    const alphaAccounts = getStoredAccounts()
+    const existingAlpha = alphaAccounts.find((a) => a.email.toLowerCase() === normalized)
+    if (existingAlpha) {
+      this.setCurrentUser(existingAlpha)
+      return { success: true, user: existingAlpha, isAlpha: true }
+    }
+
+    const whitelist = getStoredWhitelist()
+    const existingWl = whitelist.find((w) => w.email.toLowerCase() === normalized)
+    if (existingWl) {
+      this.setCurrentUser(existingWl)
+      return { success: true, user: existingWl, isExisting: true }
+    }
+
+    // 2. Procesar Referido (5 tokens KING para el referente)
+    let matchedReferrer = null
+    if (codeUsed) {
+      matchedReferrer =
+        alphaAccounts.find((a) => (a.referralCode || '').toUpperCase() === codeUsed) ||
+        whitelist.find((w) => (w.referralCode || '').toUpperCase() === codeUsed)
+
+      if (matchedReferrer && matchedReferrer.email.toLowerCase() !== normalized) {
+        matchedReferrer.referralsCount = (matchedReferrer.referralsCount || 0) + 1
+        matchedReferrer.airdropTokens = (matchedReferrer.airdropTokens || 0) + 5
+
+        // Guardar actualización del referente
+        saveStoredAccounts(alphaAccounts)
+        saveStoredWhitelist(whitelist)
+
+        // Registrar transacción de referido
+        const referralsList = getStoredReferrals()
+        referralsList.push({
+          referrerCode: codeUsed,
+          referrerEmail: matchedReferrer.email,
+          referredEmail: normalized,
+          tokensRewarded: 5,
+          createdAt: new Date().toISOString(),
+        })
+        saveStoredReferrals(referralsList)
       }
     }
 
-    const valid = found.passwordHash === password || found.tempPassword === password
-    if (!valid) {
-      return {
-        success: false,
-        error: 'Contraseña incorrecta. Usa la clave temporal asignada.',
+    // 3. Crear nuevo usuario de Whitelist
+    const newWhitelistUser = {
+      email: normalized,
+      role: 'whitelist',
+      provider,
+      referralCode: myReferralCode,
+      referredBy: matchedReferrer ? codeUsed : null,
+      referralsCount: 0,
+      airdropTokens: 0,
+      createdAt: new Date().toISOString(),
+    }
+
+    whitelist.push(newWhitelistUser)
+    saveStoredWhitelist(whitelist)
+    this.setCurrentUser(newWhitelistUser)
+
+    // 4. Sincronizar en Supabase si está disponible
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error: wlErr } = await supabase.from('whitelist_signups').upsert({
+          email: normalized,
+          referral_code: myReferralCode,
+          referred_by: matchedReferrer ? codeUsed : null,
+          provider,
+          airdrop_tokens: 0,
+          referrals_count: 0,
+        })
+        if (wlErr) {
+          console.error('[Supabase Whitelist Insert Error]:', wlErr)
+        }
+
+        if (matchedReferrer) {
+          // Actualizar conteo del referente en Supabase
+          await supabase
+            .from('whitelist_signups')
+            .update({
+              referrals_count: matchedReferrer.referralsCount,
+              airdrop_tokens: matchedReferrer.airdropTokens,
+            })
+            .eq('email', matchedReferrer.email)
+
+          await supabase
+            .from('user_accounts')
+            .update({
+              referrals_count: matchedReferrer.referralsCount,
+              airdrop_tokens: matchedReferrer.airdropTokens,
+            })
+            .eq('email', matchedReferrer.email)
+
+          await supabase.from('referrals').insert({
+            referrer_code: codeUsed,
+            referrer_email: matchedReferrer.email,
+            referred_email: normalized,
+            tokens_rewarded: 5,
+          })
+        }
+      } catch (err) {
+        console.error('[Supabase Whitelist Exception]:', err)
       }
     }
 
-    const user = {
-      email: found.email,
-      mustChangePassword: Boolean(found.mustChangePassword),
-      assignedKingdom: found.assignedKingdom || null,
-      baseCoord: found.baseCoord || null,
-      onboardingCompleted: Boolean(found.onboardingCompleted),
+    return {
+      success: true,
+      user: newWhitelistUser,
+      rewardedReferrer: Boolean(matchedReferrer),
+    }
+  },
+
+  /**
+   * Inicia o registra sesión utilizando cuenta de Google
+   */
+  async loginWithGoogle(emailHint = '', referralCode = '') {
+    const email = (emailHint || '').trim().toLowerCase()
+    if (!email) {
+      // Si se ejecuta en navegador con Supabase OAuth
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin },
+          })
+          if (error) {
+            console.error('[Supabase Google Auth Error]:', error)
+          }
+        } catch (err) {
+          console.error('[Supabase Google Auth Exception]:', err)
+        }
+      }
+      return { success: false, needEmailInput: true }
     }
 
-    this.setCurrentUser(user)
-    return { success: true, user }
+    // Si ya existe en Alpha, inicia sesión directo
+    const alphaAccounts = getStoredAccounts()
+    const foundAlpha = alphaAccounts.find((a) => a.email.toLowerCase() === email)
+    if (foundAlpha) {
+      this.setCurrentUser(foundAlpha)
+      return { success: true, user: foundAlpha, role: 'alpha_player' }
+    }
+
+    // Si ya existe en Whitelist, inicia sesión
+    const whitelist = getStoredWhitelist()
+    const foundWl = whitelist.find((w) => w.email.toLowerCase() === email)
+    if (foundWl) {
+      this.setCurrentUser(foundWl)
+      return { success: true, user: foundWl, role: 'whitelist' }
+    }
+
+    // Si es nuevo registro, lo inscribe a Whitelist con Google
+    return this.registerWhitelist({
+      email,
+      provider: 'google',
+      referralCode,
+    })
+  },
+
+  /**
+   * Obtiene las estadísticas de referidos de un usuario
+   */
+  getReferralStats(email) {
+    const normalized = (email || '').trim().toLowerCase()
+    const alphaAccounts = getStoredAccounts()
+    const whitelist = getStoredWhitelist()
+    const referrals = getStoredReferrals()
+
+    const user =
+      alphaAccounts.find((a) => a.email.toLowerCase() === normalized) ||
+      whitelist.find((w) => w.email.toLowerCase() === normalized)
+
+    if (!user) {
+      return {
+        referralCode: generateReferralCode(email),
+        referralsCount: 0,
+        airdropTokens: 0,
+        referralsList: [],
+      }
+    }
+
+    const myReferrals = referrals.filter(
+      (r) => r.referrerEmail?.toLowerCase() === normalized || r.referrerCode === user.referralCode
+    )
+
+    return {
+      referralCode: user.referralCode || generateReferralCode(user.email),
+      referralsCount: user.referralsCount || myReferrals.length,
+      airdropTokens: (user.referralsCount || myReferrals.length) * 5,
+      referralsList: myReferrals,
+    }
+  },
+
+  /**
+   * Obtiene la cantidad total global de pre-registros (sumando comunidad + registros reales)
+   */
+  getGlobalPreRegistrationCount() {
+    const whitelist = getStoredWhitelist()
+    return COMMUNITY_BASE_PREREG + whitelist.length
   },
 
   /**
@@ -230,25 +545,21 @@ export const authService = {
     // Generar coordenadas de base dentro del cuadrante regional
     let baseCoord
     if (chosenKey === 'north') {
-      // Noroeste: X negativo, Y positivo
       baseCoord = {
         x: -Math.floor(Math.random() * 12 + 6),
         y: Math.floor(Math.random() * 12 + 6),
       }
     } else if (chosenKey === 'south') {
-      // Sureste: X positivo, Y negativo
       baseCoord = {
         x: Math.floor(Math.random() * 12 + 6),
         y: -Math.floor(Math.random() * 12 + 6),
       }
     } else if (chosenKey === 'east') {
-      // Noreste: X positivo, Y positivo
       baseCoord = {
         x: Math.floor(Math.random() * 12 + 6),
         y: Math.floor(Math.random() * 12 + 6),
       }
     } else {
-      // Oeste (Suroeste): X negativo, Y negativo
       baseCoord = {
         x: -Math.floor(Math.random() * 12 + 6),
         y: -Math.floor(Math.random() * 12 + 6),
@@ -271,7 +582,6 @@ export const authService = {
           console.error('[Supabase Kingdom Assignment Error]:', accErr.message, accErr)
         }
 
-        // Registrar o actualizar reino
         const { error: kingErr } = await supabase.from('kingdoms').upsert({
           id: email,
           username: email.split('@')[0],
@@ -372,6 +682,10 @@ export const authService = {
       email: normalized,
       tempPassword,
       passwordHash: tempPassword,
+      role: 'alpha_player',
+      referralCode: generateReferralCode(normalized),
+      referralsCount: 0,
+      airdropTokens: 0,
       mustChangePassword: true,
       assignedKingdom: null,
       baseCoord: null,

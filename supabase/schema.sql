@@ -12,6 +12,12 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     temp_password TEXT,
     password_hash TEXT NOT NULL,
     must_change_password BOOLEAN DEFAULT TRUE,
+    role TEXT DEFAULT 'alpha_player', -- 'alpha_player' o 'whitelist'
+    provider TEXT DEFAULT 'email', -- 'email' o 'google'
+    referral_code TEXT UNIQUE,
+    referred_by TEXT,
+    referrals_count INTEGER DEFAULT 0,
+    airdrop_tokens INTEGER DEFAULT 0,
     assigned_kingdom TEXT,
     base_coord JSONB,
     onboarding_completed BOOLEAN DEFAULT FALSE,
@@ -19,10 +25,32 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Seed de cuenta de prueba asignada Alpha: antoniox4253@gmail.com con clave k9t4m
-INSERT INTO public.user_accounts (email, temp_password, password_hash, must_change_password)
-VALUES ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true)
-ON CONFLICT (email) DO NOTHING;
+-- Seed de cuenta de prueba asignada Alpha: antoniox4253@gmail.com con clave k9t4m y código de referido propio
+INSERT INTO public.user_accounts (email, temp_password, password_hash, must_change_password, role, referral_code)
+VALUES ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true, 'alpha_player', 'FK-ANTO-77')
+ON CONFLICT (email) DO UPDATE SET referral_code = 'FK-ANTO-77';
+
+-- 0.1 TABLA: PRE-REGISTROS Y WHITELIST (whitelist_signups)
+CREATE TABLE IF NOT EXISTS public.whitelist_signups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    referral_code TEXT UNIQUE NOT NULL,
+    referred_by TEXT,
+    provider TEXT DEFAULT 'google',
+    airdrop_tokens INTEGER DEFAULT 0,
+    referrals_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 0.2 TABLA: REGISTRO DE REFERIDOS Y AIRDROP (referrals)
+CREATE TABLE IF NOT EXISTS public.referrals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    referrer_code TEXT NOT NULL,
+    referrer_email TEXT NOT NULL,
+    referred_email TEXT NOT NULL UNIQUE,
+    tokens_rewarded INTEGER DEFAULT 5,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
 -- 1. TABLA: REINOS / PERFILES DE JUGADOR (kingdoms)
 CREATE TABLE IF NOT EXISTS public.kingdoms (

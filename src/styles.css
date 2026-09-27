@@ -1978,19 +1978,87 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 .table-row.current { border: 1px solid rgba(80, 180, 255, 0.4); background: rgba(40, 110, 180, 0.2); }
 .daily-val { color: #ffd65a; }
 
+.ranking-card {
+  padding: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ranking-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ranking-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ranking-title-wrap h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+.ranking-pool-tag {
+  font-size: 8px;
+  font-weight: 800;
+  color: #ffd65a;
+  background: rgba(255, 215, 90, 0.15);
+  border: 1px solid rgba(255, 215, 90, 0.35);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.ranking-meta-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ranking-meta-box .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+.ranking-meta-box .meta-sub small {
+  font-size: 8px;
+  color: #94a3b8;
+}
+
 .ranking-prizes-row {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 .rank-prize-badge {
   flex: 1;
   text-align: center;
-  background: rgba(0,0,0,0.25);
-  padding: 6px 4px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.07);
+  padding: 6px 3px;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.rank-prize-badge span { display: block; font-size: 8px; color: #8fa8c0; }
+.rank-prize-badge span { display: block; font-size: 8px; color: #cbd5e1; font-weight: 700; }
 .rank-prize-badge strong { font-size: 10px; color: #ffd65a; }
+.rank-prize-badge small { font-size: 7px; color: #38bdf8; font-weight: 800; }
+
+.ranking-expl-footer {
+  font-size: 8px;
+  color: #64748b;
+  line-height: 1.35;
+}
 
 /* STORE & PACKS */
 .shield-status-box {

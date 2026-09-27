@@ -24,10 +24,63 @@ export const KING_CONFIG = {
     { period: 'Días 271–360', poolTotal: 28_000, daily: 311.11 },
   ],
   NPC_DAILY_BUDGET: 220,
-  RANKING_DAILY_REWARDS: [15, 10, 7, 5, 3], // #1 a #5
+  RANKING_DAILY_REWARDS: [15, 10, 7, 5, 3], // #1 a #5 base
+  RANKING_CONFIG: {
+    START_DATE_UTC: '2026-09-29T00:00:00Z',
+    PAYOUT_HOUR_UTC: 0, // 00:00 UTC
+    TOTAL_POOL: 70_000,
+    BASE_DAILY_POOL: 40,
+    TIERS: [
+      { rank: 1, percent: 0.375, percentLabel: '37.5%', baseKing: 15, label: '🥇 Top 1' },
+      { rank: 2, percent: 0.250, percentLabel: '25.0%', baseKing: 10, label: '🥈 Top 2' },
+      { rank: 3, percent: 0.175, percentLabel: '17.5%', baseKing: 7, label: '🥉 Top 3' },
+      { rank: 4, percent: 0.125, percentLabel: '12.5%', baseKing: 5, label: '🎖️ Top 4' },
+      { rank: 5, percent: 0.075, percentLabel: '7.5%', baseKing: 3, label: '🎖️ Top 5' },
+    ],
+  },
   WITHDRAW_FEE_PERCENT: 0.05,
   FEE_DISTRIBUTION: { burn: 0.02, rewardPools: 0.02, kingdomSystem: 0.01 },
   FOUNDATION_COST_KING: 1000,
+}
+
+/**
+ * Calcula el tiempo exacto restante hacia el siguiente corte a las 00:00 UTC
+ * o hacia la fecha de inicio oficial (29/09/2026 a las 00:00 UTC).
+ */
+export function getRankingPayoutSchedule() {
+  const START_DATE = new Date('2026-09-29T00:00:00Z')
+  const now = new Date()
+
+  // Siguiente corte diario a las 00:00:00 UTC
+  const nextPayoutUtc = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0, 0, 0, 0
+  ))
+
+  const targetDate = now < START_DATE ? START_DATE : nextPayoutUtc
+  const diffMs = Math.max(0, targetDate.getTime() - now.getTime())
+  const diffSec = Math.floor(diffMs / 1000)
+
+  const days = Math.floor(diffSec / 86400)
+  const hours = Math.floor((diffSec % 86400) / 3600)
+  const minutes = Math.floor((diffSec % 3600) / 60)
+  const seconds = diffSec % 60
+
+  return {
+    startDateUtc: START_DATE.toISOString(),
+    isLive: now >= START_DATE,
+    targetDateUtc: targetDate.toISOString(),
+    diffSec,
+    days,
+    hours,
+    minutes,
+    seconds,
+    formattedCountdown: days > 0
+      ? `${days}d ${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
+      : `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`,
+  }
 }
 
 export const INITIAL_PLAYER_DATA = {

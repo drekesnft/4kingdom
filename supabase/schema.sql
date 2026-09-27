@@ -123,7 +123,24 @@ CREATE INDEX IF NOT EXISTS idx_reports_player_id ON public.reports(player_id);
 CREATE INDEX IF NOT EXISTS idx_reports_created_at ON public.reports(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_marches_player_id ON public.marches(player_id);
 CREATE INDEX IF NOT EXISTS idx_clan_members_player ON public.clan_members(player_id);
+-- 7. TABLA: HISTORIAL DE PAGOS DE RANKING DIARIO (ranking_payouts)
+-- Ejecutado diariamente a las 00:00 UTC a partir del 29/09/2026
+CREATE TABLE IF NOT EXISTS public.ranking_payouts (
+    id TEXT PRIMARY KEY,
+    payout_date DATE NOT NULL,
+    payout_time_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+    total_pool NUMERIC(12, 2) NOT NULL DEFAULT 40.00,
+    winners JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- ÍNDICES PARA ALTO RENDIMIENTO
+CREATE INDEX IF NOT EXISTS idx_reports_player_id ON public.reports(player_id);
+CREATE INDEX IF NOT EXISTS idx_reports_created_at ON public.reports(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_marches_player_id ON public.marches(player_id);
+CREATE INDEX IF NOT EXISTS idx_clan_members_player ON public.clan_members(player_id);
 CREATE INDEX IF NOT EXISTS idx_clan_rallies_clan ON public.clan_rallies(clan_id);
+CREATE INDEX IF NOT EXISTS idx_ranking_payouts_date ON public.ranking_payouts(payout_date);
 
 -- POLÍTICAS DE SEGURIDAD ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.user_accounts ENABLE ROW LEVEL SECURITY;
@@ -133,6 +150,7 @@ ALTER TABLE public.marches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clan_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clan_rallies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ranking_payouts ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de lectura/escritura abiertas para la Alpha con clave pública / anon
 CREATE POLICY "Permitir acceso a cuentas" ON public.user_accounts FOR ALL USING (true) WITH CHECK (true);
@@ -142,10 +160,122 @@ CREATE POLICY "Permitir acceso a marchas" ON public.marches FOR ALL USING (true)
 CREATE POLICY "Permitir acceso a clanes" ON public.clans FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a miembros" ON public.clan_members FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a rallies" ON public.clan_rallies FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acceso a ranking_payouts" ON public.ranking_payouts FOR ALL USING (true) WITH CHECK (true);
 
--- HABILITAR REALTIME EN REPORTES, REINOS, MARCHAS Y CUENTAS
+-- HABILITAR REALTIME EN REPORTES, REINOS, MARCHAS, CUENTAS Y RANKINGS
 ALTER PUBLICATION supabase_realtime ADD TABLE public.user_accounts;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.kingdoms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.marches;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.clan_rallies;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.ranking_payouts;
+
+-- ============================================================================
+-- PROCEDIMIENTO: DISTRIBUCIÓN AUTOMÁTICA DEL RANKING DIARIO (00:00 UTC DESDE 29/09/2026)
+-- Suma real auditada en backend: Top 1 (37.5%), Top 2 (25%), Top 3 (17.5%), Top 4 (12.5%), Top 5 (7.5%)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.distribute_daily_ranking_rewards()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_now TIMESTAMP WITH TIME ZONE := timezone('utc'::text, now());
+    v_start_date TIMESTAMP WITH TIME ZONE := '2026-09-29 00:00:00+00'::timestamptz;
+    v_payout_date DATE := v_now::date;
+    v_payout_id TEXT := 'rank_payout_' || to_char(v_payout_date, 'YYYY_MM_DD');
+    v_already_processed BOOLEAN;
+    v_pool NUMERIC(12, 2) := 40.00;
+    v_shares NUMERIC[] := ARRAY[0.375, 0.250, 0.175, 0.125, 0.075];
+    v_rank INTEGER := 1;
+    v_record RECORD;
+    v_reward NUMERIC(12, 2);
+    v_winners JSONB := '[]'::jsonb;
+    v_winner_obj JSONB;
+BEGIN
+    -- 1. Validar fecha de inicio oficial (29/09/2026 a las 00:00 UTC)
+    IF v_now < v_start_date THEN
+        RETURN jsonb_build_object(
+            'status', 'pending_start_date',
+            'message', 'El reparto oficial inicia el 29/09/2026 a las 00:00 UTC.',
+            'start_date_utc', v_start_date,
+            'current_time_utc', v_now
+        );
+    END IF;
+
+    -- 2. Validar si ya se liquidó hoy para evitar doble pago
+    SELECT EXISTS (SELECT 1 FROM public.ranking_payouts WHERE payout_date = v_payout_date) INTO v_already_processed;
+    IF v_already_processed THEN
+        RETURN jsonb_build_object(
+            'status', 'already_paid_today',
+            'message', 'El reparto de hoy a las 00:00 UTC ya ha sido procesado.',
+            'payout_date', v_payout_date
+        );
+    END IF;
+
+    -- 3. Auditar los 5 reinos con mayor Poder Militar (⭐) real
+    FOR v_record IN (
+        SELECT id, username, power, king_claimed
+        FROM public.kingdoms
+        ORDER BY power DESC, created_at ASC
+        LIMIT 5
+    ) LOOP
+        v_reward := ROUND(v_pool * v_shares[v_rank], 2);
+
+        -- Acreditar saldo KING directamente en la cuenta del ganador
+        UPDATE public.kingdoms
+        SET king_claimed = king_claimed + v_reward,
+            updated_at = v_now
+        WHERE id = v_record.id;
+
+        -- Generar reporte oficial de economía en su buzón
+        INSERT INTO public.reports (
+            id, player_id, type, target_name, result, is_victory, data, created_at
+        ) VALUES (
+            'rep_rank_' || v_record.id || '_' || to_char(v_payout_date, 'YYYYMMDD'),
+            v_record.id,
+            'ranking',
+            'Premio Ranking Diario Top #' || v_rank,
+            '¡Has obtenido +' || v_reward || ' KING por tu posición #' || v_rank || ' en el Top 5 continental!',
+            true,
+            jsonb_build_object(
+                'type', 'ranking',
+                'rank', v_rank,
+                'rewardKing', v_reward,
+                'power', v_record.power,
+                'sharePercent', (v_shares[v_rank] * 100),
+                'payoutDate', v_payout_date,
+                'payoutTimeUtc', v_now,
+                'timestamp', extract(epoch from v_now) * 1000
+            ),
+            v_now
+        );
+
+        -- Registrar en historial de ganadores
+        v_winner_obj := jsonb_build_object(
+            'rank', v_rank,
+            'playerId', v_record.id,
+            'username', v_record.username,
+            'power', v_record.power,
+            'sharePercent', (v_shares[v_rank] * 100),
+            'rewardKing', v_reward
+        );
+        v_winners := v_winners || v_winner_obj;
+
+        v_rank := v_rank + 1;
+    END LOOP;
+
+    -- 4. Registrar la liquidación oficial en la tabla ranking_payouts
+    INSERT INTO public.ranking_payouts (
+        id, payout_date, payout_time_utc, total_pool, winners, created_at
+    ) VALUES (
+        v_payout_id, v_payout_date, v_now, v_pool, v_winners, v_now
+    );
+
+    RETURN jsonb_build_object(
+        'status', 'success',
+        'payout_date', v_payout_date,
+        'winners', v_winners
+    );
+END;
+$$;

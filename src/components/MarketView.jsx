@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { KING_CONFIG, STORE_ITEMS, BUILDINGS_CONFIG } from '../game/config'
-import { Coins, Shield, Sparkles, TrendingUp, ArrowDownToLine, Flame, Lock, Unlock, DollarSign } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { KING_CONFIG, STORE_ITEMS, BUILDINGS_CONFIG, getRankingPayoutSchedule } from '../game/config'
+import { Coins, Shield, Sparkles, TrendingUp, ArrowDownToLine, Flame, Lock, Unlock, DollarSign, Clock, Trophy } from 'lucide-react'
 
 export default function MarketView({ gameState, onClose }) {
   const {
@@ -23,6 +23,14 @@ export default function MarketView({ gameState, onClose }) {
 
   const [activeTab, setActiveTab] = useState('treasury') // 'treasury' | 'store' | 'farming' | 'p2p'
   const [withdrawAmount, setWithdrawAmount] = useState('25')
+  const [payoutSchedule, setPayoutSchedule] = useState(() => getRankingPayoutSchedule())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPayoutSchedule(getRankingPayoutSchedule())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const now = Date.now()
   const isShieldActive = shieldUntil > now
@@ -234,17 +242,47 @@ export default function MarketView({ gameState, onClose }) {
             </div>
           </div>
 
-          {/* Premios de Ranking Diario (Sección 37) */}
+          {/* Premios de Ranking Diario (00:00 UTC - Sección 37) */}
           <div className="ranking-card">
-            <h4>Premios del Ranking Diario (40 KING/día)</h4>
+            <div className="ranking-card-header">
+              <div className="ranking-title-group">
+                <Trophy size={20} className="gold" />
+                <h4>Top 5 del Reparto Diario de Poder</h4>
+              </div>
+              <span className="ranking-pool-tag">Pool: 40 KING/día · 00:00 UTC</span>
+            </div>
+
+            <div className="ranking-meta-box">
+              <div className="meta-item">
+                <Clock size={16} />
+                <span>Próximo Pago / Inicio (00:00 UTC):</span>
+                <strong className="countdown-highlight">{payoutSchedule.formattedCountdown}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Fecha de Inicio Oficial:</span>
+                <strong>29/09/2026 a las 00:00 UTC</strong>
+              </div>
+              <div className="meta-item status">
+                <span>Estado del Pool:</span>
+                <span className={`status-badge ${payoutSchedule.isLive ? 'live' : 'scheduled'}`}>
+                  {payoutSchedule.isLive ? '🟢 Activo en Producción' : '⏳ Cuenta Regresiva Oficial'}
+                </span>
+              </div>
+            </div>
+
             <div className="ranking-prizes-row">
-              {KING_CONFIG.RANKING_DAILY_REWARDS.map((rew, i) => (
-                <div key={i} className="rank-prize-badge">
-                  <span>#{i + 1}</span>
-                  <strong>{rew} KING</strong>
+              {KING_CONFIG.RANKING_CONFIG.TIERS.map((tier) => (
+                <div key={tier.rank} className="rank-prize-badge">
+                  <span>{tier.label}</span>
+                  <strong>{tier.baseKing} KING</strong>
+                  <small>{tier.percentLabel} ({tier.percent * 100}%)</small>
                 </div>
               ))}
             </div>
+
+            <p className="ranking-expl-footer">
+              ⚖️ <strong>Auditoría Automatizada:</strong> Cada 24 horas a las 00:00 UTC, el backend audita la suma real de Poder Militar (⭐) de todos los reinos y premia a los 5 mayores poderes aplicando la cuota porcentual exacta (37.5%, 25%, 17.5%, 12.5%, 7.5%).
+            </p>
           </div>
         </div>
       )}

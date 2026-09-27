@@ -199,4 +199,66 @@ export const gameService = {
       supabase.removeChannel(channel)
     }
   },
+
+  /**
+   * Ejecuta o audita el pago diario de ranking de poder (00:00 UTC, a partir de 29/09/2026).
+   * Llama a la RPC en PostgreSQL distribute_daily_ranking_rewards().
+   * CERO FALLBACKS: Muestra console.error con detalle en caso de error.
+   */
+  async processDailyRankingPayoutIfDue() {
+    if (!isSupabaseConfigured || !supabase) {
+      console.error('[Supabase RPC Ranking Error] Backend no configurado: Imposible auditar ranking')
+      return { ok: false, reason: 'Supabase no configurado' }
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('distribute_daily_ranking_rewards')
+      if (error) {
+        console.error('[Supabase RPC Ranking Error] Fallo al auditar/distribuir ranking diario:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
+        return { ok: false, error: error.message }
+      }
+      return { ok: true, data }
+    } catch (err) {
+      console.error('[Supabase RPC Ranking Exception] Error inesperado:', err)
+      return { ok: false, error: err?.message || String(err) }
+    }
+  },
+
+  /**
+   * Obtiene el Top 5 real de reinos ordenados por Poder Militar (⭐)
+   * CERO FALLBACKS: Muestra console.error en caso de error.
+   */
+  async fetchTopKingdomsRanking() {
+    if (!isSupabaseConfigured || !supabase) {
+      console.error('[Supabase Ranking Error] Backend no configurado para ranking de reinos')
+      return []
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('kingdoms')
+        .select('id, username, power, kingdom_id')
+        .order('power', { ascending: false })
+        .limit(5)
+
+      if (error) {
+        console.error('[Supabase Ranking Error] Error al consultar Top 5 Reinos:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        })
+        return []
+      }
+      return data || []
+    } catch (err) {
+      console.error('[Supabase Ranking Exception] Error inesperado en Top 5:', err)
+      return []
+    }
+  },
 }
+

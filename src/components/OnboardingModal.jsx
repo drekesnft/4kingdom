@@ -167,24 +167,24 @@ const TUTORIAL_STEPS = [
   {
     id: 'rankings',
     stepNumber: 7,
-    category: 'COMPETICIÓN DIARIA',
+    category: 'COMPETICIÓN DIARIA (00:00 UTC)',
     icon: <Trophy size={32} style={{ color: '#f59e0b' }} />,
-    title: '🏆 Top 5 del Reparto Diario de Poder',
-    subtitle: 'Distribución cada 24 horas del pool de recompensa en KING',
-    badge: 'Ranking Continental',
+    title: '🏆 Top 5 del Reparto Diario de Poder (00:00 UTC)',
+    subtitle: 'Inicio oficial: 29/09/2026 a las 00:00 UTC · Snapshot cada 24 horas',
+    badge: 'Pool 70,000 KING',
     color: '#f59e0b',
     keyPoints: [
       {
-        title: 'Pool Anual de Ranking (70,000 KING) con Halving',
-        desc: 'El pool total de 70,000 KING se divide anualmente en 4 trimestres con halving. Cada 24 horas, el backend emite la cuota diaria del pool hacia los 5 líderes continentales.',
+        title: 'Inicio Oficial: 29/09/2026 a las 00:00 UTC',
+        desc: 'El pago del ranking se ejecuta diariamente a las 00:00 UTC. La primera distribución oficial comenzará el 29/09/2026 a las 00:00 UTC.',
       },
       {
         title: 'Reparto Porcentual Dinámico del Top 5',
-        desc: '🥇 1º: 37.5% · 🥈 2º: 25.0% · 🥉 3º: 17.5% · 🎖️ 4º: 12.5% · 🎖️ 5º: 7.5% del pool diario emitido (en fase base de 40 KING/d equivale a 15, 10, 7, 5 y 3 KING).',
+        desc: '🥇 1º: 37.5% (15 KING base) · 🥈 2º: 25.0% (10 KING base) · 🥉 3º: 17.5% (7 KING base) · 🎖️ 4º: 12.5% (5 KING base) · 🎖️ 5º: 7.5% (3 KING base) del pool diario emitido.',
       },
       {
         title: 'Cálculo Auditado por Poder Militar Total (⭐)',
-        desc: 'La posición en el ranking no es fija: se calcula sumando el Poder de tus Edificios (Castillo hasta 1,500⭐) más el de tus Tropas (Inf: +30⭐, Arq: +32⭐, Cab: +50⭐). Sube tus construcciones y entrena divisiones para alcanzar el podio.',
+        desc: 'La posición se calcula con la suma real auditada por backend de tu Poder de Edificios (Castillo hasta 1,500⭐) más el Poder de tus Tropas (Inf: +30⭐, Arq: +32⭐, Cab: +50⭐).',
       },
     ],
   },

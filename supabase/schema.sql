@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Seed de cuentas de evaluadores Alpha autorizados (18 cuentas) con rol alpha_player y códigos de referido
+-- Seed de cuentas de evaluadores Alpha autorizados (19 cuentas) con rol alpha_player y códigos de referido
 INSERT INTO public.user_accounts (email, temp_password, password_hash, must_change_password, role, referral_code)
 VALUES
     ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true, 'alpha_player', 'FK-ANTO-77'),
@@ -45,7 +45,8 @@ VALUES
     ('jesusgimenezjc@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JESU-GIME'),
     ('jenifersoriano223@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JENI-SORI'),
     ('jhill.sanchez@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JHIL-SANC'),
-    ('juegosapp723@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JUEG-APP7')
+    ('juegosapp723@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JUEG-APP7'),
+    ('puenteyornay22.05@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-PUEN-YORN')
 ON CONFLICT (email) DO UPDATE SET 
     role = 'alpha_player',
     referral_code = COALESCE(public.user_accounts.referral_code, EXCLUDED.referral_code);

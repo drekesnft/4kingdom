@@ -32,8 +32,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showHypeWhitelist, setShowHypeWhitelist] = useState(false)
-  const [googlePromptOpen, setGooglePromptOpen] = useState(false)
-  const [googleInputEmail, setGoogleInputEmail] = useState('')
 
   useEffect(() => {
     if (isOpen) {
@@ -96,52 +94,20 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     }
   }
 
-  // Flujo de Registro / Acceso con Google
+  // Flujo de Registro / Acceso Directo con Google OAuth
   const handleGoogleClick = async () => {
     setError('')
     setLoading(true)
     try {
-      const res = await authService.loginWithGoogle(email, referralCode)
+      const res = await authService.loginWithGoogle(referralCode)
       if (res.redirecting) {
-        // Redirección oficial de Google OAuth en curso
+        // Redirección oficial de Google OAuth en curso hacia cuentas de Google
         return
       }
       if (res.success && res.user) {
         onLoginSuccess(res.user)
-      } else if (res.needEmailInput) {
-        setGoogleInputEmail(email || '')
-        setGooglePromptOpen(true)
       } else if (res.error) {
         setError(res.error)
-      }
-    } catch (err) {
-      console.error('[AuthModal] Error en Google Auth:', err)
-      setError('Error al autenticar con Google.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const processGoogleAuth = async (googleEmail) => {
-    const clean = (googleEmail || '').trim().toLowerCase()
-    if (!clean || !clean.includes('@')) {
-      setError('Por favor ingresa un correo de Google válido.')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-    setGooglePromptOpen(false)
-
-    try {
-      const res = await authService.loginWithGoogle(clean, referralCode)
-      if (res.redirecting) return
-      if (res.success && res.user) {
-        onLoginSuccess(res.user)
-      } else if (res.needEmailInput) {
-        setGooglePromptOpen(true)
-      } else {
-        setError(res.error || 'Error al validar con cuenta de Google.')
       }
     } catch (err) {
       console.error('[AuthModal] Error en Google Auth:', err)
@@ -168,46 +134,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           <X size={18} />
         </button>
 
-        {/* Modal de Validación de Cuenta Google Interactiva */}
-        {googlePromptOpen && (
-          <div className="google-auth-dialog">
-            <div className="google-dialog-header">
-              <GoogleIcon />
-              <h4>Registrar con Cuenta de Google</h4>
-            </div>
-            <p>Ingresa tu correo de Google para verificar tu acceso oficial y desbloquear tu Airdrop:</p>
-            <input
-              type="email"
-              value={googleInputEmail}
-              onChange={(e) => setGoogleInputEmail(e.target.value)}
-              placeholder="tu-correo@gmail.com"
-              autoFocus
-              className="google-email-input"
-            />
-            {referralCode && (
-              <small className="google-ref-tag">
-                🎁 Código de Referido aplicado: <strong>{referralCode}</strong> (+5 KING)
-              </small>
-            )}
-            <div className="google-dialog-actions">
-              <button
-                type="button"
-                className="btn-google-confirm"
-                onClick={() => processGoogleAuth(googleInputEmail)}
-                disabled={!googleInputEmail.trim()}
-              >
-                Verificar y Continuar
-              </button>
-              <button
-                type="button"
-                className="btn-google-cancel"
-                onClick={() => setGooglePromptOpen(false)}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ============================================================== */}
         {/* PANTALLA 1: MODAL DE ALTO HYPE PARA WHITELIST                  */}

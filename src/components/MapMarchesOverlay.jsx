@@ -164,11 +164,11 @@ export default function MapMarchesOverlay({
             }}
           >
             {/* Etiqueta flotante con tiempo restante y acciones */}
-            <div className={`march-token-bubble ${isAttack ? 'attack' : 'gather'}`}>
+            <div className={`march-token-bubble ${m.status === 'returning' ? 'returning' : isAttack ? 'attack' : 'gather'}`}>
               <span className="bubble-type">{statusLabel}</span>
               <strong className="bubble-timer">{remSec}s</strong>
               <div className="bubble-token-actions">
-                {onCancelMarch && (
+                {onCancelMarch && m.status !== 'returning' && (
                   <button
                     type="button"
                     className="token-cancel-btn"
@@ -183,7 +183,13 @@ export default function MapMarchesOverlay({
                     type="button"
                     className="token-speedup-btn"
                     onClick={() => onSpeedupMarch(m.id)}
-                    title={`Acelerar 100% instantáneo con ${costKing} KING`}
+                    title={
+                      m.status === 'returning'
+                        ? `Acelerar Regreso con ${costKing} KING`
+                        : m.status === 'gathering'
+                        ? `Acelerar Minería con ${costKing} KING`
+                        : `Acelerar Ida con ${costKing} KING`
+                    }
                   >
                     ⚡{costKing}
                   </button>

@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.kingdoms (
 CREATE TABLE IF NOT EXISTS public.reports (
     id TEXT PRIMARY KEY,
     player_id TEXT NOT NULL REFERENCES public.kingdoms(id) ON DELETE CASCADE,
-    type TEXT NOT NULL CHECK (type IN ('gather', 'npc', 'pvp', 'fortress', 'capital', 'reinforce', 'combat')),
+    type TEXT NOT NULL CHECK (type IN ('gather', 'npc', 'pvp', 'fortress', 'capital', 'reinforce', 'combat', 'hero')),
     target_name TEXT NOT NULL,
     target_x INTEGER,
     target_y INTEGER,

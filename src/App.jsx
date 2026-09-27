@@ -973,36 +973,55 @@ export default function App() {
                 {gameState.marches.map((m) => {
                   const now = Date.now()
                   let targetTime = m.arriveTime
-                  let phaseLabel = 'Viajando'
-                  if (m.status === 'gathering') { targetTime = m.gatherUntil; phaseLabel = 'Recolectando' }
-                  if (m.status === 'returning') { targetTime = m.returnTime; phaseLabel = 'Regresando' }
+                  let phaseLabel = 'Ida (Viajando)'
+                  let speedBtnText = `⚡ Acelerar Ida (${gameState.calculateKingCostForSec(Math.max(1, Math.ceil((targetTime - now) / 1000)))} KING)`
+                  let pillClass = 'march-pill'
+                  let phaseIcon = '⚔️'
+
+                  if (m.status === 'gathering') {
+                    targetTime = m.gatherUntil
+                    phaseLabel = 'Recolectando'
+                    const cost = gameState.calculateKingCostForSec(Math.max(1, Math.ceil((targetTime - now) / 1000)))
+                    speedBtnText = `⚡ Acelerar Minería (${cost} KING)`
+                    pillClass = 'march-pill gathering'
+                    phaseIcon = '⛏️'
+                  } else if (m.status === 'returning') {
+                    targetTime = m.returnTime
+                    phaseLabel = 'Regresando'
+                    const cost = gameState.calculateKingCostForSec(Math.max(1, Math.ceil((targetTime - now) / 1000)))
+                    speedBtnText = `⚡ Acelerar Regreso (${cost} KING)`
+                    pillClass = 'march-pill returning'
+                    phaseIcon = '🏰'
+                  }
+
                   const remSec = Math.max(1, Math.ceil((targetTime - now) / 1000))
-                  const speedCost = gameState.calculateKingCostForSec(remSec)
 
                   return (
-                    <div key={m.id} className="march-pill">
+                    <div key={m.id} className={pillClass}>
                       <div className="march-pill-left">
-                        <span>🐎</span>
+                        <span>{phaseIcon}</span>
                         <div>
-                          <strong>{m.targetName}</strong> ({phaseLabel}: {remSec}s)
+                          <strong>{m.targetName}</strong> <span className="march-phase-tag">{phaseLabel}</span> ({remSec}s)
                         </div>
                       </div>
                       <div className="march-pill-actions">
-                        <button
-                          type="button"
-                          className="march-pill-cancel"
-                          onClick={() => gameState.cancelMarch(m.id)}
-                          title="Cancelar marcha y devolver tropas inmediatamente"
-                        >
-                          ❌ Cancelar
-                        </button>
+                        {m.status !== 'returning' && (
+                          <button
+                            type="button"
+                            className="march-pill-cancel"
+                            onClick={() => gameState.cancelMarch(m.id)}
+                            title="Cancelar marcha y devolver tropas inmediatamente"
+                          >
+                            ❌ Cancelar
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="march-pill-speedup"
                           onClick={() => gameState.speedupMarch(m.id)}
-                          title="Acelerar 100% y completar marcha inmediatamente"
+                          title={`Acelerar ${phaseLabel} con KING`}
                         >
-                          ⚡ 100% ({speedCost} KING)
+                          {speedBtnText}
                         </button>
                       </div>
                     </div>

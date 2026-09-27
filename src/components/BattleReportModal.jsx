@@ -1,14 +1,15 @@
 import React from 'react'
-import { X, Trophy, Skull, ArrowRight, Wheat, ShieldCheck, Pickaxe, Users } from 'lucide-react'
+import { X, Trophy, Skull, ArrowRight, Wheat, ShieldCheck, Pickaxe, Users, Compass } from 'lucide-react'
 
 export default function BattleReportModal({ report, onClose }) {
   if (!report) return null
 
   const isGather = report.type === 'gather'
   const isReinforce = report.type === 'reinforce'
-  const isVic = report.isVictory ?? (report.result === 'VICTORIA')
+  const isHero = report.type === 'hero'
+  const isVic = report.isVictory ?? (report.result === 'VICTORIA' || report.result === 'MISIÓN EXITOSA')
 
-  const headerClass = isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
+  const headerClass = isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -16,7 +17,9 @@ export default function BattleReportModal({ report, onClose }) {
         {/* Encabezado del Reporte */}
         <div className={`report-modal-header ${headerClass}`}>
           <div className="report-title-group">
-            {isGather ? (
+            {isHero ? (
+              <Compass size={28} className="report-header-icon hero" />
+            ) : isGather ? (
               <Wheat size={28} className="report-header-icon gather" />
             ) : isReinforce ? (
               <ShieldCheck size={28} className="report-header-icon reinforce" />
@@ -96,8 +99,49 @@ export default function BattleReportModal({ report, onClose }) {
             </>
           )}
 
-          {/* CASO 3: REPORTES BÉLICOS (NPC, PVP, BASTIONES) */}
-          {!isGather && !isReinforce && (
+          {/* CASO 3: REPORTE DE MISIÓN DE HÉROE */}
+          {isHero && (
+            <>
+              <div className="report-section">
+                <h4>{isVic ? '🎁 Recompensas de la Expedición' : '⚠️ Sin Recompensas Obtenidas'}</h4>
+                {isVic ? (
+                  <div className="loot-badges-grid">
+                    <div className="loot-badge"><span>🌲</span><strong>+{report.loot?.wood || 0}</strong><small>Madera</small></div>
+                    <div className="loot-badge"><span>🪨</span><strong>+{report.loot?.stone || 0}</strong><small>Piedra</small></div>
+                    <div className="loot-badge"><span>🌾</span><strong>+{report.loot?.food || 0}</strong><small>Comida</small></div>
+                    {report.kingLoot > 0 && (
+                      <div className="loot-badge king"><span>👑</span><strong>+{report.kingLoot}</strong><small>KING Drop</small></div>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ color: '#ff9b9b', fontSize: '12px', margin: '6px 0 0' }}>
+                    La expedición no tuvo éxito. El héroe regresó a salvo pero no se obtuvieron recursos en esta incursión.
+                  </p>
+                )}
+              </div>
+
+              <div className="report-section">
+                <h4>Detalles de la Misión</h4>
+                <div className="report-comparison-grid">
+                  <div className="comp-col">
+                    <small>Explorador</small>
+                    <strong className="green-val">Héroe del Reino</strong>
+                    <p>⚡ Energía consumida: 1 · Retorno a salvo</p>
+                  </div>
+                  <div className="comp-col">
+                    <small>Resultado Táctico</small>
+                    <strong className={isVic ? 'green-val' : 'red-val'}>
+                      {isVic ? 'Incursión Completada' : 'Fracaso en la Exploración'}
+                    </strong>
+                    <p>Bajas militares: <span className="green-val">0 (Misión individual)</span></p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* CASO 4: REPORTES BÉLICOS (NPC, PVP, BASTIONES) */}
+          {!isGather && !isReinforce && !isHero && (
             <>
               {/* Tropas Enviadas vs Que Regresan */}
               <div className="report-section">

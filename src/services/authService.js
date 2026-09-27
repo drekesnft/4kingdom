@@ -483,17 +483,17 @@ export const authService = {
   },
 
   /**
-   * Inicia o registra sesión utilizando cuenta de Google.
-   * Si Supabase está configurado con OAuth, invoca signInWithOAuth redirigiendo a Google.
-   * Si no está configurado (entorno local sin .env), permite la validación interactiva inmediata.
+   * Inicia o registra sesión utilizando cuenta de Google de forma directa con Supabase OAuth.
+   * Redirige al flujo oficial de Google y Supabase gestiona la captura y sesión de 7 días.
+   * REGLA CERO FALLBACKS: Si falta configuración backend, reporta el error explícito en consola y UI.
    */
-  async loginWithGoogle(emailHint = '', referralCode = '') {
+  async loginWithGoogle(referralCode = '') {
     const codeToUse = (referralCode || getUrlReferralCode() || '').trim().toUpperCase()
     if (codeToUse) {
       localStorage.setItem(PENDING_REF_STORAGE_KEY, codeToUse)
     }
 
-    // 1. Si Supabase está configurado, disparar Google OAuth nativo
+    // Disparar Google OAuth nativo con Supabase
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase.auth.signInWithOAuth({
@@ -519,33 +519,11 @@ export const authService = {
       }
     }
 
-    // 2. Si no hay Supabase configurado (modo local o pruebas), usar email interactivo
-    const email = (emailHint || '').trim().toLowerCase()
-    if (!email) {
-      return { success: false, needEmailInput: true }
+    console.error('[authService] Conexión Backend Supabase no configurada en variables de entorno (VITE_SUPABASE_URL).')
+    return {
+      success: false,
+      error: 'Backend de Supabase no configurado en variables de entorno (.env). Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para autenticar con Google.',
     }
-
-    const alphaAccounts = getStoredAccounts()
-    const foundAlpha = alphaAccounts.find((a) => a.email.toLowerCase() === email)
-    if (foundAlpha) {
-      foundAlpha.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
-      this.setCurrentUser(foundAlpha)
-      return { success: true, user: foundAlpha, role: 'alpha_player' }
-    }
-
-    const whitelist = getStoredWhitelist()
-    const foundWl = whitelist.find((w) => w.email.toLowerCase() === email)
-    if (foundWl) {
-      foundWl.sessionExpiresAt = Date.now() + SEVEN_DAYS_MS
-      this.setCurrentUser(foundWl)
-      return { success: true, user: foundWl, role: 'whitelist' }
-    }
-
-    return this.registerWhitelist({
-      email,
-      provider: 'google',
-      referralCode: codeToUse,
-    })
   },
 
   /**

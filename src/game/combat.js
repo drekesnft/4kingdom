@@ -316,3 +316,41 @@ export function generateReinforceReport({
     kingLoot: 0,
   }
 }
+
+/**
+ * Genera un reporte detallado de misión completada por el Héroe
+ */
+export function generateHeroReport({
+  missionId,
+  missionName = 'Expedición del Héroe',
+  isSuccess = true,
+  loot = { wood: 0, stone: 0, food: 0 },
+  kingReward = 0,
+  targetX = null,
+  targetY = null,
+}) {
+  const totalCollected = (loot.wood || 0) + (loot.stone || 0) + (loot.food || 0)
+
+  return {
+    id: `rep_hero_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    type: 'hero',
+    timestamp: Date.now(),
+    targetName: `Héroe: ${missionName}`,
+    missionId,
+    targetX,
+    targetY,
+    result: isSuccess ? 'MISIÓN EXITOSA' : 'MISIÓN FALLIDA',
+    isVictory: isSuccess,
+    sent: { hero: 1 },
+    totalSent: 1,
+    returned: { hero: 1 },
+    totalReturned: 1,
+    casualties: { infantry: 0, archer: 0, cavalry: 0 },
+    totalLosses: 0,
+    enemiesKilled: { infantry: 0, archer: 0, cavalry: 0 },
+    totalKills: 0,
+    loot,
+    totalCollected,
+    kingLoot: kingReward,
+  }
+}

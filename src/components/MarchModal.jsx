@@ -18,6 +18,8 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
   const dy = Math.abs(tile.worldY - baseCoord.worldY)
   const distance = Math.max(dx, dy, 1)
 
+  const isAllyBase = Boolean(tile.isPlayerBase && clan && tile.clanTag && tile.clanTag === clan.tag)
+
   // Tipo de marcha según tile
   let marchType = 'gather'
   let targetTitle = tileDef.name
@@ -26,12 +28,16 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
 
   if (tileDef.role === 'enemy') {
     marchType = 'npc'
-    // Asignar nivel de NPC según distancia o hash
     targetLevel = Math.min(5, Math.max(1, Math.floor(distance / 4) + 1))
     targetTitle = `Campamento Hostil Nv.${targetLevel}`
   } else if (tile.isPlayerBase) {
-    marchType = 'pvp'
-    targetTitle = `Base de ${tile.owner || 'Jugador Rival'}`
+    if (isAllyBase) {
+      marchType = 'reinforce'
+      targetTitle = `Refuerzos a ${tile.owner || 'Aliado'} [${tile.clanTag}]`
+    } else {
+      marchType = 'pvp'
+      targetTitle = `Base Rival de ${tile.owner || 'Jugador Rival'} [${tile.clanTag || 'Sin Clan'}]`
+    }
   } else if (tileDef.resource) {
     marchType = 'gather'
     targetLevel = Math.min(5, Math.max(1, Math.floor(distance / 5) + 1))
@@ -86,6 +92,8 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
         resourceType: tileDef.resource,
         nodeResourceMax: nodeReserve,
         targetLevel,
+        targetPlayer: tile.owner,
+        targetClanTag: tile.clanTag,
       })
 
       if (result.success) {
@@ -101,11 +109,28 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
       <div className="march-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="march-modal-header">
           <div>
-            <h3>{isRallyMode ? '🚩 Convocar Rally de Clan' : '⚔️ Despachar Marcha'}</h3>
+            <h3>
+              {marchType === 'reinforce'
+                ? '🛡️ Enviar Refuerzos Aliados'
+                : isRallyMode
+                ? '🚩 Convocar Rally de Clan'
+                : '⚔️ Despachar Marcha'}
+            </h3>
             <p>{targetTitle} en ({tile.worldX}, {tile.worldY})</p>
           </div>
           <button type="button" className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>
+
+        {/* Banner Explicativo si es Refuerzo a Aliado de Clan */}
+        {marchType === 'reinforce' && (
+          <div className="reinforce-banner-card">
+            <ShieldAlert size={20} className="shield-blue-icon" />
+            <div>
+              <strong>🛡️ Asistencia a Compañero de Clan [{clan?.tag}]</strong>
+              <p>Esta marcha trasladará tropas para reforzar la guarnición de tu aliado <strong>{tile.owner}</strong>. Regresará tras desplegar la defensa.</p>
+            </div>
+          </div>
+        )}
 
         {/* Selector de Modo: Individual vs Rally de Clan */}
         <div className="march-mode-tabs">
@@ -258,11 +283,15 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
         {/* Botón de Enviar */}
         <button
           type="button"
-          className={`dispatch-submit-btn ${isRallyMode ? 'rally-btn-submit' : ''}`}
+          className={`dispatch-submit-btn ${isRallyMode ? 'rally-btn-submit' : ''} ${marchType === 'reinforce' ? 'reinforce-btn-submit' : ''}`}
           onClick={handleDispatch}
           disabled={totalTroops === 0 || (!isRallyMode && marches.length >= maxSimultaneousMarches)}
         >
-          {isRallyMode ? (
+          {marchType === 'reinforce' ? (
+            <>
+              <Users size={16} /> 🛡️ Enviar Refuerzos a Compañero
+            </>
+          ) : isRallyMode ? (
             <>
               <Flag size={16} /> Convocar Rally de Clan (5 min)
             </>

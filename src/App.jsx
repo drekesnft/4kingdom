@@ -112,8 +112,18 @@ export default function App() {
 
   const initialMap = useMemo(() => {
     const generated = generateMap(MAP_SIZE)
-    const demo = assignPlayerBase(generated, DEMO_BASE_ID, 'Tu Reino (Jugador 01)')
-    return demo.assigned ? demo.tiles : generated
+    const demo = assignPlayerBase(generated, DEMO_BASE_ID, 'Tu Reino (Jugador 01)', 'VAL')
+    let currentTiles = demo.assigned ? demo.tiles : generated
+
+    // Spawn 1 base aliada del mismo clan [VAL]
+    const allySpawn = assignRandomPlayerBase(currentTiles, 'Sir Ronald', 'VAL')
+    if (allySpawn.assigned) currentTiles = allySpawn.tiles
+
+    // Spawn 1 base rival de clan rival [ARK]
+    const rivalSpawn = assignRandomPlayerBase(currentTiles, 'Lord Kael', 'ARK')
+    if (rivalSpawn.assigned) currentTiles = rivalSpawn.tiles
+
+    return currentTiles
   }, [])
 
   const [tiles, setTiles] = useState(initialMap)
@@ -551,11 +561,18 @@ export default function App() {
     setPopupOpen(true)
     const isOwn = tile.worldX === DEMO_BASE.worldX && tile.worldY === DEMO_BASE.worldY
     if (tile.isPlayerBase) {
-      setNotice(isOwn ? `🏰 Tu Base Principal en (${tile.worldX}, ${tile.worldY})` : `Base Rival de ${tile.owner || 'Jugador'}`)
+      const isAlly = Boolean(tile.clanTag && gameState.clan && tile.clanTag === gameState.clan.tag)
+      setNotice(
+        isOwn
+          ? `🏰 Tu Base Principal en (${tile.worldX}, ${tile.worldY})`
+          : isAlly
+          ? `🛡️ Base Aliada de ${tile.owner} [${tile.clanTag}] en (${tile.worldX}, ${tile.worldY})`
+          : `⚔️ Base Rival de ${tile.owner} [${tile.clanTag || 'Sin Clan'}] en (${tile.worldX}, ${tile.worldY})`
+      )
     } else {
       setNotice(`Casilla (${tile.worldX}, ${tile.worldY}) · ${TILE_TYPES[tile.type].name}`)
     }
-  }, [])
+  }, [gameState.clan])
 
   function popupData(tile) {
     const targetTile = tile
@@ -563,27 +580,48 @@ export default function App() {
     const tileLabel = `Tile ${def.tileNumber}`
     const isOwnBase = targetTile.worldX === DEMO_BASE.worldX && targetTile.worldY === DEMO_BASE.worldY
 
-    if (targetTile.isPlayerBase) return {
-      title: isOwnBase ? '🏰 Tu Reino (Base Principal)' : (targetTile.owner || 'Base Rival'),
-      subtitle: isOwnBase ? `Coordenadas (${targetTile.worldX}, ${targetTile.worldY}) · Ciudadela Nv.${gameState.buildings.castle}` : 'Jugador Rival en los 4 Reinos',
-      lines: isOwnBase ? [
-        `🏛️ Castillo Nv.${gameState.buildings.castle} · 🛡️ Muralla Nv.${gameState.buildings.wall} · ⚔️ Cuartel Nv.${gameState.buildings.barracks}`,
-        `Producción pasiva: 🪵 +${gameState.passiveProductionPerHour.wood} / 🪨 +${gameState.passiveProductionPerHour.stone} / 🌾 +${gameState.passiveProductionPerHour.food} por hora`,
-        `Tropas en guarnición: ${gameState.troops.infantry} Infantería, ${gameState.troops.archer} Arqueros, ${gameState.troops.cavalry} Caballería`,
-      ] : [
-        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
-        'Base rival. Asalta su ciudadela para saquear recursos y KING expuesto.',
-      ],
-      image: BASE_ASSET,
-      action: isOwnBase ? '🏛️ Gestionar Base y Edificios' : '⚔️ Asaltar Base (PvP)',
-      onClick: () => {
-        setPopupOpen(false)
-        if (isOwnBase) {
-          setActiveMenu('build')
-        } else {
-          setMarchModalTarget(targetTile)
-        }
-      },
+    if (targetTile.isPlayerBase) {
+      const isAlly = Boolean(targetTile.clanTag && gameState.clan && targetTile.clanTag === gameState.clan.tag)
+
+      return {
+        title: isOwnBase
+          ? '🏰 Tu Reino (Base Principal)'
+          : isAlly
+          ? `🛡️ Base Aliada: ${targetTile.owner} [${targetTile.clanTag}]`
+          : `⚔️ Base Rival: ${targetTile.owner} [${targetTile.clanTag || 'Sin Clan'}]`,
+        subtitle: isOwnBase
+          ? `Coordenadas (${targetTile.worldX}, ${targetTile.worldY}) · Ciudadela Nv.${gameState.buildings.castle}`
+          : isAlly
+          ? `Miembro de tu Clan ${gameState.clan.name} [${gameState.clan.tag}]`
+          : 'Jugador Rival en los 4 Reinos',
+        lines: isOwnBase ? [
+          `🏛️ Castillo Nv.${gameState.buildings.castle} · 🛡️ Muralla Nv.${gameState.buildings.wall} · ⚔️ Cuartel Nv.${gameState.buildings.barracks}`,
+          `Producción pasiva: 🪵 +${gameState.passiveProductionPerHour.wood} / 🪨 +${gameState.passiveProductionPerHour.stone} / 🌾 +${gameState.passiveProductionPerHour.food} por hora`,
+          `Tropas en guarnición: ${gameState.troops.infantry} Infantería, ${gameState.troops.archer} Arqueros, ${gameState.troops.cavalry} Caballería`,
+        ] : isAlly ? [
+          `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
+          'Base de tu aliado del clan. Puedes enviarle tropas de refuerzo para apoyar su guarnición defensiva.',
+          `Tropas disponibles en tu ciudadela: ${gameState.troops.infantry} Inf, ${gameState.troops.archer} Arq, ${gameState.troops.cavalry} Cab`,
+        ] : [
+          `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
+          'Base rival enemiga. Asalta su ciudadela para saquear recursos y expoliar KING sin protección.',
+          `Tropas disponibles en tu ciudadela: ${gameState.troops.infantry} Inf, ${gameState.troops.archer} Arq, ${gameState.troops.cavalry} Cab`,
+        ],
+        image: BASE_ASSET,
+        action: isOwnBase
+          ? '🏛️ Gestionar Base y Edificios'
+          : isAlly
+          ? '🛡️ Enviar Refuerzos (Aliado)'
+          : '⚔️ Asaltar Base (PvP)',
+        onClick: () => {
+          setPopupOpen(false)
+          if (isOwnBase) {
+            setActiveMenu('build')
+          } else {
+            setMarchModalTarget(targetTile)
+          }
+        },
+      }
     }
 
     if (def.resource === 'wood' || def.resource === 'stone' || def.resource === 'food') return {

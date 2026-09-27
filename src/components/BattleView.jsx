@@ -484,26 +484,42 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
           ) : (
             <div className="reports-list">
               {battleReports.map((r) => {
-                const isVic = r.result === 'VICTORIA'
+                const isGather = r.type === 'gather'
+                const isReinforce = r.type === 'reinforce'
+                const isVic = r.isVictory ?? (r.result === 'VICTORIA')
                 const totalCasualties = (r.casualties?.infantry || 0) + (r.casualties?.archer || 0) + (r.casualties?.cavalry || 0)
+                const cardClass = isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
+                const timeStr = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (r.date || 'Reciente')
 
                 return (
                   <div
                     key={r.id}
-                    className={`report-item-card ${isVic ? 'victory' : 'defeat'}`}
+                    className={`report-item-card ${cardClass}`}
                     onClick={() => onOpenReport(r)}
                   >
-                    <div className="report-badge-result">
-                      {isVic ? 'VICTORIA' : 'DERROTA'}
+                    <div className={`report-badge-result ${cardClass}`}>
+                      {isGather ? '🌾 RECOLECCIÓN' : isReinforce ? '🛡️ REFUERZOS' : isVic ? 'VICTORIA' : 'DERROTA'}
                     </div>
                     <div className="report-info">
-                      <strong>Vs. {r.enemyName || r.targetName || 'Enemigo'}</strong>
+                      <strong>{r.targetName || 'Objetivo'}</strong>
                       <div className="report-mini-meta">
-                        <span>{r.date}</span>
-                        <span className={totalCasualties > 0 ? 'red-cas' : ''}>
-                          Bajas: -{totalCasualties}
-                        </span>
-                        {r.kingLoot > 0 && <span className="gold-drop">+{r.kingLoot} KING</span>}
+                        <span>{timeStr}</span>
+                        {isGather ? (
+                          <span className="green-cas">
+                            🌾 +{r.totalCollected || (r.loot?.wood || 0) + (r.loot?.stone || 0) + (r.loot?.food || 0)} rec. ({r.totalSent || 0} tropas)
+                          </span>
+                        ) : isReinforce ? (
+                          <span className="blue-cas">
+                            🛡️ Guarnición aliada: {r.totalSent || 0} tropas
+                          </span>
+                        ) : (
+                          <>
+                            <span className={totalCasualties > 0 ? 'red-cas' : ''}>
+                              Bajas: -{totalCasualties}
+                            </span>
+                            {r.kingLoot > 0 && <span className="gold-drop">+{r.kingLoot} KING</span>}
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="report-arrow"><ArrowRight size={16} /></div>

@@ -19,8 +19,12 @@ import {
   simulateBattle,
   calculateArmyCarry,
   generateCombatReport,
+  generateGatherReport,
+  generateReinforceReport,
   totalTroopCount,
 } from './combat'
+import { gameService } from '../services/gameService'
+import { getOrCreatePlayerId, isSupabaseConfigured } from '../services/supabaseClient'
 
 const STORAGE_KEY = 'fourkingdoms_alpha_save_v2'
 
@@ -195,6 +199,38 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
   }, [resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, clan, clanRallies, battleReports])
+
+  const playerId = useMemo(() => getOrCreatePlayerId(), [])
+
+  // Sincronización y Realtime con Supabase Backend
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+
+    gameService.fetchReports(playerId).then((remoteReports) => {
+      if (remoteReports && remoteReports.length > 0) {
+        setBattleReports((prev) => {
+          const ids = new Set(prev.map((r) => r.id))
+          const merged = [...prev]
+          for (const rep of remoteReports) {
+            if (!ids.has(rep.id)) {
+              merged.push(rep)
+              ids.add(rep.id)
+            }
+          }
+          return merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        })
+      }
+    })
+
+    const unsubscribe = gameService.subscribeToUpdates(
+      playerId,
+      (newReport) => {
+        setBattleReports((prev) => [newReport, ...prev.filter((r) => r.id !== newReport.id)])
+      }
+    )
+
+    return () => unsubscribe()
+  }, [playerId])
 
   // --- CÁLCULOS DINÁMICOS DERIVADOS ---
 
@@ -475,8 +511,9 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
                 }
               }
 
-              const report = generateCombatReport(battle, loot, kingDrop, npcDef.name)
+              const report = generateCombatReport(battle, loot, kingDrop, npcDef.name, 'npc', march.targetX, march.targetY)
               setBattleReports((reps) => [report, ...reps])
+              gameService.saveReport(playerId, report)
 
               // Si es Rally de Clan: prorratear bajas y botín proporcionalmente entre aportantes
               const initialTotal = totalTroopCount(march.army)
@@ -544,8 +581,9 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
                 kingStolen = 5 // 20% de KING expuesto
               }
 
-              const report = generateCombatReport(battle, loot, kingStolen, march.targetName || 'Jugador Rival')
+              const report = generateCombatReport(battle, loot, kingStolen, march.targetName || 'Jugador Rival', 'pvp', march.targetX, march.targetY)
               setBattleReports((reps) => [report, ...reps])
+              gameService.saveReport(playerId, report)
 
               const initialTotal = totalTroopCount(march.army)
               const survivingTotal = totalTroopCount(battle.attackerSurviving)
@@ -596,8 +634,9 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               // Combate contra guarnición de Fortaleza o Capital
               const garrisonArmy = { infantry: 40, archer: 20, cavalry: 10 }
               const battle = simulateBattle(march.army, garrisonArmy, 3, isHungry, false)
-              const report = generateCombatReport(battle, { wood: 1000, stone: 1000, food: 1000 }, 15, march.targetName)
+              const report = generateCombatReport(battle, { wood: 1000, stone: 1000, food: 1000 }, 15, march.targetName, march.type, march.targetX, march.targetY)
               setBattleReports((reps) => [report, ...reps])
+              gameService.saveReport(playerId, report)
 
               const initialTotal = totalTroopCount(march.army)
               const survivingTotal = totalTroopCount(battle.attackerSurviving)
@@ -644,6 +683,28 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
                   kingLoot: battle.isAttackerVictory ? returningKingLoot : 0,
                 })
               }
+            } else if (march.type === 'reinforce') {
+              // Marcha de refuerzo a base aliada del mismo clan
+              const reinforceReport = generateReinforceReport({
+                targetPlayerName: march.targetPlayer || march.targetName || 'Aliado',
+                targetClanTag: march.targetClanTag || clan?.tag || 'VAL',
+                targetX: march.targetX,
+                targetY: march.targetY,
+                army: march.army,
+              })
+              setBattleReports((reps) => [reinforceReport, ...reps])
+              gameService.saveReport(playerId, reinforceReport)
+
+              setRecentNotification(`¡Refuerzos entregados con éxito en la base de ${march.targetPlayer || 'tu aliado'} [${march.targetClanTag || 'VAL'}]!`)
+
+              // Regreso de la marcha de transporte de tropas
+              updated.push({
+                ...march,
+                status: 'returning',
+                returnTime: now + march.oneWayDurationMs,
+                loot: { wood: 0, stone: 0, food: 0 },
+                kingLoot: 0,
+              })
             }
           }
           // Fase 2: Recolección terminada -> Emprender viaje de regreso
@@ -663,7 +724,7 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               returnTime: now + march.oneWayDurationMs,
               loot,
             })
-            setRecentNotification(`Recolección finalizada en (${march.targetX}, ${march.targetY}). Marcha regresando a casa.`)
+            setRecentNotification(`Recolección finalizada en (${march.targetX}, ${march.targetY}). Marcha regresando a casa con el cargamento.`)
           }
           // Fase 3: Regreso completado -> Tropas vuelven a casa y se acredita el botín
           else if (march.status === 'returning' && now >= march.returnTime) {
@@ -688,6 +749,24 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               setKing((k) => ({ ...k, pending: k.pending + march.kingLoot }))
             }
 
+            // Generar Reporte de Recolección formal al regresar con el botín
+            if (march.type === 'gather') {
+              const carry = calculateArmyCarry(march.army)
+              const gatherRep = generateGatherReport({
+                targetName: march.targetName || 'Nodo de Recursos',
+                targetX: march.targetX,
+                targetY: march.targetY,
+                resourceType: march.resourceType || 'wood',
+                loot: march.loot || { wood: 0, stone: 0, food: 0 },
+                army: march.army,
+                carryCapacity: carry,
+                nodeResourceMax: march.nodeResourceMax || 500,
+              })
+              setBattleReports((reps) => [gatherRep, ...reps])
+              gameService.saveReport(playerId, gatherRep)
+            }
+
+            gameService.removeMarch(march.id)
             setRecentNotification(`Marcha de regreso completada. Recursos y tropas descargados en la ciudad.`)
           } else {
             updated.push(march)
@@ -963,7 +1042,18 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
   }, [trainingQueue, king.claimed])
 
   // 4. Despacho de Marchas (Distancia Chebyshev + Velocidad)
-  const dispatchMarch = useCallback(({ type, targetX, targetY, targetName, army, resourceType = null, nodeResourceMax = 500, targetLevel = 1 }) => {
+  const dispatchMarch = useCallback(({
+    type,
+    targetX,
+    targetY,
+    targetName,
+    army,
+    resourceType = null,
+    nodeResourceMax = 500,
+    targetLevel = 1,
+    targetPlayer = null,
+    targetClanTag = null,
+  }) => {
     if (marches.length >= maxSimultaneousMarches) {
       return { success: false, reason: `Límite de marchas simultáneas alcanzado (${maxSimultaneousMarches}). Sube el Castillo.` }
     }
@@ -977,6 +1067,16 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     for (const [tId, count] of Object.entries(army)) {
       if ((troops[tId] || 0) < count) {
         return { success: false, reason: `No tienes suficientes tropas de ${TROOPS_CONFIG[tId]?.name || tId} en casa.` }
+      }
+    }
+
+    // Validación de refuerzos: Solo a miembros del mismo clan
+    if (type === 'reinforce') {
+      if (!clan) {
+        return { success: false, reason: 'Debes pertenecer a un clan para enviar refuerzos defensivos.' }
+      }
+      if (targetClanTag && clan.tag && targetClanTag !== clan.tag) {
+        return { success: false, reason: `Solo puedes enviar refuerzos a jugadores de tu mismo clan [${clan.tag}].` }
       }
     }
 
@@ -1031,6 +1131,8 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
       targetX,
       targetY,
       targetName,
+      targetPlayer,
+      targetClanTag,
       army: { ...army },
       resourceType,
       nodeResourceMax,
@@ -1045,9 +1147,14 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     }
 
     setMarches((m) => [...m, newMarch])
-    setRecentNotification(`Marcha despachada hacia (${targetX}, ${targetY}). Distancia: ${distanceTiles} casillas.`)
+    gameService.registerMarch(playerId, newMarch)
+    setRecentNotification(
+      type === 'reinforce'
+        ? `🛡️ Refuerzos despachados hacia la base de ${targetPlayer || 'tu aliado'} [${targetClanTag || 'VAL'}].`
+        : `Marcha despachada hacia (${targetX}, ${targetY}). Distancia: ${distanceTiles} casillas.`
+    )
     return { success: true }
-  }, [marches.length, maxSimultaneousMarches, troops, shieldUntil, baseCoord, isHungry, speedMultiplier])
+  }, [marches.length, maxSimultaneousMarches, troops, shieldUntil, baseCoord, isHungry, speedMultiplier, clan, playerId])
 
   // 4b. Convocar Rally de Clan (5 minutos de preparación)
   const createRally = useCallback(({ targetX, targetY, targetName, targetType = 'npc', army, targetLevel = 1, resourceType = null }) => {

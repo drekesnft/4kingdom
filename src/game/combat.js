@@ -201,7 +201,15 @@ export function calculateArmyCarry(army) {
 /**
  * Genera el reporte final de combate según el formato del GDD (Sección 23)
  */
-export function generateCombatReport(battleResult, loot = null, kingLoot = 0, targetName = 'Objetivo') {
+export function generateCombatReport(
+  battleResult,
+  loot = null,
+  kingLoot = 0,
+  targetName = 'Objetivo',
+  type = 'combat',
+  targetX = null,
+  targetY = null
+) {
   const { isAttackerVictory, attackerInitial, attackerSurviving, attackerCasualties, defenderCasualties } = battleResult
 
   const totalSent = totalTroopCount(attackerInitial)
@@ -210,9 +218,12 @@ export function generateCombatReport(battleResult, loot = null, kingLoot = 0, ta
   const totalKills = totalTroopCount(defenderCasualties)
 
   return {
-    id: `rep_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    id: `rep_${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    type,
     timestamp: Date.now(),
     targetName,
+    targetX,
+    targetY,
     result: isAttackerVictory ? 'VICTORIA' : 'DERROTA',
     isVictory: isAttackerVictory,
     sent: attackerInitial,
@@ -225,5 +236,83 @@ export function generateCombatReport(battleResult, loot = null, kingLoot = 0, ta
     totalKills,
     loot: isAttackerVictory ? (loot || { wood: 0, stone: 0, food: 0 }) : { wood: 0, stone: 0, food: 0 },
     kingLoot: isAttackerVictory ? kingLoot : 0,
+  }
+}
+
+/**
+ * Genera un reporte detallado de recolección de recursos
+ */
+export function generateGatherReport({
+  targetName = 'Nodo de Recursos',
+  targetX,
+  targetY,
+  resourceType = 'wood',
+  loot = { wood: 0, stone: 0, food: 0 },
+  army = { infantry: 0, archer: 0, cavalry: 0 },
+  carryCapacity = 0,
+  nodeResourceMax = 500,
+}) {
+  const totalTroops = totalTroopCount(army)
+  const totalCollected = (loot.wood || 0) + (loot.stone || 0) + (loot.food || 0)
+
+  return {
+    id: `rep_gather_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    type: 'gather',
+    timestamp: Date.now(),
+    targetName,
+    targetX,
+    targetY,
+    resourceType,
+    result: 'RECOLECCIÓN EXITOSA',
+    isVictory: true,
+    sent: army,
+    totalSent: totalTroops,
+    returned: army,
+    totalReturned: totalTroops,
+    casualties: { infantry: 0, archer: 0, cavalry: 0 },
+    totalLosses: 0,
+    enemiesKilled: { infantry: 0, archer: 0, cavalry: 0 },
+    totalKills: 0,
+    loot,
+    totalCollected,
+    carryCapacity,
+    nodeResourceMax,
+    kingLoot: 0,
+  }
+}
+
+/**
+ * Genera un reporte formal de envío de refuerzos a un aliado del clan
+ */
+export function generateReinforceReport({
+  targetPlayerName = 'Aliado',
+  targetClanTag = 'VAL',
+  targetX,
+  targetY,
+  army = { infantry: 0, archer: 0, cavalry: 0 },
+}) {
+  const totalTroops = totalTroopCount(army)
+
+  return {
+    id: `rep_reinforce_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    type: 'reinforce',
+    timestamp: Date.now(),
+    targetName: `Refuerzos en Base de ${targetPlayerName}`,
+    targetPlayerName,
+    targetClanTag,
+    targetX,
+    targetY,
+    result: 'REFUERZOS DESPLEGADOS',
+    isVictory: true,
+    sent: army,
+    totalSent: totalTroops,
+    returned: army,
+    totalReturned: totalTroops,
+    casualties: { infantry: 0, archer: 0, cavalry: 0 },
+    totalLosses: 0,
+    enemiesKilled: { infantry: 0, archer: 0, cavalry: 0 },
+    totalKills: 0,
+    loot: { wood: 0, stone: 0, food: 0 },
+    kingLoot: 0,
   }
 }

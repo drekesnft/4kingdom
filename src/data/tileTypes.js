@@ -52,7 +52,7 @@ export function generateMap(size = 25) {
   })
 }
 
-export function assignPlayerBase(tiles, targetId, owner = 'Jugador') {
+export function assignPlayerBase(tiles, targetId, owner = 'Jugador', clanTag = null) {
   const target = tiles.find((tile) => tile.id === targetId)
   if (!target || target.isPlayerBase) return { tiles, assigned: false, reason: 'La casilla elegida no está disponible.' }
 
@@ -80,18 +80,25 @@ export function assignPlayerBase(tiles, targetId, owner = 'Jugador') {
   }
   for (let i = 0; i < foodCount; i += 1) replacements.set(ordered[cursor++].id, 'food')
 
+  const resolvedClanTag = clanTag !== null ? clanTag : (hash(target.worldX, target.worldY, 17) % 2 === 0 ? 'VAL' : 'ARK')
+
   const nextTiles = tiles.map((tile) => {
     if (tile.id === target.id) {
-      return { ...tile, previousType: tile.type, type: 'base', isPlayerBase: true, owner }
+      return { ...tile, previousType: tile.type, type: 'base', isPlayerBase: true, owner, clanTag: resolvedClanTag }
     }
     const replacement = replacements.get(tile.id)
     return replacement ? { ...tile, type: replacement } : tile
   })
 
-  return { tiles: nextTiles, assigned: true, target: { ...target, type: 'base', isPlayerBase: true, owner }, counts: { wood: woodCount, stone: stoneCount, food: foodCount } }
+  return {
+    tiles: nextTiles,
+    assigned: true,
+    target: { ...target, type: 'base', isPlayerBase: true, owner, clanTag: resolvedClanTag },
+    counts: { wood: woodCount, stone: stoneCount, food: foodCount }
+  }
 }
 
-export function assignRandomPlayerBase(tiles, owner = 'Jugador') {
+export function assignRandomPlayerBase(tiles, owner = 'Jugador', clanTag = null) {
   const baseCounts = [1, 2, 3, 4].map((quadrant) => ({
     quadrant,
     count: tiles.filter((tile) => tile.isPlayerBase && quadrantOf(tile) === quadrant).length,
@@ -109,7 +116,7 @@ export function assignRandomPlayerBase(tiles, owner = 'Jugador') {
 
   if (!candidates.length) return { tiles, assigned: false, reason: `No quedan posiciones válidas en el segmento ${chosenQuadrant}.` }
   const target = candidates[Math.floor(Math.random() * candidates.length)]
-  const result = assignPlayerBase(tiles, target.id, owner)
+  const result = assignPlayerBase(tiles, target.id, owner, clanTag)
   return { ...result, quadrant: chosenQuadrant }
 }
 

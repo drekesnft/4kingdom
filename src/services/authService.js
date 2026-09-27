@@ -65,7 +65,7 @@ export const TOP_REFERRAL_PRIZES = [
   { rank: 5, king: 8, vip: false, label: '🎖️ Top 5' },
 ]
 
-// Cuentas semilla de evaluadores Alpha autorizados (19 cuentas)
+// Cuentas semilla de evaluadores Alpha autorizados (20 cuentas)
 const DEFAULT_ACCOUNTS = [
   {
     email: 'antoniox4253@gmail.com',
@@ -362,6 +362,22 @@ const DEFAULT_ACCOUNTS = [
     role: 'alpha_player',
     provider: 'email',
     referralCode: 'FK-PUEN-YORN',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'kleiberdejesusgp2106@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-KLEI-JESU',
     referredBy: null,
     referralsCount: 0,
     airdropTokens: 0,
@@ -895,6 +911,18 @@ export const authService = {
     )
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        const recoveryEmail = session?.user?.email?.trim().toLowerCase() || ''
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('fourkingdoms_password_recovery', {
+              detail: { email: recoveryEmail, session },
+            })
+          )
+        }
+        return
+      }
+
       if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         const email = session.user.email?.trim().toLowerCase()
         if (!email) return
@@ -1595,6 +1623,150 @@ export const authService = {
   },
 
   /**
+   * Valida el rol de un correo en Supabase y procesa el flujo dinámico:
+   * - Si es 'whitelist' -> Redirige directamente al Dashboard de Whitelist.
+   * - Si no figura en la base de datos -> Redirige a registrarse con Google en la Whitelist.
+   * - Si es 'alpha_player' -> Envía correo de recuperación con Supabase Auth (gratis)
+   *   y habilita la definición de su clave formal.
+   */
+  async checkEmailAndProcessRecovery(emailInput) {
+    const email = (emailInput || '').trim().toLowerCase()
+
+    if (!email || !email.includes('@')) {
+      return { success: false, error: 'Ingresa un correo electrónico válido.' }
+    }
+
+    let foundRole = null
+    let foundUser = null
+
+    // 1. Consultar directamente en Supabase si está activo
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: accData, error: accErr } = await supabase
+          .from('user_accounts')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (!accErr && accData) {
+          foundUser = accData
+          foundRole = accData.role || 'alpha_player'
+        } else {
+          // Consultar en whitelist_signups
+          const { data: wlData, error: wlErr } = await supabase
+            .from('whitelist_signups')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle()
+
+          if (!wlErr && wlData) {
+            foundUser = wlData
+            foundRole = 'whitelist'
+          }
+        }
+      } catch (err) {
+        console.error('[authService] Error consultando rol en Supabase:', err)
+      }
+    }
+
+    // 2. Si no se encontró en Supabase o estamos en local/offline
+    if (!foundRole) {
+      const isSeedAlpha = DEFAULT_ACCOUNTS.find((a) => a.email.toLowerCase() === email)
+      if (isSeedAlpha) {
+        foundRole = 'alpha_player'
+        foundUser = isSeedAlpha
+      } else {
+        const localAccounts = getStoredAccounts()
+        const localFound = localAccounts.find((a) => a.email.toLowerCase() === email)
+        if (localFound) {
+          foundRole = localFound.role || 'alpha_player'
+          foundUser = localFound
+        } else {
+          const localWl = getStoredWhitelist()
+          const wlFound = localWl.find((w) => w.email.toLowerCase() === email)
+          if (wlFound) {
+            foundRole = 'whitelist'
+            foundUser = wlFound
+          }
+        }
+      }
+    }
+
+    // CASO 1: Es usuario de Whitelist -> Redirigir al Dashboard de Whitelist
+    if (foundRole === 'whitelist') {
+      const user = {
+        email,
+        role: 'whitelist',
+        provider: foundUser?.provider || 'google',
+        referralCode: foundUser?.referral_code || foundUser?.referralCode || generateReferralCode(email),
+        referredBy: foundUser?.referred_by || foundUser?.referredBy || null,
+        referralsCount: foundUser?.referrals_count || foundUser?.referralsCount || 0,
+        airdropTokens: foundUser?.airdrop_tokens || foundUser?.airdropTokens || 0,
+        sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
+      }
+      this.setCurrentUser(user)
+      return {
+        success: true,
+        action: 'redirect_whitelist',
+        user,
+        message: '¡Tu correo está registrado en la Whitelist Oficial! Redirigiendo a tu Dashboard de Pre-registro...',
+      }
+    }
+
+    // CASO 2: NO figura en la base de datos -> Redirigir a registrarse con Google
+    if (!foundRole) {
+      return {
+        success: false,
+        action: 'register_google',
+        notRegistered: true,
+        email,
+        error: 'Este correo no figura en la base de datos de evaluadores ni de la Whitelist Oficial.',
+        message: 'No te encuentras registrado todavía. ¡Asegura tu puesto en la Whitelist con Google para recibir 5 Tokens KING de Airdrop!',
+      }
+    }
+
+    // CASO 3: Es jugador del Alpha -> Enviar correo para recuperar contraseña con Supabase
+    if (foundRole === 'alpha_player') {
+      let emailSent = false
+      let emailError = null
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://fourkingdoms.online'
+          const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${siteUrl}/`,
+          })
+
+          if (!resetErr) {
+            emailSent = true
+          } else {
+            console.warn('[authService] Supabase resetPasswordForEmail info:', resetErr.message)
+            emailError = resetErr.message
+          }
+        } catch (err) {
+          console.warn('[authService] Error al enviar reset de contraseña:', err)
+          emailError = err?.message
+        }
+      }
+
+      return {
+        success: true,
+        action: 'alpha_recovery',
+        email,
+        emailSent,
+        message: emailSent
+          ? `📧 Se ha enviado un enlace de recuperación oficial de Supabase a ${email}. Abre el enlace en tu correo para definir tu clave o ingrésala a continuación.`
+          : `✅ Cuenta de Evaluador Alpha autorizada identificada. Define tu contraseña formal a continuación para ingresar a la Alpha.`,
+      }
+    }
+
+    return {
+      success: false,
+      error: 'No se pudo determinar el estado de la cuenta. Intenta nuevamente.',
+    }
+  },
+
+  /**
    * Recupera o establece formalmente la contraseña de una cuenta de evaluador Alpha autorizada.
    * Valida existencia en backend Supabase o lista semilla de evaluadores, actualiza la clave,
    * remueve la necesidad de cambio (must_change_password: false) y genera una sesión activa de 7 días.
@@ -1715,6 +1887,11 @@ export const authService = {
         if (updateErr) {
           console.error('[Supabase Recover Password Error]:', updateErr)
         }
+
+        // Si existe sesión activa en Supabase Auth (ej: por enlace de reseteo), actualizar auth.users
+        try {
+          await supabase.auth.updateUser({ password: newPassword }).catch(() => {})
+        } catch {}
       } catch (err) {
         console.error('[Supabase Recover Password Exception]:', err)
       }

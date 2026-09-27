@@ -34,6 +34,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [loading, setLoading] = useState(false)
   const [showHypeWhitelist, setShowHypeWhitelist] = useState(false)
   const [showRecovery, setShowRecovery] = useState(false)
+  const [recoveryStep, setRecoveryStep] = useState('email') // 'email' | 'password'
+  const [notRegisteredPrompt, setNotRegisteredPrompt] = useState(false)
   const [recoveryEmail, setRecoveryEmail] = useState('')
   const [recoveryPassword, setRecoveryPassword] = useState('')
   const [recoveryConfirm, setRecoveryConfirm] = useState('')
@@ -45,9 +47,69 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     }
   }, [isOpen])
 
+  // Listener para capturar el retorno desde el enlace de correo de Supabase Auth
+  useEffect(() => {
+    const handlePasswordRecovery = (e) => {
+      const recoveryEmailFromEvent = e.detail?.email || ''
+      setShowRecovery(true)
+      setRecoveryStep('password')
+      if (recoveryEmailFromEvent) {
+        setRecoveryEmail(recoveryEmailFromEvent)
+      }
+      setSuccessMsg('Has abierto el enlace oficial de recuperación de Supabase. Define tu nueva contraseña formal para ingresar a tu Reino.')
+      setError('')
+      setNotRegisteredPrompt(false)
+    }
+
+    window.addEventListener('fourkingdoms_password_recovery', handlePasswordRecovery)
+    return () => {
+      window.removeEventListener('fourkingdoms_password_recovery', handlePasswordRecovery)
+    }
+  }, [])
+
   if (!isOpen) return null
 
-  // Manejo de Recuperación y Establecimiento Formal de Contraseña
+  // Paso 1: Validar rol del correo con Supabase y procesar según rol
+  const handleValidateEmail = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccessMsg('')
+    setNotRegisteredPrompt(false)
+
+    if (!recoveryEmail || !recoveryEmail.includes('@')) {
+      setError('Ingresa un correo electrónico válido.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await authService.checkEmailAndProcessRecovery(recoveryEmail)
+      if (res.action === 'redirect_whitelist') {
+        // Redirige directamente al Dashboard de Whitelist
+        setSuccessMsg(res.message || '¡Tu correo está registrado en la Whitelist Oficial! Redirigiendo...')
+        setTimeout(() => {
+          onLoginSuccess(res.user)
+        }, 800)
+      } else if (res.action === 'register_google') {
+        // No figura en base de datos -> Invitar a registrarse con Google
+        setError(res.error)
+        setNotRegisteredPrompt(true)
+      } else if (res.action === 'alpha_recovery') {
+        // Es jugador del alpha -> correo enviado por Supabase y permitir definir clave formal
+        setSuccessMsg(res.message)
+        setRecoveryStep('password')
+      } else {
+        setError(res.error || 'No se pudo verificar el correo.')
+      }
+    } catch (err) {
+      console.error('[AuthModal] Error al validar correo:', err)
+      setError('Error al consultar el servicio de autenticación.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Paso 2: Establecimiento Formal de Contraseña
   const handleRecoverySubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -59,7 +121,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     }
 
     if (recoveryPassword.length < 5) {
-      setError('La contraseña debe tener al minímo 5 caracteres.')
+      setError('La contraseña debe tener al menos 5 caracteres.')
       return
     }
 
@@ -289,7 +351,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           </div>
         ) : showRecovery ? (
           /* ============================================================== */
-          /* PANTALLA 2: RECUPERACIÓN / CREACIÓN FORMAL DE CONTRASEÑA       */
+          /* PANTALLA 2: RECUPERACIÓN / VALIDACIÓN DE ROL CON SUPABASE      */
           /* ============================================================== */
           <div className="auth-recovery-view">
             <div className="auth-modal-header">
@@ -298,10 +360,16 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                 alt="FourKingdoms Logo"
                 className="auth-logo-img"
               />
-              <p className="auth-eyebrow">EVALUADORES ALPHA · SEGURIDAD FORMAL</p>
-              <h2 id="auth-modal-title">Crear o Recuperar Contraseña</h2>
+              <p className="auth-eyebrow">
+                {recoveryStep === 'email' ? 'VALIDACIÓN GOBERNADA POR SUPABASE' : 'EVALUADORES ALPHA · SEGURIDAD FORMAL'}
+              </p>
+              <h2 id="auth-modal-title">
+                {recoveryStep === 'email' ? 'Recuperar o Crear Contraseña' : 'Definir Contraseña Formal'}
+              </h2>
               <p className="auth-subtitle">
-                Si estás en la lista de evaluadores Alpha, ingresa tu correo y define tu contraseña formal para acceder a la conquista.
+                {recoveryStep === 'email'
+                  ? 'Ingresa tu correo. Supabase validará automáticamente tu rol para redirigirte o enviarte tu enlace de acceso.'
+                  : 'Ingresa y confirma tu nueva contraseña formal para ingresar a tu Reino Alpha.'}
               </p>
             </div>
 
@@ -319,77 +387,167 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               </div>
             )}
 
-            <form onSubmit={handleRecoverySubmit} className="auth-form">
-              <div className="auth-input-group">
-                <label htmlFor="recovery-email">Correo Electrónico Autorizado</label>
-                <div className="auth-input-wrap">
-                  <Mail size={16} className="input-icon" />
-                  <input
-                    id="recovery-email"
-                    type="email"
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    placeholder="ejemplo@correo.com"
-                    required
-                    autoComplete="email"
-                  />
+            {recoveryStep === 'email' ? (
+              /* PASO 1: Ingreso de correo y validación de rol con Supabase */
+              <form onSubmit={handleValidateEmail} className="auth-form">
+                <div className="auth-input-group">
+                  <label htmlFor="recovery-email">Correo Electrónico</label>
+                  <div className="auth-input-wrap">
+                    <Mail size={16} className="input-icon" />
+                    <input
+                      id="recovery-email"
+                      type="email"
+                      value={recoveryEmail}
+                      onChange={(e) => {
+                        setRecoveryEmail(e.target.value)
+                        setError('')
+                        setNotRegisteredPrompt(false)
+                      }}
+                      placeholder="ejemplo@correo.com"
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="auth-input-group">
-                <label htmlFor="recovery-pass">Nueva Contraseña</label>
-                <div className="auth-input-wrap">
-                  <Lock size={16} className="input-icon" />
-                  <input
-                    id="recovery-pass"
-                    type="password"
-                    value={recoveryPassword}
-                    onChange={(e) => setRecoveryPassword(e.target.value)}
-                    placeholder="Mínimo 5 caracteres"
-                    required
-                    minLength={5}
-                    autoComplete="new-password"
-                  />
+                {notRegisteredPrompt && (
+                  <div
+                    className="auth-not-registered-box"
+                    style={{
+                      padding: '12px 14px',
+                      background: 'rgba(234, 67, 53, 0.12)',
+                      border: '1px solid rgba(234, 67, 53, 0.35)',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      marginTop: '4px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '12px', color: '#ffc8c4', lineHeight: '1.4' }}>
+                      ⚠️ Este correo no figura en la base de datos de FourKingdoms. Únete a la Whitelist Oficial con tu cuenta de Google para asegurar tu cupo y ganar 5 Tokens KING de Airdrop.
+                    </p>
+                    <button
+                      type="button"
+                      className="auth-google-btn"
+                      style={{ margin: 0 }}
+                      onClick={handleGoogleClick}
+                      disabled={loading}
+                    >
+                      <GoogleIcon />
+                      <span>Registrarme en Whitelist con Google (+5 KING)</span>
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="auth-submit-btn"
+                  disabled={loading}
+                >
+                  {loading ? 'Consultando en Supabase...' : '🔍 Validar Rol y Proceder'}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-back-to-login"
+                  onClick={() => {
+                    setShowRecovery(false)
+                    setRecoveryStep('email')
+                    setError('')
+                    setSuccessMsg('')
+                    setNotRegisteredPrompt(false)
+                  }}
+                >
+                  <ArrowLeft size={14} /> Volver a Iniciar Sesión
+                </button>
+              </form>
+            ) : (
+              /* PASO 2: Ingreso de nueva contraseña formal */
+              <form onSubmit={handleRecoverySubmit} className="auth-form">
+                <div className="auth-input-group">
+                  <div className="auth-label-row">
+                    <label htmlFor="recovery-email-locked">Correo Evaluador Alpha</label>
+                    <button
+                      type="button"
+                      className="auth-link-btn"
+                      onClick={() => {
+                        setRecoveryStep('email')
+                        setError('')
+                        setSuccessMsg('')
+                      }}
+                    >
+                      Cambiar correo
+                    </button>
+                  </div>
+                  <div className="auth-input-wrap">
+                    <Mail size={16} className="input-icon" />
+                    <input
+                      id="recovery-email-locked"
+                      type="email"
+                      value={recoveryEmail}
+                      readOnly
+                      style={{ opacity: 0.85, cursor: 'default' }}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="auth-input-group">
-                <label htmlFor="recovery-confirm">Confirmar Nueva Contraseña</label>
-                <div className="auth-input-wrap">
-                  <Lock size={16} className="input-icon" />
-                  <input
-                    id="recovery-confirm"
-                    type="password"
-                    value={recoveryConfirm}
-                    onChange={(e) => setRecoveryConfirm(e.target.value)}
-                    placeholder="Repite tu nueva contraseña"
-                    required
-                    minLength={5}
-                    autoComplete="new-password"
-                  />
+                <div className="auth-input-group">
+                  <label htmlFor="recovery-pass">Nueva Contraseña Formal</label>
+                  <div className="auth-input-wrap">
+                    <Lock size={16} className="input-icon" />
+                    <input
+                      id="recovery-pass"
+                      type="password"
+                      value={recoveryPassword}
+                      onChange={(e) => setRecoveryPassword(e.target.value)}
+                      placeholder="Mínimo 5 caracteres"
+                      required
+                      minLength={5}
+                      autoComplete="new-password"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                className="auth-submit-btn"
-                disabled={loading}
-              >
-                {loading ? 'Validando y guardando...' : '🛡️ Establecer Contraseña y Entrar'}
-              </button>
+                <div className="auth-input-group">
+                  <label htmlFor="recovery-confirm">Confirmar Nueva Contraseña</label>
+                  <div className="auth-input-wrap">
+                    <Lock size={16} className="input-icon" />
+                    <input
+                      id="recovery-confirm"
+                      type="password"
+                      value={recoveryConfirm}
+                      onChange={(e) => setRecoveryConfirm(e.target.value)}
+                      placeholder="Repite tu nueva contraseña"
+                      required
+                      minLength={5}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
 
-              <button
-                type="button"
-                className="btn-back-to-login"
-                onClick={() => {
-                  setShowRecovery(false)
-                  setError('')
-                  setSuccessMsg('')
-                }}
-              >
-                <ArrowLeft size={14} /> Volver a Iniciar Sesión
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  className="auth-submit-btn"
+                  disabled={loading}
+                >
+                  {loading ? 'Guardando en Supabase...' : '🛡️ Establecer Contraseña y Entrar'}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-back-to-login"
+                  onClick={() => {
+                    setShowRecovery(false)
+                    setRecoveryStep('email')
+                    setError('')
+                    setSuccessMsg('')
+                  }}
+                >
+                  <ArrowLeft size={14} /> Volver a Iniciar Sesión
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           /* ============================================================== */
@@ -463,9 +621,11 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     className="auth-link-btn"
                     onClick={() => {
                       setShowRecovery(true)
+                      setRecoveryStep('email')
                       setRecoveryEmail(email || '')
                       setError('')
                       setSuccessMsg('')
+                      setNotRegisteredPrompt(false)
                     }}
                   >
                     ¿Olvidaste o quieres crear tu clave?

@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { TROOPS_CONFIG, BUILDINGS_CONFIG, HERO_MISSIONS } from '../game/config'
-import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles } from 'lucide-react'
+import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles, ArrowRight } from 'lucide-react'
 
-export default function BattleView({ gameState, onOpenReport, onClose }) {
+export default function BattleView({ gameState, onOpenReport, onClose, onGoToBuild }) {
   const {
     troops,
     totalTroopsOwned,
@@ -15,6 +15,7 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
     productiveTroopsCount,
     maxKingProductiveTroops,
     buildings,
+    resources,
     trainingQueue,
     recruitTroops,
     speedupTraining,
@@ -28,8 +29,8 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
   const [activeTab, setActiveTab] = useState('recruit') // 'recruit' | 'hero' | 'reports'
   const [recruitCounts, setRecruitCounts] = useState({ infantry: 5, archer: 5, cavalry: 5 })
 
-  const barracksLvl = buildings.barracks
-  const barracksDef = BUILDINGS_CONFIG.barracks.levels[barracksLvl]
+  const barracksLvl = buildings.barracks || 0
+  const barracksDef = barracksLvl > 0 ? BUILDINGS_CONFIG.barracks.levels[barracksLvl] : { maxQueue: 0, speedBonus: 0, unlockedTroops: [] }
 
   const currentBatch = trainingQueue.length > 0 ? trainingQueue[0] : null
   const now = Date.now()
@@ -39,6 +40,8 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
   const heroRemainingSec = hero.activeMission ? Math.max(1, Math.ceil((hero.activeMission.finishTime - now) / 1000)) : 0
   const heroSpeedCost = calculateKingCostForSec(heroRemainingSec)
 
+  const currentQueueCount = trainingQueue.reduce((acc, b) => acc + b.count, 0)
+
   return (
     <div className="view-panel battle-panel">
       <header className="panel-header">
@@ -46,7 +49,9 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
           <Swords className="panel-icon" />
           <div>
             <h2>Ejército y Batalla</h2>
-            <p>3 Tropas · Cola Cuartel Nv.{barracksLvl} · Héroe Alpha</p>
+            <p>
+              {barracksLvl > 0 ? `Cuartel Nv.${barracksLvl} · 3 Tropas Alpha · Héroe` : '⚠️ Cuartel no construido · Héroe'}
+            </p>
           </div>
         </div>
         {onClose && (
@@ -55,6 +60,22 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
           </button>
         )}
       </header>
+
+      {/* Validación Crucial: Alerta si el Cuartel no está construido */}
+      {barracksLvl < 1 && (
+        <div className="barracks-alert-box">
+          <AlertTriangle className="alert-icon-big" size={26} />
+          <div className="alert-copy">
+            <strong>¡Cuartel Militar no construido!</strong>
+            <p>Debes construir el Cuartel en Mi Base para poder reclutar Infantería, Arqueros y Caballería.</p>
+          </div>
+          {onGoToBuild && (
+            <button type="button" className="btn-build-barracks" onClick={onGoToBuild}>
+              🏛️ Ir a Construir
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Alerta de Hambre (Famine) */}
       {isHungry && (
@@ -102,7 +123,7 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
           className={activeTab === 'recruit' ? 'active' : ''}
           onClick={() => setActiveTab('recruit')}
         >
-          ⚔️ Cuartel
+          ⚔️ Cuartel {barracksLvl > 0 ? `(Nv.${barracksLvl})` : '(Bloqueado)'}
         </button>
         <button
           type="button"
@@ -123,52 +144,74 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
       {activeTab === 'recruit' && (
         <div className="tab-content recruit-content">
           {/* Cola de Reclutamiento Activa */}
-          <div className={`builder-card ${trainingQueue.length ? 'busy' : 'idle'}`}>
-            <div className="builder-header">
-              <strong>Cola del Cuartel (Nv. {barracksLvl})</strong>
-              <span className="badge">
-                {trainingQueue.reduce((acc, b) => acc + b.count, 0)}/{barracksDef.maxQueue} tropas
-              </span>
-            </div>
-
-            {currentBatch ? (
-              <div className="builder-active-body">
-                <p>
-                  Entrenando <strong>{currentBatch.count} {TROOPS_CONFIG[currentBatch.troopId].name}</strong>
-                  {trainingQueue.length > 1 && <small> (+{trainingQueue.length - 1} en espera)</small>}
-                </p>
-                <div className="progress-bar-wrap">
-                  <div
-                    className="progress-fill"
-                    style={{
-                      width: `${Math.max(5, 100 - (trainingRemainingSec / currentBatch.totalSec) * 100)}%`,
-                    }}
-                  />
-                </div>
-                <div className="builder-actions">
-                  <span className="timer-text">{trainingRemainingSec}s restantes</span>
-                  <button type="button" className="speedup-btn" onClick={speedupTraining}>
-                    <Zap size={14} /> Acelerar ({trainingSpeedCost} KING)
-                  </button>
-                </div>
+          {barracksLvl > 0 ? (
+            <div className={`builder-card ${trainingQueue.length ? 'busy' : 'idle'}`}>
+              <div className="builder-header">
+                <strong>Cola del Cuartel (Nv. {barracksLvl})</strong>
+                <span className="badge">
+                  {currentQueueCount}/{barracksDef.maxQueue} tropas
+                </span>
               </div>
-            ) : (
-              <p className="builder-idle-text">Cuartel libre. Selecciona tropas para reclutar.</p>
-            )}
-          </div>
 
-          {/* Tarjetas de las 3 Tropas con Arte Oficial */}
+              <div className="barracks-perks-row">
+                <span>⚡ Velocidad: <strong>+{Math.round(barracksDef.speedBonus * 100)}% más rápida</strong></span>
+                <span>📋 Cola máx: <strong>{barracksDef.maxQueue} tropas</strong></span>
+              </div>
+
+              {currentBatch ? (
+                <div className="builder-active-body">
+                  <p>
+                    Entrenando <strong>{currentBatch.count} {TROOPS_CONFIG[currentBatch.troopId].name}</strong>
+                    {trainingQueue.length > 1 && <small> (+{trainingQueue.length - 1} en espera)</small>}
+                  </p>
+                  <div className="progress-bar-wrap">
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${Math.max(5, 100 - (trainingRemainingSec / currentBatch.totalSec) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="builder-actions">
+                    <span className="timer-text">{trainingRemainingSec}s restantes</span>
+                    <button type="button" className="speedup-btn" onClick={speedupTraining}>
+                      <Zap size={14} /> Acelerar ({trainingSpeedCost} KING)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="builder-idle-text">Cuartel libre. Selecciona tropas para reclutar.</p>
+              )}
+            </div>
+          ) : (
+            <div className="builder-card idle">
+              <div className="builder-header">
+                <strong>Cola del Cuartel</strong>
+                <span className="badge">No disponible</span>
+              </div>
+              <p className="builder-idle-text">Construye el Cuartel para habilitar la cola de reclutamiento militar.</p>
+            </div>
+          )}
+
+          {/* Tarjetas de las 3 Tropas con Arte Oficial y Validaciones */}
           <div className="troops-cards-container">
             {Object.values(TROOPS_CONFIG).map((t) => {
-              const isUnlocked = barracksDef.unlockedTroops.includes(t.id)
+              const isUnlocked = barracksLvl > 0 && barracksDef.unlockedTroops.includes(t.id)
               const countToRecruit = recruitCounts[t.id] || 5
-              const unitTrainSec = Math.round(t.trainTimeSec * (1 - barracksDef.speedBonus))
+              const unitTrainSec = Math.round(t.trainTimeSec * (1 - (barracksDef.speedBonus || 0)))
               const totalSec = unitTrainSec * countToRecruit
               const totalCost = {
                 wood: t.cost.wood * countToRecruit,
                 stone: t.cost.stone * countToRecruit,
                 food: t.cost.food * countToRecruit,
               }
+
+              const hasEnoughResources = (
+                resources.wood >= totalCost.wood &&
+                resources.stone >= totalCost.stone &&
+                resources.food >= totalCost.food
+              )
+              const hasQueueSpace = currentQueueCount + countToRecruit <= barracksDef.maxQueue
 
               return (
                 <div key={t.id} className={`troop-card ${!isUnlocked ? 'locked' : ''}`}>
@@ -195,7 +238,12 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
                         <div><small>Comida</small><strong>🌾 {t.foodUpkeepPerHour}/h</strong></div>
                       </div>
 
-                      {isUnlocked ? (
+                      {barracksLvl < 1 ? (
+                        <div className="troop-locked-box">
+                          <ShieldAlert size={14} />
+                          <small>Requiere construir el Cuartel Militar (Nivel 1)</small>
+                        </div>
+                      ) : isUnlocked ? (
                         <div className="troop-action-wrap">
                           <div className="quantity-selector">
                             <button
@@ -207,31 +255,47 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
                             <span>{countToRecruit} uds.</span>
                             <button
                               type="button"
-                              onClick={() => setRecruitCounts((c) => ({ ...c, [t.id]: countToRecruit + 5 }))}
+                              onClick={() => setRecruitCounts((c) => ({ ...c, [t.id]: Math.min(barracksDef.maxQueue, countToRecruit + 5) }))}
                             >
                               +5
                             </button>
                           </div>
 
                           <div className="troop-costs-row">
-                            <span>🌲 {totalCost.wood}</span>
-                            <span>🪨 {totalCost.stone}</span>
-                            <span>🌾 {totalCost.food}</span>
+                            <span style={{ color: resources.wood >= totalCost.wood ? '#a3e9b4' : '#ff9b9b' }}>
+                              🪵 {totalCost.wood}
+                            </span>
+                            <span style={{ color: resources.stone >= totalCost.stone ? '#a3e9b4' : '#ff9b9b' }}>
+                              🪨 {totalCost.stone}
+                            </span>
+                            <span style={{ color: resources.food >= totalCost.food ? '#a3e9b4' : '#ff9b9b' }}>
+                              🌾 {totalCost.food}
+                            </span>
                             <span className="time-badge">⏳ {Math.round(totalSec / 60)}m</span>
                           </div>
 
-                          <button
-                            type="button"
-                            className="recruit-btn"
-                            onClick={() => recruitTroops(t.id, countToRecruit)}
-                          >
-                            Reclutar ({countToRecruit})
-                          </button>
+                          {!hasQueueSpace ? (
+                            <button type="button" className="recruit-btn" disabled style={{ opacity: 0.6 }}>
+                              Cola llena ({currentQueueCount}/{barracksDef.maxQueue})
+                            </button>
+                          ) : !hasEnoughResources ? (
+                            <button type="button" className="recruit-btn" disabled style={{ opacity: 0.6 }}>
+                              Recursos insuficientes
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="recruit-btn"
+                              onClick={() => recruitTroops(t.id, countToRecruit)}
+                            >
+                              Reclutar ({countToRecruit})
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="troop-locked-box">
                           <ShieldAlert size={14} />
-                          <small>Desbloquea con Cuartel Nv. {t.requiredBarracksLevel}</small>
+                          <small>Desbloquea con Cuartel Nivel {t.requiredBarracksLevel} (Actual: Nv.{barracksLvl})</small>
                         </div>
                       )}
                     </div>
@@ -249,7 +313,7 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
             <div className="hero-status-header">
               <div>
                 <h3>Héroe del Reino (Alpha v0.1)</h3>
-                <p>Sin niveles ni muerte permanente · Misiones de expedición</p>
+                <p>Sin niveles ni muerte permanente · Misiones tácticas</p>
               </div>
               <div className="hero-energy-badge">
                 <span className="energy-icon">⚡</span>
@@ -259,89 +323,88 @@ export default function BattleView({ gameState, onOpenReport, onClose }) {
             </div>
 
             {hero.activeMission ? (
-              <div className="active-mission-box">
-                <p>Misión en curso: <strong>{HERO_MISSIONS[hero.activeMission.missionId].name}</strong></p>
-                <div className="progress-bar-wrap">
-                  <div
-                    className="progress-fill"
-                    style={{
-                      width: `${Math.max(5, 100 - (heroRemainingSec / hero.activeMission.totalSec) * 100)}%`,
-                    }}
-                  />
+              <div className="hero-active-mission">
+                <div className="hero-mission-pulse">
+                  <span>En Misión: <strong>{HERO_MISSIONS[hero.activeMission.missionId].name}</strong></span>
+                  <span className="mission-timer">{heroRemainingSec}s restantes</span>
                 </div>
-                <div className="builder-actions">
-                  <span className="timer-text">{heroRemainingSec}s restantes</span>
-                  <button type="button" className="speedup-btn" onClick={speedupHeroMission}>
-                    <Zap size={14} /> Acelerar ({heroSpeedCost} KING)
-                  </button>
-                </div>
+                <button type="button" className="hero-speed-btn" onClick={speedupHeroMission}>
+                  <Zap size={13} /> Acelerar con {heroSpeedCost} KING
+                </button>
               </div>
             ) : (
-              <p className="hero-idle-text">El Héroe está descansando en la ciudadela y listo para explorar.</p>
+              <p className="hero-ready-text">El Héroe está descansando en la fortaleza listo para una misión.</p>
             )}
           </div>
 
-          <div className="missions-grid">
-            {Object.values(HERO_MISSIONS).map((m) => (
-              <div key={m.id} className="mission-card">
-                <div className="mission-top">
-                  <h4>{m.name}</h4>
-                  <span className="mission-energy-tag">⚡ {m.energyCost} Energía</span>
+          <div className="hero-missions-list">
+            {Object.values(HERO_MISSIONS).map((m) => {
+              const canAffordEnergy = hero.energy >= m.energyCost
+              const isHeroBusy = Boolean(hero.activeMission)
+
+              return (
+                <div key={m.id} className="hero-mission-card">
+                  <div className="mission-card-top">
+                    <div>
+                      <h4>{m.name}</h4>
+                      <p>{m.description}</p>
+                    </div>
+                    <span className="mission-energy-pill">⚡ {m.energyCost} Energía</span>
+                  </div>
+
+                  <div className="mission-meta-grid">
+                    <div><small>Duración</small><strong>{Math.round(m.durationSec / 60)} min</strong></div>
+                    <div><small>Probabilidad</small><strong>{Math.round(m.successRate * 100)}%</strong></div>
+                    <div><small>Recompensa</small><strong>{m.rewardMin}–{m.rewardMax}</strong></div>
+                    <div><small>KING Drop</small><strong>{m.hasKingDrop ? `${Math.round(m.kingDropChance * 100)}% (+1)` : 'No'}</strong></div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mission-launch-btn"
+                    disabled={isHeroBusy || !canAffordEnergy}
+                    onClick={() => startHeroMission(m.id)}
+                  >
+                    {isHeroBusy
+                      ? 'Héroe en misión'
+                      : !canAffordEnergy
+                      ? 'Energía insuficiente'
+                      : `Comenzar ${m.name}`}
+                  </button>
                 </div>
-                <p className="mission-desc">{m.description}</p>
-                <div className="mission-stats-row">
-                  <div><small>Duración</small><strong>⏳ {Math.round(m.durationSec / 60)}m</strong></div>
-                  <div><small>Éxito</small><strong>🎯 {Math.round(m.successRate * 100)}%</strong></div>
-                  <div><small>Botín</small><strong>📦 {m.rewardMin}–{m.rewardMax} res</strong></div>
-                  {m.hasKingDrop && (
-                    <div><small>Drop KING</small><strong className="king-highlight">👑 8% (1 KING)</strong></div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="mission-btn"
-                  onClick={() => startHeroMission(m.id)}
-                  disabled={Boolean(hero.activeMission) || hero.energy < m.energyCost}
-                >
-                  Enviar al Héroe
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
 
       {activeTab === 'reports' && (
         <div className="tab-content reports-content">
+          <div className="reports-header-row">
+            <h3>Informes de Combate Recientes</h3>
+            <span className="reports-counter">{battleReports.length} informes</span>
+          </div>
+
           {battleReports.length === 0 ? (
-            <div className="no-reports-box">
+            <div className="no-reports-card">
               <ScrollText size={32} />
-              <p>Aún no hay reportes de combate registrados.</p>
-              <small>Envía marchas contra campamentos NPC o jugadores rivales para ver el desglose.</small>
+              <p>No tienes informes de batalla recientes.</p>
+              <small>Envía marchas a atacar campamentos NPC o rivales para ver el desglose de combate.</small>
             </div>
           ) : (
             <div className="reports-list">
-              {battleReports.map((rep) => (
+              {battleReports.map((r) => (
                 <div
-                  key={rep.id}
-                  className={`report-item-card ${rep.isVictory ? 'victory' : 'defeat'}`}
-                  onClick={() => onOpenReport(rep)}
+                  key={r.id}
+                  className={`report-item-card ${r.result === 'VICTORIA' ? 'victory' : 'defeat'}`}
+                  onClick={() => onOpenReport(r)}
                 >
-                  <div className="report-badge-col">
-                    <strong>{rep.result}</strong>
-                    <small>{new Date(rep.timestamp).toLocaleTimeString()}</small>
+                  <div className="report-badge-result">{r.result}</div>
+                  <div className="report-info">
+                    <strong>Vs. {r.enemyName}</strong>
+                    <small>{r.date} · Bajas: -{r.casualties.infantry + r.casualties.archer + r.casualties.cavalry} tropas</small>
                   </div>
-                  <div className="report-info-col">
-                    <h4>{rep.targetName}</h4>
-                    <p>Enviadas: {rep.totalSent} · Regresan: {rep.totalReturned} · Bajas: {rep.totalLosses}</p>
-                    {rep.isVictory && (
-                      <small className="loot-preview">
-                        Botín: 🌲{rep.loot.wood} 🪨{rep.loot.stone} 🌾{rep.loot.food}
-                        {rep.kingLoot > 0 ? ` · 👑 +${rep.kingLoot} KING` : ''}
-                      </small>
-                    )}
-                  </div>
-                  <button type="button" className="view-report-btn">Ver</button>
+                  <div className="report-arrow"><ArrowRight size={16} /></div>
                 </div>
               ))}
             </div>

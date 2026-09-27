@@ -979,7 +979,14 @@ export default function App() {
         )}
 
         {activeMenu === 'build' && <BuildView gameState={gameState} onClose={() => setActiveMenu('home')} />}
-        {activeMenu === 'battle' && <BattleView gameState={gameState} onClose={() => setActiveMenu('home')} onOpenReport={(rep) => setSelectedReport(rep)} />}
+        {activeMenu === 'battle' && (
+          <BattleView
+            gameState={gameState}
+            onClose={() => setActiveMenu('home')}
+            onGoToBuild={() => setActiveMenu('build')}
+            onOpenReport={(rep) => setSelectedReport(rep)}
+          />
+        )}
         {activeMenu === 'clan' && <ClanView gameState={gameState} onClose={() => setActiveMenu('home')} />}
         {activeMenu === 'market' && <MarketView gameState={gameState} onClose={() => setActiveMenu('home')} />}
 

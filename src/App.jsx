@@ -50,9 +50,9 @@ const TileImage = memo(function TileImage({ def }) {
 })
 
 const TileButton = memo(function TileButton({ tile, def, important, isSelected, onSelect, baseCoord }) {
-  const isOwnBase = baseCoord
-    ? tile.worldX === baseCoord.worldX && tile.worldY === baseCoord.worldY
-    : tile.worldX === DEMO_BASE.worldX && tile.worldY === DEMO_BASE.worldY
+  const baseX = baseCoord?.worldX ?? baseCoord?.x
+  const baseY = baseCoord?.worldY ?? baseCoord?.y
+  const isOwnBase = typeof baseX === 'number' && typeof baseY === 'number' && tile.worldX === baseX && tile.worldY === baseY
 
   return (
     <button
@@ -125,13 +125,23 @@ export default function App() {
 
   const currentBase = useMemo(() => {
     if (currentUser?.baseCoord) {
-      return { worldX: currentUser.baseCoord.x, worldY: currentUser.baseCoord.y }
+      let raw = currentUser.baseCoord
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw) } catch {}
+      }
+      const bx = raw.worldX ?? raw.x
+      const by = raw.worldY ?? raw.y
+      if (typeof bx === 'number' && !isNaN(bx) && typeof by === 'number' && !isNaN(by)) {
+        return { worldX: bx, worldY: by, x: bx, y: by }
+      }
     }
-    return DEMO_BASE
+    return { worldX: DEMO_BASE.worldX, worldY: DEMO_BASE.worldY, x: DEMO_BASE.worldX, y: DEMO_BASE.worldY }
   }, [currentUser?.baseCoord])
 
   const currentBaseId = useMemo(() => {
-    return `${currentBase.worldX + CENTER_INDEX}-${CENTER_INDEX - currentBase.worldY}`
+    const bx = currentBase.worldX ?? currentBase.x
+    const by = currentBase.worldY ?? currentBase.y
+    return `${bx + CENTER_INDEX}-${CENTER_INDEX - by}`
   }, [currentBase])
 
   const gameState = useGameState(currentBase)
@@ -141,20 +151,9 @@ export default function App() {
     const clanTag = currentUser?.assignedKingdom === 'north' ? 'VAL' :
                     currentUser?.assignedKingdom === 'east' ? 'ARK' :
                     currentUser?.assignedKingdom === 'south' ? 'SOL' : 'ROC'
-    const ownerName = currentUser?.email ? currentUser.email.split('@')[0] : 'Tu Reino (Jugador 01)'
+    const ownerName = currentUser?.email ? currentUser.email.split('@')[0] : 'Tu Reino (Base Principal)'
     const demo = assignPlayerBase(generated, currentBaseId, ownerName, clanTag)
-    let currentTiles = demo.assigned ? demo.tiles : generated
-
-    // Spawn 1 base aliada del mismo clan
-    const allySpawn = assignRandomPlayerBase(currentTiles, 'Sir Ronald', clanTag)
-    if (allySpawn.assigned) currentTiles = allySpawn.tiles
-
-    // Spawn 1 base rival de clan rival
-    const rivalClan = clanTag === 'VAL' ? 'ARK' : 'VAL'
-    const rivalSpawn = assignRandomPlayerBase(currentTiles, 'Lord Kael', rivalClan)
-    if (rivalSpawn.assigned) currentTiles = rivalSpawn.tiles
-
-    return currentTiles
+    return demo.assigned ? demo.tiles : generated
   }, [currentBaseId, currentUser?.assignedKingdom, currentUser?.email])
 
   const [tiles, setTiles] = useState(initialMap)
@@ -625,8 +624,9 @@ export default function App() {
   function popupData(tile) {
     const targetTile = tile
     const def = TILE_TYPES[targetTile.type]
-    const tileLabel = `Tile ${def.tileNumber}`
-    const isOwnBase = targetTile.worldX === currentBase.worldX && targetTile.worldY === currentBase.worldY
+    const baseX = currentBase.worldX ?? currentBase.x
+    const baseY = currentBase.worldY ?? currentBase.y
+    const isOwnBase = targetTile.worldX === baseX && targetTile.worldY === baseY
 
     if (targetTile.isPlayerBase) {
       const isAlly = Boolean(targetTile.clanTag && gameState.clan && targetTile.clanTag === gameState.clan.tag)
@@ -1215,8 +1215,10 @@ export default function App() {
             onKingdomConfirmed={(assignedData) => {
               const updated = authService.getCurrentUser()
               setCurrentUser({ ...updated })
-              if (assignedData?.baseCoord) {
-                focusTile(assignedData.baseCoord.x, assignedData.baseCoord.y, INITIAL_SCALE)
+              const bx = assignedData?.baseCoord?.worldX ?? assignedData?.baseCoord?.x
+              const by = assignedData?.baseCoord?.worldY ?? assignedData?.baseCoord?.y
+              if (typeof bx === 'number' && typeof by === 'number') {
+                focusTile(bx, by, INITIAL_SCALE)
               }
             }}
           />

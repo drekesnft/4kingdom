@@ -89,6 +89,20 @@ const DEFAULT_ACCOUNTS = [
   },
 ]
 
+export function normalizeBaseCoord(raw) {
+  if (!raw) return null
+  let c = raw
+  if (typeof c === 'string') {
+    try { c = JSON.parse(c) } catch { return null }
+  }
+  const x = c.worldX ?? c.x ?? c.coord_x
+  const y = c.worldY ?? c.y ?? c.coord_y
+  if (typeof x === 'number' && !isNaN(x) && typeof y === 'number' && !isNaN(y)) {
+    return { x, y, worldX: x, worldY: y }
+  }
+  return null
+}
+
 export function generateReferralCode(email) {
   const clean = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase()
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase()
@@ -276,7 +290,7 @@ export const authService = {
             airdropTokens: data.airdrop_tokens || 0,
             mustChangePassword: data.must_change_password ?? true,
             assignedKingdom: data.assigned_kingdom ?? null,
-            baseCoord: data.base_coord ?? null,
+            baseCoord: normalizeBaseCoord(data.base_coord),
             onboardingCompleted: data.onboarding_completed ?? false,
             sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
           }
@@ -320,7 +334,7 @@ export const authService = {
         airdropTokens: found.airdropTokens || 0,
         mustChangePassword: Boolean(found.mustChangePassword),
         assignedKingdom: found.assignedKingdom || null,
-        baseCoord: found.baseCoord || null,
+        baseCoord: normalizeBaseCoord(found.baseCoord),
         onboardingCompleted: Boolean(found.onboardingCompleted),
         sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
       }
@@ -605,7 +619,7 @@ export const authService = {
             airdropTokens: existingUser?.airdrop_tokens || 0,
             mustChangePassword: false,
             assignedKingdom: existingUser?.assigned_kingdom || null,
-            baseCoord: existingUser?.base_coord || null,
+            baseCoord: normalizeBaseCoord(existingUser?.base_coord),
             onboardingCompleted: existingUser?.onboarding_completed || false,
             sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
           }
@@ -829,28 +843,22 @@ export const authService = {
     const chosenKey = kingdomKeys[Math.floor(Math.random() * kingdomKeys.length)]
     const kingdomData = REGIONAL_KINGDOMS[chosenKey]
 
-    let baseCoord
+    let bx = 0
+    let by = 0
     if (chosenKey === 'north') {
-      baseCoord = {
-        x: -Math.floor(Math.random() * 12 + 6),
-        y: Math.floor(Math.random() * 12 + 6),
-      }
+      bx = -Math.floor(Math.random() * 12 + 6)
+      by = Math.floor(Math.random() * 12 + 6)
     } else if (chosenKey === 'south') {
-      baseCoord = {
-        x: Math.floor(Math.random() * 12 + 6),
-        y: -Math.floor(Math.random() * 12 + 6),
-      }
+      bx = Math.floor(Math.random() * 12 + 6)
+      by = -Math.floor(Math.random() * 12 + 6)
     } else if (chosenKey === 'east') {
-      baseCoord = {
-        x: Math.floor(Math.random() * 12 + 6),
-        y: Math.floor(Math.random() * 12 + 6),
-      }
+      bx = Math.floor(Math.random() * 12 + 6)
+      by = Math.floor(Math.random() * 12 + 6)
     } else {
-      baseCoord = {
-        x: -Math.floor(Math.random() * 12 + 6),
-        y: -Math.floor(Math.random() * 12 + 6),
-      }
+      bx = -Math.floor(Math.random() * 12 + 6)
+      by = -Math.floor(Math.random() * 12 + 6)
     }
+    const baseCoord = { x: bx, y: by, worldX: bx, worldY: by }
 
     if (isSupabaseConfigured && supabase) {
       try {

@@ -21,12 +21,8 @@ export default function MapMarchesOverlay({
 
   const centerIndex = Math.floor(mapSize / 2)
   const mapPixelSize = mapSize * tileSize
-
-  // Coordenadas base en píxeles
-  const baseGridX = baseCoord.worldX + centerIndex
-  const baseGridY = centerIndex - baseCoord.worldY
-  const basePx = (baseGridX + 0.5) * tileSize
-  const basePy = (baseGridY + 0.5) * tileSize
+  const defaultBaseX = baseCoord?.worldX ?? baseCoord?.x ?? 0
+  const defaultBaseY = baseCoord?.worldY ?? baseCoord?.y ?? 0
 
   return (
     <div
@@ -56,6 +52,13 @@ export default function MapMarchesOverlay({
         </defs>
 
         {marches.map((m) => {
+          const origX = typeof m.originX === 'number' ? m.originX : defaultBaseX
+          const origY = typeof m.originY === 'number' ? m.originY : defaultBaseY
+          const origGridX = origX + centerIndex
+          const origGridY = centerIndex - origY
+          const origPx = (origGridX + 0.5) * tileSize
+          const origPy = (origGridY + 0.5) * tileSize
+
           const targetGridX = m.targetX + centerIndex
           const targetGridY = centerIndex - m.targetY
           const targetPx = (targetGridX + 0.5) * tileSize
@@ -69,8 +72,8 @@ export default function MapMarchesOverlay({
             <g key={`route_${m.id}`}>
               {/* Línea de ruta con guiones animados */}
               <line
-                x1={basePx}
-                y1={basePy}
+                x1={origPx}
+                y1={origPy}
                 x2={targetPx}
                 y2={targetPy}
                 stroke={strokeColor}
@@ -105,13 +108,20 @@ export default function MapMarchesOverlay({
 
       {/* Fichas móviles animadas de los ejércitos sobre la ruta */}
       {marches.map((m) => {
+        const origX = typeof m.originX === 'number' ? m.originX : defaultBaseX
+        const origY = typeof m.originY === 'number' ? m.originY : defaultBaseY
+        const origGridX = origX + centerIndex
+        const origGridY = centerIndex - origY
+        const origPx = (origGridX + 0.5) * tileSize
+        const origPy = (origGridY + 0.5) * tileSize
+
         const targetGridX = m.targetX + centerIndex
         const targetGridY = centerIndex - m.targetY
         const targetPx = (targetGridX + 0.5) * tileSize
         const targetPy = (targetGridY + 0.5) * tileSize
 
-        let currX = basePx
-        let currY = basePy
+        let currX = origPx
+        let currY = origPy
         let angleDeg = 0
         let statusLabel = 'Viajando'
         let remSec = 0
@@ -120,9 +130,9 @@ export default function MapMarchesOverlay({
           const totalDuration = m.arriveTime - m.startTime
           const elapsed = now - m.startTime
           const progress = Math.min(1, Math.max(0, elapsed / (totalDuration || 1)))
-          currX = basePx + (targetPx - basePx) * progress
-          currY = basePy + (targetPy - basePy) * progress
-          angleDeg = (Math.atan2(targetPy - basePy, targetPx - basePx) * 180) / Math.PI
+          currX = origPx + (targetPx - origPx) * progress
+          currY = origPy + (targetPy - origPy) * progress
+          angleDeg = (Math.atan2(targetPy - origPy, targetPx - origPx) * 180) / Math.PI
           remSec = Math.max(1, Math.ceil((m.arriveTime - now) / 1000))
           statusLabel = m.type === 'gather' ? 'Hacia recurso' : 'Al asalto'
         } else if (m.status === 'gathering') {
@@ -136,9 +146,9 @@ export default function MapMarchesOverlay({
           const elapsed = now - startReturn
           const progress = Math.min(1, Math.max(0, elapsed / (totalReturn || 1)))
           // Regresa desde el objetivo hacia la base
-          currX = targetPx + (basePx - targetPx) * progress
-          currY = targetPy + (basePy - targetPy) * progress
-          angleDeg = (Math.atan2(basePy - targetPy, basePx - targetPx) * 180) / Math.PI
+          currX = targetPx + (origPx - targetPx) * progress
+          currY = targetPy + (origPy - targetPy) * progress
+          angleDeg = (Math.atan2(origPy - targetPy, origPx - targetPx) * 180) / Math.PI
           remSec = Math.max(1, Math.ceil((m.returnTime - now) / 1000))
           statusLabel = 'Regresando a base'
         }

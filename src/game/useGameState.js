@@ -29,7 +29,13 @@ import { getOrCreatePlayerId, isSupabaseConfigured } from '../services/supabaseC
 
 const STORAGE_KEY = 'fourkingdoms_alpha_save_v2'
 
-export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
+export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 12 }) {
+  const normalizedBase = useMemo(() => {
+    const bx = baseCoord?.worldX ?? baseCoord?.x ?? -12
+    const by = baseCoord?.worldY ?? baseCoord?.y ?? 12
+    return { worldX: bx, worldY: by, x: bx, y: by }
+  }, [baseCoord?.worldX, baseCoord?.x, baseCoord?.worldY, baseCoord?.y])
+
   // Estado persistente o inicial
   const [resources, setResources] = useState(() => {
     try {
@@ -96,10 +102,36 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
   const [marches, setMarches] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
-      try { return JSON.parse(saved).marches } catch {}
+      try {
+        const parsed = JSON.parse(saved).marches
+        if (Array.isArray(parsed)) {
+          const bx = baseCoord?.worldX ?? baseCoord?.x ?? -12
+          const by = baseCoord?.worldY ?? baseCoord?.y ?? 12
+          return parsed.map((m) => ({
+            ...m,
+            originX: typeof m.originX === 'number' ? m.originX : bx,
+            originY: typeof m.originY === 'number' ? m.originY : by,
+          }))
+        }
+      } catch {}
     }
     return []
   })
+
+  // Sincronizar origen de marchas existentes si la base se actualiza
+  useEffect(() => {
+    setMarches((prevMarches) => {
+      let changed = false
+      const updated = prevMarches.map((m) => {
+        if (typeof m.originX !== 'number' || (m.originX === 4 && m.originY === -3 && (normalizedBase.worldX !== 4 || normalizedBase.worldY !== -3))) {
+          changed = true
+          return { ...m, originX: normalizedBase.worldX, originY: normalizedBase.worldY }
+        }
+        return m
+      })
+      return changed ? updated : prevMarches
+    })
+  }, [normalizedBase.worldX, normalizedBase.worldY])
 
   const [hero, setHero] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -804,8 +836,10 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               const hasPlayerTroops = playerParticipant && totalTroopCount(playerParticipant.army) > 0
 
               if (hasPlayerTroops) {
-                const dx = Math.abs(rally.targetX - baseCoord.worldX)
-                const dy = Math.abs(rally.targetY - baseCoord.worldY)
+                const originX = normalizedBase.worldX
+                const originY = normalizedBase.worldY
+                const dx = Math.abs(rally.targetX - originX)
+                const dy = Math.abs(rally.targetY - originY)
                 const distanceTiles = Math.max(dx, dy, 1)
                 const oneWaySec = Math.max(6, Math.round((distanceTiles * 60) / speedMultiplier))
                 const oneWayDurationMs = oneWaySec * 1000
@@ -813,6 +847,8 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
                 const rallyMarch = {
                   id: `march_rally_${now}_${Math.random().toString(36).substr(2, 4)}`,
                   type: rally.targetType,
+                  originX,
+                  originY,
                   targetX: rally.targetX,
                   targetY: rally.targetY,
                   targetName: `🚩 Rally: ${rally.targetName}`,
@@ -857,7 +893,7 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     estimatedDailyKing,
     treasuryPendingLimit,
     isHungry,
-    baseCoord,
+    normalizedBase,
     speedMultiplier,
   ])
 
@@ -1088,8 +1124,10 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     }
 
     // Distancia Chebyshev: max(|x2-x1|, |y2-y1|)
-    const dx = Math.abs(targetX - baseCoord.worldX)
-    const dy = Math.abs(targetY - baseCoord.worldY)
+    const originX = normalizedBase.worldX
+    const originY = normalizedBase.worldY
+    const dx = Math.abs(targetX - originX)
+    const dy = Math.abs(targetY - originY)
     const distanceTiles = Math.max(dx, dy, 1)
 
     // Velocidad: Si solo Caballería -> 2 casillas/min (30s/tile); sino 1 casilla/min (60s/tile)
@@ -1129,6 +1167,8 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     const newMarch = {
       id: `march_${now}_${Math.random()}`,
       type,
+      originX,
+      originY,
       targetX,
       targetY,
       targetName,
@@ -1155,7 +1195,7 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
         : `Marcha despachada hacia (${targetX}, ${targetY}). Distancia: ${distanceTiles} casillas.`
     )
     return { success: true }
-  }, [marches.length, maxSimultaneousMarches, troops, shieldUntil, baseCoord, isHungry, speedMultiplier, clan, playerId])
+  }, [marches.length, maxSimultaneousMarches, troops, shieldUntil, normalizedBase, isHungry, speedMultiplier, clan, playerId])
 
   // 4b. Convocar Rally de Clan (5 minutos de preparación)
   const createRally = useCallback(({ targetX, targetY, targetName, targetType = 'npc', army, targetLevel = 1, resourceType = null }) => {
@@ -1849,6 +1889,7 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
 
   return {
     // Estado
+    baseCoord: normalizedBase,
     resources,
     king,
     buildings,

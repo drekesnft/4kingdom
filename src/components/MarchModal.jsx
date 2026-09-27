@@ -14,8 +14,10 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
   })
 
   // Distancia Chebyshev: max(|x2 - x1|, |y2 - y1|)
-  const dx = Math.abs(tile.worldX - baseCoord.worldX)
-  const dy = Math.abs(tile.worldY - baseCoord.worldY)
+  const baseX = baseCoord?.worldX ?? baseCoord?.x ?? 0
+  const baseY = baseCoord?.worldY ?? baseCoord?.y ?? 0
+  const dx = Math.abs(tile.worldX - baseX)
+  const dy = Math.abs(tile.worldY - baseY)
   const distance = Math.max(dx, dy, 1)
 
   const isAllyBase = Boolean(tile.isPlayerBase && clan && tile.clanTag && tile.clanTag === clan.tag)
@@ -116,7 +118,7 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
                 ? '🚩 Convocar Rally de Clan'
                 : '⚔️ Despachar Marcha'}
             </h3>
-            <p>{targetTitle} en ({tile.worldX}, {tile.worldY})</p>
+            <p>{targetTitle} en ({tile.worldX}, {tile.worldY}) · Desde tu Base ({baseX}, {baseY})</p>
           </div>
           <button type="button" className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>

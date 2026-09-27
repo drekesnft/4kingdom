@@ -194,6 +194,8 @@ CREATE INDEX IF NOT EXISTS idx_ranking_payouts_date ON public.ranking_payouts(pa
 
 -- POLÍTICAS DE SEGURIDAD ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.whitelist_signups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kingdoms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marches ENABLE ROW LEVEL SECURITY;
@@ -204,6 +206,8 @@ ALTER TABLE public.ranking_payouts ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de lectura/escritura abiertas para la Alpha con clave pública / anon
 CREATE POLICY "Permitir acceso a cuentas" ON public.user_accounts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acceso a whitelist_signups" ON public.whitelist_signups FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acceso a referrals" ON public.referrals FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a reinos" ON public.kingdoms FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a reportes" ON public.reports FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a marchas" ON public.marches FOR ALL USING (true) WITH CHECK (true);
@@ -212,8 +216,10 @@ CREATE POLICY "Permitir acceso a miembros" ON public.clan_members FOR ALL USING 
 CREATE POLICY "Permitir acceso a rallies" ON public.clan_rallies FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a ranking_payouts" ON public.ranking_payouts FOR ALL USING (true) WITH CHECK (true);
 
--- HABILITAR REALTIME EN REPORTES, REINOS, MARCHAS, CUENTAS Y RANKINGS
+-- HABILITAR REALTIME EN REPORTES, REINOS, MARCHAS, CUENTAS, WHITELIST Y RANKINGS
 ALTER PUBLICATION supabase_realtime ADD TABLE public.user_accounts;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.whitelist_signups;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.referrals;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.kingdoms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.marches;

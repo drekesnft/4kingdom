@@ -1175,49 +1175,50 @@ export const authService = {
 
   /**
    * Obtiene la cantidad total global de pre-registros (síncrono desde cache o local)
+   * REGLA CERO FALLBACKS: Refleja exclusivamente registros reales de Whitelist (sin inflar con alpha).
    */
   getGlobalPreRegistrationCount() {
-    if (cachedPreRegCount > 0) return cachedPreRegCount
+    if (typeof cachedPreRegCount === 'number' && cachedPreRegCount >= 0) {
+      return cachedPreRegCount
+    }
     const whitelist = getStoredWhitelist()
-    const alphaAccounts = getStoredAccounts()
-    return Math.max(whitelist.length, alphaAccounts.length, DEFAULT_ACCOUNTS.length)
+    return whitelist.length
   },
 
   /**
-   * Consulta el conteo real y dinámico de gobernantes pre-registrados en Supabase
+   * Consulta el conteo real y dinámico de gobernantes pre-registrados en Supabase.
+   * REGLA CERO FALLBACKS: Solo cuenta registros reales de `whitelist_signups`. Si hay 0, retorna 0.
    */
   async fetchGlobalPreRegistrationCount() {
-    let count = 0
+    let count = null
     if (isSupabaseConfigured && supabase) {
       try {
         const { count: wlCount, error: wlErr } = await supabase
           .from('whitelist_signups')
           .select('*', { count: 'exact', head: true })
         if (!wlErr && typeof wlCount === 'number') {
-          count = Math.max(count, wlCount)
-        }
-
-        const { count: accCount, error: accErr } = await supabase
-          .from('user_accounts')
-          .select('*', { count: 'exact', head: true })
-        if (!accErr && typeof accCount === 'number') {
-          count = Math.max(count, accCount)
+          count = wlCount
+        } else if (wlErr) {
+          console.error('[authService] Error al consultar whitelist_signups en Supabase:', wlErr.message)
         }
       } catch (err) {
         console.error('[authService] Error al consultar conteo de pre-registros en Supabase:', err)
       }
     }
 
-    const localWl = getStoredWhitelist()
-    const localAcc = getStoredAccounts()
-    const localTotal = Math.max(localWl.length, localAcc.length, DEFAULT_ACCOUNTS.length)
-
-    cachedPreRegCount = Math.max(count, localTotal)
+    if (count !== null) {
+      cachedPreRegCount = count
+    } else {
+      const localWl = getStoredWhitelist()
+      cachedPreRegCount = localWl.length
+    }
     return cachedPreRegCount
   },
 
   /**
-   * Obtiene el Top 5 de Reclutadores basado exclusivamente en datos reales
+   * Obtiene el Top 5 de Reclutadores basado exclusivamente en datos reales.
+   * REGLA CERO FALLBACKS: Solo usuarios que hayan reclutado al menos 1 aliado (referralsCount > 0).
+   * Los puestos sin reclutadores se muestran como disponibles con su premio asignado.
    */
   getTopReferrers() {
     if (cachedTopReferrers && cachedTopReferrers.length > 0) {
@@ -1233,16 +1234,21 @@ export const authService = {
     for (const u of allUsers) {
       if (!u.email || seen.has(u.email.toLowerCase())) continue
       seen.add(u.email.toLowerCase())
-      const rawName = u.email.split('@')[0]
-      const masked = rawName.length > 3 ? `${rawName.substring(0, 3)}***` : rawName
-      deduped.push({
-        name: masked,
-        code: u.referralCode || 'FK-SOV',
-        referralsCount: u.referralsCount || 0,
-        airdropTokens: (u.referralsCount || 0) * 5,
-        email: u.email,
-        isRealUser: true,
-      })
+      const refs = u.referralsCount || 0
+      // Solo usuarios que efectivamente hayan reclutado a alguien
+      if (refs > 0) {
+        const rawName = u.email.split('@')[0]
+        const masked = rawName.length > 3 ? `${rawName.substring(0, 3)}***` : rawName
+        deduped.push({
+          name: masked,
+          code: u.referralCode || 'FK-SOV',
+          referralsCount: refs,
+          airdropTokens: refs * 5,
+          email: u.email,
+          isRealUser: true,
+          isVacant: false,
+        })
+      }
     }
 
     deduped.sort((a, b) => (b.referralsCount || 0) - (a.referralsCount || 0))
@@ -1259,10 +1265,11 @@ export const authService = {
           prizeKing: prize.king,
           hasVip: prize.vip,
           rankLabel: prize.label,
+          isVacant: false,
         })
       } else {
         finalTop5.push({
-          name: `Puesto Vacante #${idx + 1}`,
+          name: `Puesto Disponible #${idx + 1}`,
           code: '---',
           referralsCount: 0,
           airdropTokens: 0,
@@ -1281,7 +1288,8 @@ export const authService = {
   },
 
   /**
-   * Consulta el Top 5 real desde Supabase ordenado por número de referidos
+   * Consulta el Top 5 real desde Supabase ordenado por número de referidos.
+   * REGLA CERO FALLBACKS: Solo usuarios con referrals_count > 0.
    */
   async fetchTopReferrers() {
     let realLeaders = []
@@ -1291,8 +1299,9 @@ export const authService = {
         const { data, error } = await supabase
           .from('user_accounts')
           .select('email, referral_code, referrals_count, airdrop_tokens')
+          .gt('referrals_count', 0)
           .order('referrals_count', { ascending: false })
-          .limit(10)
+          .limit(5)
 
         if (!error && Array.isArray(data)) {
           realLeaders = data.map((u) => {
@@ -1305,11 +1314,14 @@ export const authService = {
               airdropTokens: u.airdrop_tokens || (u.referrals_count || 0) * 5,
               email: u.email,
               isRealUser: true,
+              isVacant: false,
             }
           })
+        } else if (error) {
+          console.error('[authService] Error al consultar top referrers en Supabase:', error.message)
         }
       } catch (err) {
-        console.error('[authService] Error al consultar top referrers en Supabase:', err)
+        console.error('[authService] Excepción al consultar top referrers en Supabase:', err)
       }
     }
 
@@ -1329,10 +1341,11 @@ export const authService = {
           prizeKing: prize.king,
           hasVip: prize.vip,
           rankLabel: prize.label,
+          isVacant: false,
         })
       } else {
         finalTop5.push({
-          name: `Puesto Vacante #${idx + 1}`,
+          name: `Puesto Disponible #${idx + 1}`,
           code: '---',
           referralsCount: 0,
           airdropTokens: 0,

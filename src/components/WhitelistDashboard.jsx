@@ -25,6 +25,7 @@ import {
   TOP_REFERRAL_PRIZES,
   getUrlReferralCode,
 } from '../services/authService'
+import { isSupabaseConfigured } from '../services/supabaseClient'
 
 export default function WhitelistDashboard({ user, onLogout }) {
   const [stats, setStats] = useState(() => authService.getReferralStats(user.email))
@@ -158,7 +159,18 @@ export default function WhitelistDashboard({ user, onLogout }) {
           />
           <div className="wl-brand-meta">
             <span className="wl-tag-badge">🛡️ WHITELIST OFICIAL ALPHA</span>
-            <small>Panel de Comando del Pre-Registro</small>
+            <div className="wl-status-subrow">
+              <small>Panel de Comando del Pre-Registro</small>
+              {isSupabaseConfigured ? (
+                <span className="wl-db-status connected" title="Conectado a la base de datos oficial de Supabase">
+                  🟢 Supabase Conectado
+                </span>
+              ) : (
+                <span className="wl-db-status disconnected" title="Falta configurar VITE_SUPABASE_ANON_KEY en Vercel">
+                  ⚠️ Falta VITE_SUPABASE_ANON_KEY
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -436,20 +448,20 @@ export default function WhitelistDashboard({ user, onLogout }) {
                 return (
                   <div
                     key={ref.rank}
-                    className={`table-rank-row rank-${ref.rank} ${isUser ? 'current-user-row' : ''}`}
+                    className={`table-rank-row rank-${ref.rank} ${isUser && !ref.isVacant ? 'current-user-row' : ''} ${ref.isVacant ? 'vacant-row' : ''}`}
                   >
                     <div className="col-rank">
                       <span className="rank-tag">{ref.rankLabel}</span>
                     </div>
 
                     <div className="col-user">
-                      <span className="user-name">{ref.name}</span>
+                      <span className={`user-name ${ref.isVacant ? 'vacant-text' : ''}`}>{ref.name}</span>
                       {ref.hasVip && (
                         <span className="vip-badge" title="Pase VIP Fundador Alpha">
                           👑 PASE VIP
                         </span>
                       )}
-                      {isUser && <span className="you-pill">TÚ</span>}
+                      {isUser && !ref.isVacant && <span className="you-pill">TÚ</span>}
                     </div>
 
                     <div className="col-code">

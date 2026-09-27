@@ -4,7 +4,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ochcsmizbilwuizqtgzk.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const isSupabaseConfigured = Boolean(
@@ -13,6 +13,14 @@ export const isSupabaseConfigured = Boolean(
   supabaseUrl.startsWith('https://') &&
   supabaseAnonKey.length > 20
 )
+
+if (!isSupabaseConfigured) {
+  console.warn(
+    '[SupabaseClient] Supabase no está conectado: falta configurar VITE_SUPABASE_ANON_KEY en las variables de entorno (.env o Vercel).'
+  )
+} else {
+  console.info('[SupabaseClient] Conectado exitosamente a Supabase:', supabaseUrl)
+}
 
 // 7 días de duración estricta de sesión (604,800 segundos = 604,800,000 ms)
 export const SEVEN_DAYS_SECONDS = 7 * 24 * 60 * 60

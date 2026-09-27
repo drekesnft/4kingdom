@@ -4406,6 +4406,31 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   font-size: 10px;
   color: #94a3b8;
 }
+.wl-status-subrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.wl-db-status {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.wl-db-status.connected {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+.wl-db-status.disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
 
 .wl-user-controls {
   display: flex;
@@ -5353,6 +5378,10 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   background: rgba(59, 130, 246, 0.12);
   border-left: 3px solid #3b82f6;
 }
+.table-rank-row.vacant-row {
+  opacity: 0.65;
+  background: rgba(255, 255, 255, 0.015);
+}
 
 .rank-tag {
   font-weight: 900;
@@ -5367,6 +5396,11 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 .user-name {
   font-weight: 700;
   color: #ffffff;
+}
+.user-name.vacant-text {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 500;
 }
 .vip-badge {
   font-size: 9px;

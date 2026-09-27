@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react'
 import {
   Check,
   Coins,
   Crown,
   Flame,
   Home,
+  LogOut,
   Pickaxe,
   Play,
   Shield,
@@ -12,10 +14,43 @@ import {
   Store,
   Swords,
   TrendingUp,
+  User,
 } from 'lucide-react'
 import '../landing.css'
+import AuthModal from './AuthModal'
+import { authService } from '../services/authService'
 
 export default function LandingPage({ onPlay }) {
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser())
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  useEffect(() => {
+    setCurrentUser(authService.getCurrentUser())
+  }, [])
+
+  const handlePlayClick = () => {
+    if (currentUser) {
+      onPlay(currentUser)
+    } else {
+      setShowAuthModal(true)
+    }
+  }
+
+  const handleLogout = () => {
+    authService.logout()
+    setCurrentUser(null)
+  }
+
+  const kingdomLabel = currentUser?.assignedKingdom === 'north'
+    ? '❄️ Reino del Norte'
+    : currentUser?.assignedKingdom === 'south'
+    ? '☀️ Reino del Sur'
+    : currentUser?.assignedKingdom === 'east'
+    ? '🌅 Reino del Este'
+    : currentUser?.assignedKingdom === 'west'
+    ? '🌑 Reino del Oeste'
+    : '⏳ Reino Pendiente'
+
   return (
     <div className="landing-page">
       {/* Top Header */}
@@ -34,9 +69,29 @@ export default function LandingPage({ onPlay }) {
           <a href="#guerra">Guerra de Clanes</a>
           <a href="#packs">Packs de Inicio</a>
         </nav>
-        <button type="button" className="btn-gold" onClick={onPlay}>
-          Jugar ahora
-        </button>
+        {currentUser ? (
+          <div className="landing-user-badge">
+            <div className="user-info-text">
+              <span className="user-email-tag">{currentUser.email}</span>
+              <span className="user-kingdom-tag">{kingdomLabel}</span>
+            </div>
+            <button type="button" className="btn-gold" onClick={handlePlayClick}>
+              Continuar Partida
+            </button>
+            <button
+              type="button"
+              className="btn-logout-landing"
+              onClick={handleLogout}
+              title="Cerrar Sesión"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="btn-gold" onClick={() => setShowAuthModal(true)}>
+            Iniciar Sesión
+          </button>
+        )}
       </header>
 
       <main className="landing-wrap">
@@ -62,10 +117,10 @@ export default function LandingPage({ onPlay }) {
                 Funda tu reino, entrena macroejércitos y compite por el trono supremo.
               </p>
               <div className="hero-actions">
-                <button type="button" className="btn-gold" onClick={onPlay}>
+                <button type="button" className="btn-gold" onClick={handlePlayClick}>
                   Jugar ahora
                 </button>
-                <button type="button" className="btn-outline" onClick={onPlay}>
+                <button type="button" className="btn-outline" onClick={handlePlayClick}>
                   <Play size={16} fill="currentColor" />
                   Ver Gameplay
                 </button>
@@ -161,7 +216,7 @@ export default function LandingPage({ onPlay }) {
 
           <div className="kingdoms-showcase">
             <div className="kingdoms-cards-list">
-              <div className="kingdom-card norte" onClick={onPlay}>
+              <div className="kingdom-card norte" onClick={handlePlayClick}>
                 <div className="kingdom-badge-icon">🦁</div>
                 <div className="kingdom-details">
                   <h3>Reino del Norte · Clan del León</h3>
@@ -171,7 +226,7 @@ export default function LandingPage({ onPlay }) {
                 <ShieldCheck size={20} color="#60a5fa" />
               </div>
 
-              <div className="kingdom-card este" onClick={onPlay}>
+              <div className="kingdom-card este" onClick={handlePlayClick}>
                 <div className="kingdom-badge-icon">🐉</div>
                 <div className="kingdom-details">
                   <h3>Reino del Este · Clan del Dragón</h3>
@@ -181,7 +236,7 @@ export default function LandingPage({ onPlay }) {
                 <Flame size={20} color="#f87171" />
               </div>
 
-              <div className="kingdom-card sur" onClick={onPlay}>
+              <div className="kingdom-card sur" onClick={handlePlayClick}>
                 <div className="kingdom-badge-icon">🦌</div>
                 <div className="kingdom-details">
                   <h3>Reino del Sur · Clan del Ciervo</h3>
@@ -191,7 +246,7 @@ export default function LandingPage({ onPlay }) {
                 <Sparkles size={20} color="#34d399" />
               </div>
 
-              <div className="kingdom-card oeste" onClick={onPlay}>
+              <div className="kingdom-card oeste" onClick={handlePlayClick}>
                 <div className="kingdom-badge-icon">☀️</div>
                 <div className="kingdom-details">
                   <h3>Reino del Oeste · Clan del Sol</h3>
@@ -331,7 +386,7 @@ export default function LandingPage({ onPlay }) {
                   <strong>Sin Límite Duro</strong>
                 </div>
               </div>
-              <button type="button" className="btn-gold" onClick={onPlay}>
+              <button type="button" className="btn-gold" onClick={handlePlayClick}>
                 Unirse a la Batalla
               </button>
             </div>
@@ -381,7 +436,7 @@ export default function LandingPage({ onPlay }) {
                   <span>Escudo de protección de 24 horas</span>
                 </li>
               </ul>
-              <button type="button" className="pack-action-btn" onClick={onPlay}>
+              <button type="button" className="pack-action-btn" onClick={handlePlayClick}>
                 Elegir Explorador
               </button>
             </article>
@@ -422,7 +477,7 @@ export default function LandingPage({ onPlay }) {
                   <span><strong>+100 KING</strong> de bono Fundador</span>
                 </li>
               </ul>
-              <button type="button" className="pack-action-btn" onClick={onPlay}>
+              <button type="button" className="pack-action-btn" onClick={handlePlayClick}>
                 Elegir Conquistador
               </button>
             </article>
@@ -466,7 +521,7 @@ export default function LandingPage({ onPlay }) {
                   <span>Título exclusivo y marco de avatar</span>
                 </li>
               </ul>
-              <button type="button" className="pack-action-btn" onClick={onPlay}>
+              <button type="button" className="pack-action-btn" onClick={handlePlayClick}>
                 Elegir Soberano
               </button>
             </article>
@@ -482,7 +537,7 @@ export default function LandingPage({ onPlay }) {
               fuerza en el mapa.
             </p>
           </div>
-          <button type="button" className="btn-gold" onClick={onPlay}>
+          <button type="button" className="btn-gold" onClick={handlePlayClick}>
             Comenzar Ahora
           </button>
         </section>
@@ -499,6 +554,16 @@ export default function LandingPage({ onPlay }) {
           <span>Temporada 0 · Alpha · Todos los derechos reservados</span>
         </footer>
       </main>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user)
+          setShowAuthModal(false)
+          onPlay(user)
+        }}
+      />
     </div>
   )
 }

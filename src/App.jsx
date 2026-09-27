@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2 } from 'lucide-react'
+import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2, HelpCircle, LogOut } from 'lucide-react'
 import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap, removeOldestGemTile, spawnGemTile } from './data/tileTypes'
 import LandingPage from './components/LandingPage'
 import BuildView from './components/BuildView'
@@ -9,6 +9,10 @@ import MarketView from './components/MarketView'
 import MarchModal from './components/MarchModal'
 import BattleReportModal from './components/BattleReportModal'
 import MapMarchesOverlay from './components/MapMarchesOverlay'
+import ChangePasswordModal from './components/ChangePasswordModal'
+import KingdomAssignmentModal from './components/KingdomAssignmentModal'
+import OnboardingModal from './components/OnboardingModal'
+import { authService } from './services/authService'
 import { useGameState } from './game/useGameState'
 
 const MAP_SIZE = 50
@@ -43,8 +47,10 @@ const TileImage = memo(function TileImage({ def }) {
   return <><img className="terrain-image" src={src} alt="" draggable="false" /><span className="tile-fallback">{def.fallback}</span></>
 })
 
-const TileButton = memo(function TileButton({ tile, def, important, isSelected, onSelect }) {
-  const isOwnBase = tile.worldX === DEMO_BASE.worldX && tile.worldY === DEMO_BASE.worldY
+const TileButton = memo(function TileButton({ tile, def, important, isSelected, onSelect, baseCoord }) {
+  const isOwnBase = baseCoord
+    ? tile.worldX === baseCoord.worldX && tile.worldY === baseCoord.worldY
+    : tile.worldX === DEMO_BASE.worldX && tile.worldY === DEMO_BASE.worldY
 
   return (
     <button
@@ -92,6 +98,7 @@ const MapGrid = memo(function MapGrid({
             important={important}
             isSelected={selectedId === tile.id}
             onSelect={onSelectTile}
+            baseCoord={baseCoord}
           />
         )
       })}
@@ -108,26 +115,45 @@ const MapGrid = memo(function MapGrid({
 })
 
 export default function App() {
-  const gameState = useGameState(DEMO_BASE)
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser())
+  const [manualOnboardingOpen, setManualOnboardingOpen] = useState(false)
+
+  const currentBase = useMemo(() => {
+    if (currentUser?.baseCoord) {
+      return { worldX: currentUser.baseCoord.x, worldY: currentUser.baseCoord.y }
+    }
+    return DEMO_BASE
+  }, [currentUser?.baseCoord])
+
+  const currentBaseId = useMemo(() => {
+    return `${currentBase.worldX + CENTER_INDEX}-${CENTER_INDEX - currentBase.worldY}`
+  }, [currentBase])
+
+  const gameState = useGameState(currentBase)
 
   const initialMap = useMemo(() => {
     const generated = generateMap(MAP_SIZE)
-    const demo = assignPlayerBase(generated, DEMO_BASE_ID, 'Tu Reino (Jugador 01)', 'VAL')
+    const clanTag = currentUser?.assignedKingdom === 'north' ? 'VAL' :
+                    currentUser?.assignedKingdom === 'east' ? 'ARK' :
+                    currentUser?.assignedKingdom === 'south' ? 'SOL' : 'ROC'
+    const ownerName = currentUser?.email ? currentUser.email.split('@')[0] : 'Tu Reino (Jugador 01)'
+    const demo = assignPlayerBase(generated, currentBaseId, ownerName, clanTag)
     let currentTiles = demo.assigned ? demo.tiles : generated
 
-    // Spawn 1 base aliada del mismo clan [VAL]
-    const allySpawn = assignRandomPlayerBase(currentTiles, 'Sir Ronald', 'VAL')
+    // Spawn 1 base aliada del mismo clan
+    const allySpawn = assignRandomPlayerBase(currentTiles, 'Sir Ronald', clanTag)
     if (allySpawn.assigned) currentTiles = allySpawn.tiles
 
-    // Spawn 1 base rival de clan rival [ARK]
-    const rivalSpawn = assignRandomPlayerBase(currentTiles, 'Lord Kael', 'ARK')
+    // Spawn 1 base rival de clan rival
+    const rivalClan = clanTag === 'VAL' ? 'ARK' : 'VAL'
+    const rivalSpawn = assignRandomPlayerBase(currentTiles, 'Lord Kael', rivalClan)
     if (rivalSpawn.assigned) currentTiles = rivalSpawn.tiles
 
     return currentTiles
-  }, [])
+  }, [currentBaseId, currentUser?.assignedKingdom, currentUser?.email])
 
   const [tiles, setTiles] = useState(initialMap)
-  const [selectedId, setSelectedId] = useState(DEMO_BASE_ID)
+  const [selectedId, setSelectedId] = useState(currentBaseId)
   const [popupOpen, setPopupOpen] = useState(false)
   const [scale, setScale] = useState(INITIAL_SCALE)
   const [offset, setOffset] = useState({ x: -1500, y: -1500 })
@@ -136,6 +162,11 @@ export default function App() {
   const [activeMenu, setActiveMenu] = useState('build')
   const [coordQuery, setCoordQuery] = useState('')
   const [currentView, setCurrentView] = useState('landing')
+
+  useEffect(() => {
+    setTiles(initialMap)
+    setSelectedId(currentBaseId)
+  }, [initialMap, currentBaseId])
 
   // Modales
   const [marchModalTarget, setMarchModalTarget] = useState(null) // tile
@@ -232,11 +263,11 @@ export default function App() {
     if (currentView === 'game' && activeMenu === 'home') {
       const timer = setTimeout(() => {
         updateViewportSize()
-        focusTile(DEMO_BASE.worldX, DEMO_BASE.worldY, INITIAL_SCALE)
+        focusTile(currentBase.worldX, currentBase.worldY, INITIAL_SCALE)
       }, 50)
       return () => clearTimeout(timer)
     }
-  }, [currentView, activeMenu, focusTile, updateViewportSize])
+  }, [currentView, activeMenu, focusTile, updateViewportSize, currentBase])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -558,7 +589,7 @@ export default function App() {
   const selectTile = useCallback((tile) => {
     setSelectedId(tile.id)
     setPopupOpen(true)
-    const isOwn = tile.worldX === DEMO_BASE.worldX && tile.worldY === DEMO_BASE.worldY
+    const isOwn = tile.worldX === currentBase.worldX && tile.worldY === currentBase.worldY
     if (tile.isPlayerBase) {
       const isAlly = Boolean(tile.clanTag && gameState.clan && tile.clanTag === gameState.clan.tag)
       setNotice(
@@ -571,13 +602,13 @@ export default function App() {
     } else {
       setNotice(`Casilla (${tile.worldX}, ${tile.worldY}) · ${TILE_TYPES[tile.type].name}`)
     }
-  }, [gameState.clan])
+  }, [gameState.clan, currentBase])
 
   function popupData(tile) {
     const targetTile = tile
     const def = TILE_TYPES[targetTile.type]
     const tileLabel = `Tile ${def.tileNumber}`
-    const isOwnBase = targetTile.worldX === DEMO_BASE.worldX && targetTile.worldY === DEMO_BASE.worldY
+    const isOwnBase = targetTile.worldX === currentBase.worldX && targetTile.worldY === currentBase.worldY
 
     if (targetTile.isPlayerBase) {
       const isAlly = Boolean(targetTile.clanTag && gameState.clan && targetTile.clanTag === gameState.clan.tag)
@@ -720,8 +751,25 @@ export default function App() {
   const netFoodRate = Math.round(gameState.passiveProductionPerHour.food - gameState.totalFoodUpkeepPerHour)
 
   if (currentView === 'landing') {
-    return <LandingPage onPlay={() => setCurrentView('game')} />
+    return (
+      <LandingPage
+        onPlay={(user) => {
+          if (user) setCurrentUser(user)
+          setCurrentView('game')
+        }}
+      />
+    )
   }
+
+  const kingdomBadge = currentUser?.assignedKingdom === 'north'
+    ? '❄️ REINO DEL NORTE'
+    : currentUser?.assignedKingdom === 'south'
+    ? '☀️ REINO DEL SUR'
+    : currentUser?.assignedKingdom === 'east'
+    ? '🌅 REINO DEL ESTE'
+    : currentUser?.assignedKingdom === 'west'
+    ? '🌑 REINO DEL OESTE'
+    : 'FOURKINGDOMS'
 
   return (
     <main className="game-shell">
@@ -736,11 +784,20 @@ export default function App() {
                 className="game-brand-logo"
               />
               <div>
-                <p className="eyebrow">ALPHA v0.1 · PODER ⭐ {gameState.kingdomPower.toLocaleString()}</p>
-                <h1>FOURKINGDOMS</h1>
+                <p className="eyebrow">{kingdomBadge} · PODER ⭐ {gameState.kingdomPower.toLocaleString()}</p>
+                <h1>{currentUser?.email ? currentUser.email.split('@')[0].toUpperCase() : 'FOURKINGDOMS'}</h1>
               </div>
             </div>
             <div className="top-bar-controls">
+              <button
+                type="button"
+                className="btn-top-tutorial"
+                onClick={() => setManualOnboardingOpen(true)}
+                title="Ver Tutorial y Guía de Edificios / KING"
+              >
+                <HelpCircle size={14} />
+                <span>Tutorial</span>
+              </button>
               <button
                 type="button"
                 className="back-to-landing-btn"
@@ -748,6 +805,18 @@ export default function App() {
                 title="Volver a la Landing Page"
               >
                 ← Landing
+              </button>
+              <button
+                type="button"
+                className="btn-top-logout"
+                onClick={() => {
+                  authService.logout()
+                  setCurrentUser(null)
+                  setCurrentView('landing')
+                }}
+                title="Cerrar sesión"
+              >
+                <LogOut size={13} />
               </button>
             </div>
           </div>
@@ -915,14 +984,14 @@ export default function App() {
                 className="zoom-base-btn"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
-                  focusTile(DEMO_BASE.worldX, DEMO_BASE.worldY, INITIAL_SCALE)
-                  const baseTile = tiles.find((t) => t.worldX === DEMO_BASE.worldX && t.worldY === DEMO_BASE.worldY)
+                  focusTile(currentBase.worldX, currentBase.worldY, INITIAL_SCALE)
+                  const baseTile = tiles.find((t) => t.worldX === currentBase.worldX && t.worldY === currentBase.worldY)
                   if (baseTile) {
                     setSelectedId(baseTile.id)
                     setPopupOpen(true)
                   }
                 }}
-                title="Centrar en Mi Base (4, -3)"
+                title={`Centrar en Mi Base (${currentBase.worldX}, ${currentBase.worldY})`}
                 aria-label="Centrar en Mi Base"
               >
                 🏰
@@ -945,15 +1014,15 @@ export default function App() {
                 type="button"
                 className="btn-quick-center"
                 onClick={() => {
-                  focusTile(DEMO_BASE.worldX, DEMO_BASE.worldY, INITIAL_SCALE)
-                  const baseTile = tiles.find((t) => t.worldX === DEMO_BASE.worldX && t.worldY === DEMO_BASE.worldY)
+                  focusTile(currentBase.worldX, currentBase.worldY, INITIAL_SCALE)
+                  const baseTile = tiles.find((t) => t.worldX === currentBase.worldX && t.worldY === currentBase.worldY)
                   if (baseTile) {
                     setSelectedId(baseTile.id)
                     setPopupOpen(true)
                   }
                 }}
               >
-                📍 Centrar (4, -3)
+                📍 Centrar ({currentBase.worldX}, {currentBase.worldY})
               </button>
             </div>
 
@@ -1045,7 +1114,7 @@ export default function App() {
           <MarchModal
             tile={marchModalTarget}
             tileDef={TILE_TYPES[marchModalTarget.type]}
-            baseCoord={DEMO_BASE}
+            baseCoord={currentBase}
             gameState={gameState}
             onClose={() => setMarchModalTarget(null)}
           />
@@ -1056,6 +1125,41 @@ export default function App() {
           <BattleReportModal
             report={selectedReport}
             onClose={() => setSelectedReport(null)}
+          />
+        )}
+
+        {/* Modales de Autenticación, Seguridad y Onboarding */}
+        {currentUser && currentUser.mustChangePassword && (
+          <ChangePasswordModal
+            user={currentUser}
+            onPasswordChanged={(updatedUser) => {
+              setCurrentUser({ ...updatedUser })
+            }}
+          />
+        )}
+
+        {currentUser && !currentUser.mustChangePassword && !currentUser.assignedKingdom && (
+          <KingdomAssignmentModal
+            user={currentUser}
+            onKingdomConfirmed={(assignedData) => {
+              const updated = authService.getCurrentUser()
+              setCurrentUser({ ...updated })
+              if (assignedData?.baseCoord) {
+                focusTile(assignedData.baseCoord.x, assignedData.baseCoord.y, INITIAL_SCALE)
+              }
+            }}
+          />
+        )}
+
+        {currentUser && !currentUser.mustChangePassword && currentUser.assignedKingdom && (!currentUser.onboardingCompleted || manualOnboardingOpen) && (
+          <OnboardingModal
+            user={currentUser}
+            onComplete={() => {
+              const updated = authService.getCurrentUser()
+              setCurrentUser({ ...updated })
+              setManualOnboardingOpen(false)
+              focusTile(currentBase.worldX, currentBase.worldY, INITIAL_SCALE)
+            }}
           />
         )}
       </section>

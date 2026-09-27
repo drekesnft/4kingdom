@@ -105,6 +105,44 @@
   color: var(--gold-light);
 }
 
+.landing-user-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.user-email-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+.user-kingdom-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd65a;
+}
+.btn-logout-landing {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-logout-landing:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+}
+
 /* Button styles */
 .btn-gold {
   display: inline-flex;

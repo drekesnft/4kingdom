@@ -6,6 +6,24 @@
 -- Habilitar extensión UUID si no está activa
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- 0. TABLA: CUENTAS DE USUARIO Y AUTENTICACIÓN (user_accounts)
+CREATE TABLE IF NOT EXISTS public.user_accounts (
+    email TEXT PRIMARY KEY,
+    temp_password TEXT,
+    password_hash TEXT NOT NULL,
+    must_change_password BOOLEAN DEFAULT TRUE,
+    assigned_kingdom TEXT,
+    base_coord JSONB,
+    onboarding_completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Seed de cuenta de prueba asignada Alpha: antoniox4253@gmail.com con clave k9t4m
+INSERT INTO public.user_accounts (email, temp_password, password_hash, must_change_password)
+VALUES ('antoniox4253@gmail.com', 'k9t4m', 'k9t4m', true)
+ON CONFLICT (email) DO NOTHING;
+
 -- 1. TABLA: REINOS / PERFILES DE JUGADOR (kingdoms)
 CREATE TABLE IF NOT EXISTS public.kingdoms (
     id TEXT PRIMARY KEY,
@@ -108,6 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_clan_members_player ON public.clan_members(player
 CREATE INDEX IF NOT EXISTS idx_clan_rallies_clan ON public.clan_rallies(clan_id);
 
 -- POLÍTICAS DE SEGURIDAD ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.user_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kingdoms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marches ENABLE ROW LEVEL SECURITY;
@@ -116,6 +135,7 @@ ALTER TABLE public.clan_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clan_rallies ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de lectura/escritura abiertas para la Alpha con clave pública / anon
+CREATE POLICY "Permitir acceso a cuentas" ON public.user_accounts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a reinos" ON public.kingdoms FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a reportes" ON public.reports FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a marchas" ON public.marches FOR ALL USING (true) WITH CHECK (true);
@@ -123,7 +143,8 @@ CREATE POLICY "Permitir acceso a clanes" ON public.clans FOR ALL USING (true) WI
 CREATE POLICY "Permitir acceso a miembros" ON public.clan_members FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir acceso a rallies" ON public.clan_rallies FOR ALL USING (true) WITH CHECK (true);
 
--- HABILITAR REALTIME EN REPORTES, REINOS Y MARCHAS
+-- HABILITAR REALTIME EN REPORTES, REINOS, MARCHAS Y CUENTAS
+ALTER PUBLICATION supabase_realtime ADD TABLE public.user_accounts;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reports;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.kingdoms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.marches;

@@ -34,8 +34,8 @@ const MENU_ITEMS = [
   { id: 'build', label: 'Mi Base', src: '/assets/ui/home.png' },
   { id: 'home', label: 'Mapa', isGlobe: true },
   { id: 'battle', label: 'Ejército', src: '/assets/ui/battle.png' },
-  { id: 'clan', label: 'Clan', src: '/assets/ui/clan.png' },
-  { id: 'market', label: 'Mercado', src: '/assets/ui/market.png' },
+  { id: 'clan', label: 'Clan (Pronto)', src: '/assets/ui/clan.png' },
+  { id: 'market', label: 'Mercado (Pronto)', src: '/assets/ui/market.png' },
 ]
 
 function isImportantTile(tile) {
@@ -85,6 +85,7 @@ const MapGrid = memo(function MapGrid({
   marches,
   baseCoord,
   onSpeedupMarch,
+  onCancelMarch,
   calculateKingCostForSec,
 }) {
   return (
@@ -110,6 +111,7 @@ const MapGrid = memo(function MapGrid({
         mapSize={MAP_SIZE}
         tileSize={TILE_SIZE}
         onSpeedupMarch={onSpeedupMarch}
+        onCancelMarch={onCancelMarch}
         calculateKingCostForSec={calculateKingCostForSec}
       />
     </div>
@@ -985,13 +987,24 @@ export default function App() {
                           <strong>{m.targetName}</strong> ({phaseLabel}: {remSec}s)
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="march-pill-speedup"
-                        onClick={() => gameState.speedupMarch(m.id)}
-                      >
-                        ⚡ {speedCost} KING
-                      </button>
+                      <div className="march-pill-actions">
+                        <button
+                          type="button"
+                          className="march-pill-cancel"
+                          onClick={() => gameState.cancelMarch(m.id)}
+                          title="Cancelar marcha y devolver tropas inmediatamente"
+                        >
+                          ❌ Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          className="march-pill-speedup"
+                          onClick={() => gameState.speedupMarch(m.id)}
+                          title="Acelerar 100% y completar marcha inmediatamente"
+                        >
+                          ⚡ 100% ({speedCost} KING)
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
@@ -1005,8 +1018,9 @@ export default function App() {
               onSelectTile={selectTile}
               gridRef={mapGridRef}
               marches={gameState.marches}
-              baseCoord={DEMO_BASE}
+              baseCoord={currentBase}
               onSpeedupMarch={gameState.speedupMarch}
+              onCancelMarch={gameState.cancelMarch}
               calculateKingCostForSec={gameState.calculateKingCostForSec}
               initialStyle={{
                 gridTemplateColumns: `repeat(${MAP_SIZE}, ${TILE_SIZE}px)`,

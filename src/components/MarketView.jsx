@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { KING_CONFIG, STORE_ITEMS, BUILDINGS_CONFIG, getRankingPayoutSchedule } from '../game/config'
-import { Coins, Shield, Sparkles, TrendingUp, ArrowDownToLine, Flame, Lock, Unlock, DollarSign, Clock, Trophy } from 'lucide-react'
+import { Coins, Shield, Sparkles, TrendingUp, ArrowDownToLine, Flame, Lock, Unlock, DollarSign, Clock, Trophy, Info } from 'lucide-react'
 
 export default function MarketView({ gameState, onClose }) {
   const {
@@ -21,7 +21,7 @@ export default function MarketView({ gameState, onClose }) {
     shieldUntil,
   } = gameState
 
-  const [activeTab, setActiveTab] = useState('treasury') // 'treasury' | 'store' | 'farming' | 'p2p'
+  const [activeTab, setActiveTab] = useState('p2p') // 'p2p' | 'treasury' | 'farming' | 'store'
   const [withdrawAmount, setWithdrawAmount] = useState('25')
   const [payoutSchedule, setPayoutSchedule] = useState(() => getRankingPayoutSchedule())
 
@@ -57,6 +57,13 @@ export default function MarketView({ gameState, onClose }) {
       <div className="sub-tabs">
         <button
           type="button"
+          className={activeTab === 'p2p' ? 'active' : ''}
+          onClick={() => setActiveTab('p2p')}
+        >
+          🤝 Mercado P2P (Muy Pronto)
+        </button>
+        <button
+          type="button"
           className={activeTab === 'treasury' ? 'active' : ''}
           onClick={() => setActiveTab('treasury')}
         >
@@ -74,14 +81,7 @@ export default function MarketView({ gameState, onClose }) {
           className={activeTab === 'store' ? 'active' : ''}
           onClick={() => setActiveTab('store')}
         >
-          🛡️ Tienda & Packs
-        </button>
-        <button
-          type="button"
-          className={activeTab === 'p2p' ? 'active' : ''}
-          onClick={() => setActiveTab('p2p')}
-        >
-          🤝 Mercado P2P
+          🛡️ Tienda & Packs (Muy Pronto)
         </button>
       </div>
 
@@ -381,34 +381,55 @@ export default function MarketView({ gameState, onClose }) {
 
       {activeTab === 'p2p' && (
         <div className="tab-content p2p-content">
-          <div className="p2p-info-banner">
-            <TrendingUp size={20} />
-            <div>
-              <strong>Mercado P2P de KING (Order Book Interno)</strong>
-              <small>Precio de referencia inicial: $0.005 USD/KING · Fee regional: 1%</small>
+          <div className="whitelist-hero-card" style={{ textAlign: 'center', padding: '26px 18px', background: 'linear-gradient(180deg, rgba(16, 42, 70, 0.95), rgba(8, 22, 38, 0.98))', borderRadius: '16px', border: '1px solid rgba(80, 160, 240, 0.35)' }}>
+            <div style={{ fontSize: '40px', marginBottom: '8px' }}>🏛️🤝</div>
+            <div style={{ display: 'inline-block', padding: '4px 12px', background: 'rgba(255, 185, 0, 0.16)', border: '1px solid rgba(255, 185, 0, 0.45)', borderRadius: '999px', color: '#ffd65a', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              ⏳ Muy Pronto · En Desarrollo (Fase v0.2)
             </div>
-          </div>
+            <h3 style={{ fontSize: '20px', color: '#ffffff', margin: '0 0 10px', fontWeight: '900' }}>
+              Mercado P2P y Comercio Descentralizado
+            </h3>
+            <p style={{ fontSize: '13px', color: '#bcd6ee', maxWidth: '520px', margin: '0 auto 16px', lineHeight: '1.5' }}>
+              El sistema de intercambio comercial entre jugadores se encuentra en fase de auditoría técnica. Cero bots y cero órdenes ficticias.
+            </p>
 
-          <div className="orderbook-preview">
-            <div className="order-column buy-orders">
-              <h5>Órdenes de Compra (Bids)</h5>
-              <div className="order-row header"><span>Precio (USD)</span><span>Cantidad</span></div>
-              <div className="order-row green"><span>$0.0051</span><span>12,500 KING</span></div>
-              <div className="order-row green"><span>$0.0050</span><span>40,000 KING</span></div>
-              <div className="order-row green"><span>$0.0049</span><span>85,000 KING</span></div>
+            <div style={{ background: 'rgba(7, 18, 30, 0.8)', border: '1px solid rgba(80, 180, 255, 0.25)', borderRadius: '12px', padding: '14px 16px', maxWidth: '540px', margin: '0 auto 20px', textAlign: 'left', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <Info size={20} style={{ color: '#4cb7ff', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong style={{ color: '#ffd65a', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                  Regla Cero Fallbacks — Libro 100% P2P Real:
+                </strong>
+                <p style={{ margin: 0, fontSize: '12px', color: '#c5ddf5', lineHeight: '1.4' }}>
+                  En FourKingdoms no utilizamos bots de arbitraje ni libros simulados con liquidez falsa. Cuando el mercado se active, podrás comerciar directamente tus excedentes de Madera, Piedra y Comida con otros señores feudales fijando tus propios precios en tokens KING.
+                </p>
+              </div>
             </div>
 
-            <div className="order-column sell-orders">
-              <h5>Órdenes de Venta (Asks)</h5>
-              <div className="order-row header"><span>Precio (USD)</span><span>Cantidad</span></div>
-              <div className="order-row red"><span>$0.0052</span><span>18,000 KING</span></div>
-              <div className="order-row red"><span>$0.0053</span><span>35,000 KING</span></div>
-              <div className="order-row red"><span>$0.0055</span><span>60,000 KING</span></div>
-            </div>
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px', maxWidth: '560px', margin: '0 auto', textAlign: 'left' }}>
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>🌲🪨🌾</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Comercio Libre de Recursos</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Vende excedentes de producción pasiva o botín de guerra a cambio de KING transferible.</small>
+              </div>
 
-          <div className="p2p-action-box">
-            <p>El libro de órdenes opera dentro del juego entre jugadores. Las transacciones aportan un 1% de tasa a la Tesorería del Reino.</p>
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>📜</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Subastas de Planos</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Compra y vende planos constructivos raros para acelerar el desarrollo del reino.</small>
+              </div>
+
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>⚡</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Fee Regional del 1%</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Las tarifas de intercambio nutren las arcas de tu Reino regional y financian recompensas.</small>
+              </div>
+
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>🔒</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Custodia en Tesorería</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Tus ingresos por venta se acreditan en tu Tesorería protegida de saqueos rivales.</small>
+              </div>
+            </div>
           </div>
         </div>
       )}

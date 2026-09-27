@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS public.kingdoms (
     wood INTEGER DEFAULT 1500,
     stone INTEGER DEFAULT 1500,
     food INTEGER DEFAULT 1800,
-    king_claimed NUMERIC(12, 2) DEFAULT 120.00,
+    king_claimed NUMERIC(12, 2) DEFAULT 10.00,
     king_pending NUMERIC(12, 4) DEFAULT 0.0000,
     king_vault NUMERIC(12, 2) DEFAULT 0.00,
     buildings JSONB DEFAULT '{"castle": 1, "barracks": 0, "granary": 0, "treasury": 0, "wall": 0}'::jsonb,

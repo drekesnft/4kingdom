@@ -335,6 +335,26 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   gap: 6px;
 }
 .march-pill-left strong { color: #ffd65a; }
+.march-pill-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.march-pill-cancel {
+  background: rgba(220, 53, 69, 0.25);
+  color: #ff9b9b;
+  border: 1px solid rgba(220, 53, 69, 0.5);
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.march-pill-cancel:hover {
+  background: rgba(220, 53, 69, 0.6);
+  color: #ffffff;
+}
 .march-pill-speedup {
   background: linear-gradient(180deg, #ffd65a, #d49514);
   color: #241400;
@@ -2524,6 +2544,26 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   font-size: 8px;
   font-weight: 900;
   cursor: pointer;
+}
+.bubble-token-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.token-cancel-btn {
+  background: rgba(220, 53, 69, 0.9);
+  color: #ffffff;
+  border: 0;
+  border-radius: 999px;
+  padding: 1px 5px;
+  font-size: 7px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.token-cancel-btn:hover {
+  transform: scale(1.1);
+  background: #ff3344;
 }
 
 .army-avatar-wrapper {

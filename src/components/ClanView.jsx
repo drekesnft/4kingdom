@@ -1,73 +1,24 @@
-import React, { useState, useEffect } from 'react'
-import { REGIONAL_KINGDOMS, KING_CONFIG, TROOPS_CONFIG } from '../game/config'
-import { totalTroopCount } from '../game/combat'
+import React, { useState } from 'react'
+import { REGIONAL_KINGDOMS } from '../game/config'
 import {
   Shield,
   Crown,
   Castle,
-  Users,
   Flag,
-  Clock,
   Coins,
-  Sparkles,
   Info,
-  ChevronRight,
-  Plus,
-  Send,
-  CheckCircle,
+  Users,
+  Sparkles,
+  Swords,
+  Layers,
 } from 'lucide-react'
 
-export default function ClanView({ gameState, onSelectTarget, onClose }) {
-  const {
-    clan,
-    clanRallies = [],
-    troops,
-    joinRally,
-    donateToClan,
-    resources,
-    setRecentNotification,
-  } = gameState
-
-  const [activeTab, setActiveTab] = useState('clan') // 'clan' | 'rallies' | 'kingdoms'
+export default function ClanView({ gameState, onClose }) {
+  const { setRecentNotification } = gameState
+  const [activeTab, setActiveTab] = useState('coming_soon') // 'coming_soon' | 'kingdoms'
   const [selectedKingdomKey, setSelectedKingdomKey] = useState('north')
-  const [joiningRallyId, setJoiningRallyId] = useState(null)
-  const [joinArmy, setJoinArmy] = useState({ infantry: 0, archer: 0, cavalry: 0 })
-  const [currentTime, setCurrentTime] = useState(Date.now())
-
-  // Actualizar reloj para countdowns cada segundo
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   const kingdom = REGIONAL_KINGDOMS[selectedKingdomKey]
-
-  const handleOpenJoin = (rally) => {
-    setJoiningRallyId(rally.id)
-    setJoinArmy({
-      infantry: Math.min(troops.infantry, 5),
-      archer: Math.min(troops.archer, 5),
-      cavalry: Math.min(troops.cavalry, 2),
-    })
-  }
-
-  const handleConfirmJoin = (rallyId) => {
-    const total = totalTroopCount(joinArmy)
-    if (total === 0) {
-      alert('Debes seleccionar al menos una tropa.')
-      return
-    }
-    const res = joinRally(rallyId, joinArmy)
-    if (res.success) {
-      setJoiningRallyId(null)
-    } else {
-      alert(res.reason)
-    }
-  }
-
-  const handleDonate = (resType, amount) => {
-    donateToClan(resType, amount)
-  }
 
   return (
     <div className="view-panel clan-panel">
@@ -99,17 +50,10 @@ export default function ClanView({ gameState, onSelectTarget, onClose }) {
       <div className="gaming-subtabs">
         <button
           type="button"
-          className={`gaming-subtab-btn ${activeTab === 'clan' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clan')}
+          className={`gaming-subtab-btn ${activeTab === 'coming_soon' ? 'active' : ''}`}
+          onClick={() => setActiveTab('coming_soon')}
         >
-          <Shield size={14} /> Mi Clan
-        </button>
-        <button
-          type="button"
-          className={`gaming-subtab-btn ${activeTab === 'rallies' ? 'active' : ''}`}
-          onClick={() => setActiveTab('rallies')}
-        >
-          <Flag size={14} /> Rallies Activos ({clanRallies.filter((r) => r.status === 'gathering').length})
+          <Shield size={14} /> Sistema de Clanes (Muy Pronto)
         </button>
         <button
           type="button"
@@ -120,280 +64,63 @@ export default function ClanView({ gameState, onSelectTarget, onClose }) {
         </button>
       </div>
 
-      {/* CONTENIDO PESTAÑA 1: MI CLAN */}
-      {activeTab === 'clan' && (
+      {/* CONTENIDO PESTAÑA 1: SISTEMA DE CLANES (MUY PRONTO) */}
+      {activeTab === 'coming_soon' && (
         <div className="clan-tab-content">
-          {/* Ficha Principal de la Alianza */}
-          <div className="clan-profile-card">
-            <div className="clan-profile-top">
-              <div className="clan-crest">⚜️</div>
-              <div className="clan-profile-info">
-                <div className="clan-name-row">
-                  <h3>{clan?.name || 'Vanguardia Valyria'}</h3>
-                  <span className="clan-tag">[{clan?.tag || 'VAL'}]</span>
-                </div>
-                <p>Líder: <strong>{clan?.leader || 'Lord Comandante'}</strong> · Tu Rol: <span className="clan-role-tag">{clan?.role || 'Miembro'}</span></p>
-                <small className="clan-desc-text">{clan?.description}</small>
-              </div>
+          <div className="whitelist-hero-card" style={{ textAlign: 'center', padding: '28px 18px', background: 'linear-gradient(180deg, rgba(16, 42, 70, 0.95), rgba(8, 22, 38, 0.98))', borderRadius: '16px', border: '1px solid rgba(80, 160, 240, 0.35)' }}>
+            <div style={{ fontSize: '42px', marginBottom: '10px' }}>🛡️⚔️</div>
+            <div style={{ display: 'inline-block', padding: '4px 12px', background: 'rgba(255, 185, 0, 0.16)', border: '1px solid rgba(255, 185, 0, 0.45)', borderRadius: '999px', color: '#ffd65a', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              ⏳ Muy Pronto · En Desarrollo
             </div>
+            <h3 style={{ fontSize: '20px', color: '#ffffff', margin: '0 0 10px', fontWeight: '900' }}>
+              Sistema de Clanes y Alianzas Feudales
+            </h3>
+            <p style={{ fontSize: '13px', color: '#bcd6ee', maxWidth: '520px', margin: '0 auto 16px', lineHeight: '1.5' }}>
+              El sistema de gremios y hermandades se activará en la siguiente fase multiplayer. No hay jugadores bot ni clanes ficticios creados.
+            </p>
 
-            <div className="clan-quick-stats">
-              <div><small>Miembros</small><strong>{clan?.membersCount || 14}/{clan?.maxMembers || 30}</strong></div>
-              <div><small>Nivel de Clan</small><strong>Nv. {clan?.level || 1}</strong></div>
-              <div><small>Poder Total</small><strong>⭐ 84,200</strong></div>
-              <div><small>KING en Arca</small><strong>👑 {clan?.vaultKing || 240}</strong></div>
-            </div>
-          </div>
-
-          {/* Arcas y Donaciones al Clan */}
-          <div className="clan-vault-card">
-            <div className="vault-header">
-              <div className="vault-title">
-                <Coins size={16} />
-                <strong>Arca y Donaciones de Alianza</strong>
-              </div>
-              <span className="vault-bonus-badge">+5% Bono de Clan</span>
-            </div>
-            <p className="vault-desc">Dona materiales para subir de nivel las tecnologías del clan y desbloquear bonificaciones defensivas colectivas.</p>
-
-            <div className="vault-res-grid">
-              <div className="vault-res-item">
-                <span>🌲 Madera aportada: <strong>{(clan?.donations?.wood || 0).toLocaleString()}</strong></span>
-                <button
-                  type="button"
-                  className="clan-donate-btn"
-                  onClick={() => handleDonate('wood', 500)}
-                  disabled={(resources.wood || 0) < 500}
-                >
-                  +500 Madera
-                </button>
-              </div>
-              <div className="vault-res-item">
-                <span>🪨 Piedra aportada: <strong>{(clan?.donations?.stone || 0).toLocaleString()}</strong></span>
-                <button
-                  type="button"
-                  className="clan-donate-btn"
-                  onClick={() => handleDonate('stone', 500)}
-                  disabled={(resources.stone || 0) < 500}
-                >
-                  +500 Piedra
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Miembros del Clan */}
-          <div className="clan-roster-card">
-            <h4>Miembros de la Alianza ({clan?.membersCount || 14})</h4>
-            <div className="members-list">
-              <div className="member-row leader">
-                <div className="member-info">
-                  <span className="member-rank-icon">👑</span>
-                  <div>
-                    <strong>{clan?.leader || 'Lord Comandante'}</strong>
-                    <small>Líder del Clan · Base (12, -8)</small>
-                  </div>
-                </div>
-                <div className="member-stat">
-                  <span>14,500 ⭐</span>
-                  <span className="online-tag">En Línea</span>
-                </div>
-              </div>
-
-              <div className="member-row you">
-                <div className="member-info">
-                  <span className="member-rank-icon">⚔️</span>
-                  <div>
-                    <strong>Mi Base (Tú)</strong>
-                    <small>Miembro · Base ({gameState.resources ? '4, -3' : '4, -3'})</small>
-                  </div>
-                </div>
-                <div className="member-stat">
-                  <span>{gameState.kingdomPower.toLocaleString()} ⭐</span>
-                  <span className="online-tag you">Tú</span>
-                </div>
-              </div>
-
-              <div className="member-row">
-                <div className="member-info">
-                  <span className="member-rank-icon">🛡️</span>
-                  <div>
-                    <strong>Sir Ronald [VAL]</strong>
-                    <small>Oficial · Base (8, -5)</small>
-                  </div>
-                </div>
-                <div className="member-stat">
-                  <span>9,800 ⭐</span>
-                  <span className="online-tag">En Línea</span>
-                </div>
-              </div>
-
-              <div className="member-row">
-                <div className="member-info">
-                  <span className="member-rank-icon">🏹</span>
-                  <div>
-                    <strong>Lady Gwen [VAL]</strong>
-                    <small>Miembro · Base (-6, 14)</small>
-                  </div>
-                </div>
-                <div className="member-stat">
-                  <span>7,200 ⭐</span>
-                  <span className="offline-tag">Hace 1h</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO PESTAÑA 2: RALLIES ACTIVOS */}
-      {activeTab === 'rallies' && (
-        <div className="rallies-tab-content">
-          <div className="rallies-header-banner">
-            <div className="rallies-banner-title">
-              <Flag size={18} />
+            <div style={{ background: 'rgba(7, 18, 30, 0.8)', border: '1px solid rgba(80, 180, 255, 0.25)', borderRadius: '12px', padding: '14px 16px', maxWidth: '540px', margin: '0 auto 20px', textAlign: 'left', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <Info size={20} style={{ color: '#4cb7ff', flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <h3>Rallies de Asalto Conjunto</h3>
-                <p>Concentración de tropas durante 5 minutos. Bajas y botín compartidos proporcionalmente.</p>
+                <strong style={{ color: '#ffd65a', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                  Regla Cero Fallbacks — Todos los Señores son Reales:
+                </strong>
+                <p style={{ margin: 0, fontSize: '12px', color: '#c5ddf5', lineHeight: '1.4' }}>
+                  En FourKingdoms garantizamos una economía auténtica y transparente. Por eso no asignamos clanes ficticios ni bots simulados en tu partida. Cuando se abra el sistema de Clanes, podrás fundar tu propia Hermandad o unirte a señores feudales reales.
+                </p>
               </div>
             </div>
-            <div className="rallies-hint">
-              💡 Puedes convocar un Rally contra cualquier objetivo seleccionándolo directamente en el mapa.
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px', maxWidth: '560px', margin: '0 auto', textAlign: 'left' }}>
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>👑</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Fundar tu Hermandad</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Crea tu estandarte, etiqueta de clan (Tag) y nombra oficiales para coordinar defensas.</small>
+              </div>
+
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>⚔️</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Rallies de 5 Minutos</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Convoca asaltos cooperativos contra Fortalezas regionales con reparto equitativo de bajas y botín.</small>
+              </div>
+
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>🏛️</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Arca del Clan y Tecnologías</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Dona Madera y Piedra para investigar bonos de ataque (+5%), defensa (+10%) y velocidad.</small>
+              </div>
+
+              <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '18px', marginBottom: '6px' }}>🛡️</div>
+                <strong style={{ color: '#eef8ff', fontSize: '12px', display: 'block', marginBottom: '3px' }}>Refuerzos Defensivos</strong>
+                <small style={{ color: '#9dbcdb', fontSize: '11px', lineHeight: '1.3', display: 'block' }}>Envía tropas de apoyo a las bases de tus aliados para defenderlas de asaltos rivales.</small>
+              </div>
             </div>
           </div>
-
-          {clanRallies.length === 0 ? (
-            <div className="empty-rallies-card">
-              <Clock size={36} className="empty-icon" />
-              <h4>No hay Rallies activos en este momento</h4>
-              <p>Selecciona un Campamento Hostil, Fortaleza, Capital o Base Rival en el Mapa y presiona <strong>Convocar Rally de Clan (5 min)</strong>.</p>
-            </div>
-          ) : (
-            <div className="rallies-grid">
-              {clanRallies.map((rally) => {
-                const isGathering = rally.status === 'gathering'
-                const secLeft = Math.max(0, Math.ceil((rally.launchTime - currentTime) / 1000))
-                const min = Math.floor(secLeft / 60)
-                const sec = secLeft % 60
-                const formattedTime = `${min}:${sec < 10 ? '0' : ''}${sec}`
-                const totalRallyTroops = totalTroopCount(rally.totalArmy)
-                const hasPlayerJoined = rally.participants.some((p) => p.isPlayer)
-
-                return (
-                  <div key={rally.id} className={`rally-card ${isGathering ? 'gathering' : 'marching'}`}>
-                    <div className="rally-card-top">
-                      <div>
-                        <div className="rally-badge-row">
-                          <span className={`rally-status-tag ${isGathering ? 'countdown' : 'marching'}`}>
-                            {isGathering ? `⏳ Salida en: ${formattedTime}` : '⚔️ En Marcha hacia Objetivo'}
-                          </span>
-                          <span className="rally-target-type-badge">{rally.targetType.toUpperCase()}</span>
-                        </div>
-                        <h4 className="rally-target-name">{rally.targetName}</h4>
-                        <small className="rally-coord">Coordenadas: ({rally.targetX}, {rally.targetY}) · Convocado por: <strong>{rally.creator}</strong></small>
-                      </div>
-                    </div>
-
-                    {/* Resumen del Ejército del Rally */}
-                    <div className="rally-army-preview">
-                      <div className="army-stat-box">
-                        <small>Total Tropas</small>
-                        <strong>{totalRallyTroops}</strong>
-                      </div>
-                      <div className="army-breakdown-row">
-                        <span>⚔️ Inf: {rally.totalArmy.infantry || 0}</span>
-                        <span>🏹 Arq: {rally.totalArmy.archer || 0}</span>
-                        <span>🐴 Cab: {rally.totalArmy.cavalry || 0}</span>
-                      </div>
-                    </div>
-
-                    {/* Participantes */}
-                    <div className="rally-participants-list">
-                      <small className="participants-title">Aportantes ({rally.participants.length}):</small>
-                      <div className="participants-tags">
-                        {rally.participants.map((p, idx) => (
-                          <span key={idx} className={`participant-tag ${p.isPlayer ? 'you' : ''}`}>
-                            {p.name}: {totalTroopCount(p.army)} tropas
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Acciones de Unión */}
-                    {isGathering && (
-                      <div className="rally-actions">
-                        {joiningRallyId === rally.id ? (
-                          <div className="join-form-box">
-                            <h5>Selecciona las tropas para unirte:</h5>
-                            <div className="join-troop-inputs">
-                              <div>
-                                <label>⚔️ Inf ({troops.infantry})</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={troops.infantry}
-                                  value={joinArmy.infantry}
-                                  onChange={(e) => setJoinArmy({ ...joinArmy, infantry: Math.min(troops.infantry, Number(e.target.value)) })}
-                                />
-                              </div>
-                              <div>
-                                <label>🏹 Arq ({troops.archer})</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={troops.archer}
-                                  value={joinArmy.archer}
-                                  onChange={(e) => setJoinArmy({ ...joinArmy, archer: Math.min(troops.archer, Number(e.target.value)) })}
-                                />
-                              </div>
-                              <div>
-                                <label>🐴 Cab ({troops.cavalry})</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={troops.cavalry}
-                                  value={joinArmy.cavalry}
-                                  onChange={(e) => setJoinArmy({ ...joinArmy, cavalry: Math.min(troops.cavalry, Number(e.target.value)) })}
-                                />
-                              </div>
-                            </div>
-                            <div className="join-form-buttons">
-                              <button
-                                type="button"
-                                className="confirm-join-btn"
-                                onClick={() => handleConfirmJoin(rally.id)}
-                              >
-                                <CheckCircle size={14} /> Confirmar Refuerzo
-                              </button>
-                              <button
-                                type="button"
-                                className="cancel-join-btn"
-                                onClick={() => setJoiningRallyId(null)}
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="join-rally-btn"
-                            onClick={() => handleOpenJoin(rally)}
-                          >
-                            <Plus size={14} /> {hasPlayerJoined ? 'Aportar Más Tropas al Rally' : 'Unirse al Rally de Clan'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
       )}
 
-      {/* CONTENIDO PESTAÑA 3: 4 REINOS (TERRITORIO) */}
+      {/* CONTENIDO PESTAÑA 2: 4 REINOS (TERRITORIO) */}
       {activeTab === 'kingdoms' && (
         <div className="kingdoms-tab-content">
           {/* Selector de los 4 Reinos */}
@@ -444,7 +171,7 @@ export default function ClanView({ gameState, onSelectTarget, onClose }) {
                     setRecentNotification(`Localiza la Capital en (${kingdom.capital.coord.x}, ${kingdom.capital.coord.y}) para despachar asalto o convocar Rally.`)
                   }}
                 >
-                  <Flag size={14} /> Asediar Capital con Rally de Clan (5 min)
+                  <Flag size={14} /> Localizar Capital en el Mapa
                 </button>
               </div>
             </div>
@@ -469,10 +196,10 @@ export default function ClanView({ gameState, onSelectTarget, onClose }) {
                     className="fortress-attack-btn"
                     onClick={() => {
                       if (onClose) onClose()
-                      setRecentNotification(`Localiza ${f.name} en (${f.coord.x}, ${f.coord.y}) para asediarla o convocar Rally.`)
+                      setRecentNotification(`Localiza ${f.name} en (${f.coord.x}, ${f.coord.y}) para asediarla o recolectar.`)
                     }}
                   >
-                    Asediar Fortaleza
+                    Localizar Fortaleza
                   </button>
                 </div>
               ))}

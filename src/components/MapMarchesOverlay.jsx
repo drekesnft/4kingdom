@@ -6,6 +6,7 @@ export default function MapMarchesOverlay({
   mapSize = 50,
   tileSize = 112,
   onSpeedupMarch,
+  onCancelMarch,
   calculateKingCostForSec,
 }) {
   const [now, setNow] = useState(Date.now())
@@ -162,20 +163,32 @@ export default function MapMarchesOverlay({
               pointerEvents: 'auto',
             }}
           >
-            {/* Etiqueta flotante con tiempo restante */}
+            {/* Etiqueta flotante con tiempo restante y acciones */}
             <div className={`march-token-bubble ${isAttack ? 'attack' : 'gather'}`}>
               <span className="bubble-type">{statusLabel}</span>
               <strong className="bubble-timer">{remSec}s</strong>
-              {onSpeedupMarch && (
-                <button
-                  type="button"
-                  className="token-speedup-btn"
-                  onClick={() => onSpeedupMarch(m.id)}
-                  title={`Acelerar con ${costKing} KING`}
-                >
-                  ⚡{costKing}
-                </button>
-              )}
+              <div className="bubble-token-actions">
+                {onCancelMarch && (
+                  <button
+                    type="button"
+                    className="token-cancel-btn"
+                    onClick={() => onCancelMarch(m.id)}
+                    title="Cancelar marcha y devolver tropas inmediatamente"
+                  >
+                    ❌
+                  </button>
+                )}
+                {onSpeedupMarch && (
+                  <button
+                    type="button"
+                    className="token-speedup-btn"
+                    onClick={() => onSpeedupMarch(m.id)}
+                    title={`Acelerar 100% instantáneo con ${costKing} KING`}
+                  >
+                    ⚡{costKing}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Avatar circular de la tropa marchando con flecha de dirección */}

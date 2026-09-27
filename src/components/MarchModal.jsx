@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { TROOPS_CONFIG, NPC_TIERS, RESOURCE_TIERS } from '../game/config'
 import { calculateArmyCarry, totalTroopCount, calculateArmyAttack } from '../game/combat'
-import { X, Send, Compass, ShieldAlert, AlertTriangle, Sparkles } from 'lucide-react'
+import { X, Send, Compass, ShieldAlert, AlertTriangle, Sparkles, Flag, Users } from 'lucide-react'
 
 export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClose }) {
-  const { troops, dispatchMarch, isHungry, maxSimultaneousMarches, marches, shieldUntil } = gameState
+  const { troops, dispatchMarch, createRally, clan, isHungry, maxSimultaneousMarches, marches, shieldUntil } = gameState
 
+  const [isRallyMode, setIsRallyMode] = useState(false)
   const [selectedArmy, setSelectedArmy] = useState({
     infantry: Math.min(troops.infantry, 5),
     archer: Math.min(troops.archer, 0),
@@ -55,21 +56,43 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
   }
 
   const handleDispatch = () => {
-    const result = dispatchMarch({
-      type: marchType,
-      targetX: tile.worldX,
-      targetY: tile.worldY,
-      targetName: targetTitle,
-      army: selectedArmy,
-      resourceType: tileDef.resource,
-      nodeResourceMax: nodeReserve,
-      targetLevel,
-    })
+    if (isRallyMode) {
+      if (!clan) {
+        alert('Debes pertenecer a un clan para convocar un Rally.')
+        return
+      }
+      const result = createRally({
+        targetX: tile.worldX,
+        targetY: tile.worldY,
+        targetName: targetTitle,
+        targetType: marchType,
+        army: selectedArmy,
+        targetLevel,
+        resourceType: tileDef.resource,
+      })
 
-    if (result.success) {
-      onClose()
+      if (result.success) {
+        onClose()
+      } else {
+        alert(result.reason)
+      }
     } else {
-      alert(result.reason)
+      const result = dispatchMarch({
+        type: marchType,
+        targetX: tile.worldX,
+        targetY: tile.worldY,
+        targetName: targetTitle,
+        army: selectedArmy,
+        resourceType: tileDef.resource,
+        nodeResourceMax: nodeReserve,
+        targetLevel,
+      })
+
+      if (result.success) {
+        onClose()
+      } else {
+        alert(result.reason)
+      }
     }
   }
 
@@ -78,11 +101,42 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
       <div className="march-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="march-modal-header">
           <div>
-            <h3>Despachar Marcha</h3>
+            <h3>{isRallyMode ? '🚩 Convocar Rally de Clan' : '⚔️ Despachar Marcha'}</h3>
             <p>{targetTitle} en ({tile.worldX}, {tile.worldY})</p>
           </div>
           <button type="button" className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>
+
+        {/* Selector de Modo: Individual vs Rally de Clan */}
+        <div className="march-mode-tabs">
+          <button
+            type="button"
+            className={`mode-tab-btn ${!isRallyMode ? 'active' : ''}`}
+            onClick={() => setIsRallyMode(false)}
+          >
+            <Send size={13} /> Marcha Individual
+          </button>
+          <button
+            type="button"
+            className={`mode-tab-btn rally ${isRallyMode ? 'active' : ''}`}
+            onClick={() => setIsRallyMode(true)}
+          >
+            <Flag size={13} /> Convocar Rally (5 min)
+          </button>
+        </div>
+
+        {isRallyMode && (
+          <div className="rally-explainer-banner">
+            <div className="rally-explainer-header">
+              <Users size={15} />
+              <strong>Convocatoria Conjunta de Clan (5 Minutos)</strong>
+            </div>
+            <p>
+              Tu clan tendrá 5 minutos para sumar refuerzos al Rally. Al terminar la cuenta atrás, marcharán juntos hacia el objetivo.
+              Las bajas y el botín se distribuirán <strong>proporcionalmente</strong> entre todos los aportantes.
+            </p>
+          </div>
+        )}
 
         {/* Datos de viaje y distancia */}
         <div className="march-travel-info">
@@ -204,11 +258,19 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
         {/* Botón de Enviar */}
         <button
           type="button"
-          className="dispatch-submit-btn"
+          className={`dispatch-submit-btn ${isRallyMode ? 'rally-btn-submit' : ''}`}
           onClick={handleDispatch}
-          disabled={totalTroops === 0 || marches.length >= maxSimultaneousMarches}
+          disabled={totalTroops === 0 || (!isRallyMode && marches.length >= maxSimultaneousMarches)}
         >
-          <Send size={16} /> Despachar Marcha
+          {isRallyMode ? (
+            <>
+              <Flag size={16} /> Convocar Rally de Clan (5 min)
+            </>
+          ) : (
+            <>
+              <Send size={16} /> Despachar Marcha
+            </>
+          )}
         </button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info } from 'lucide-react'
+import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2 } from 'lucide-react'
 import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap, removeOldestGemTile, spawnGemTile } from './data/tileTypes'
 import LandingPage from './components/LandingPage'
 import BuildView from './components/BuildView'
@@ -25,8 +25,8 @@ const MIN_COORD = -CENTER_INDEX
 const MAX_COORD = MAP_SIZE - CENTER_INDEX - 1
 
 const MENU_ITEMS = [
-  { id: 'build', label: 'Mi Base', src: '/assets/ui/build.png' },
-  { id: 'home', label: 'Mapa', src: '/assets/ui/home.png' },
+  { id: 'build', label: 'Mi Base', src: '/assets/ui/home.png' },
+  { id: 'home', label: 'Mapa', isGlobe: true },
   { id: 'battle', label: 'Ejército', src: '/assets/ui/battle.png' },
   { id: 'clan', label: 'Clan', src: '/assets/ui/clan.png' },
   { id: 'market', label: 'Mercado', src: '/assets/ui/market.png' },
@@ -1010,7 +1010,13 @@ export default function App() {
                 setPopupOpen(false)
               }}
             >
-              <img className="nav-art" src={item.src} alt="" draggable="false" />
+              {item.isGlobe ? (
+                <div className="nav-globe-wrap">
+                  <Globe2 className="nav-globe-icon" size={24} />
+                </div>
+              ) : (
+                <img className="nav-art" src={item.src} alt="" draggable="false" />
+              )}
               <span>{item.label}</span>
             </button>
           ))}

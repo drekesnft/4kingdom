@@ -1,6 +1,23 @@
 import React, { useState } from 'react'
 import { BUILDINGS_CONFIG, KING_CONFIG } from '../game/config'
-import { Hammer, Zap, ArrowUpCircle, CheckCircle, ShieldAlert, Sparkles, Shield, Swords, Wheat, Coins, Castle } from 'lucide-react'
+import {
+  Hammer,
+  Zap,
+  ArrowUpCircle,
+  CheckCircle,
+  AlertTriangle,
+  Sparkles,
+  Shield,
+  Swords,
+  Wheat,
+  Coins,
+  Castle,
+  Clock,
+  Layers,
+  BarChart3,
+  TrendingUp,
+  XCircle,
+} from 'lucide-react'
 
 export default function BuildView({ gameState, onClose }) {
   const {
@@ -12,8 +29,19 @@ export default function BuildView({ gameState, onClose }) {
     upgradeBuilding,
     speedupBuilding,
     calculateKingCostForSec,
+    passiveProductionPerHour,
+    logisticsCapacity,
+    totalTroopsCount,
+    logisticsMultiplier,
+    totalFoodUpkeepPerHour,
+    productiveTroopsCount,
+    maxKingProductiveTroops,
+    estimatedDailyKing,
+    treasuryProtectionLimit,
+    treasuryDailyWithdrawLimit,
   } = gameState
 
+  const [activeTab, setActiveTab] = useState('citadel') // 'citadel' | 'inspector' | 'builder' | 'bonuses'
   const [selectedBuildingId, setSelectedBuildingId] = useState('castle')
 
   const now = Date.now()
@@ -37,22 +65,35 @@ export default function BuildView({ gameState, onClose }) {
     buildings.wall >= buildings.castle
   )
 
-  const scrollToBuilding = (bId) => {
+  const handleSelectBuildingInInspector = (bId) => {
     setSelectedBuildingId(bId)
-    const el = document.getElementById(`building-card-${bId}`)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    setActiveTab('inspector')
+  }
+
+  const selectedBuildingDef = BUILDINGS_CONFIG[selectedBuildingId]
+  const currentLvl = buildings[selectedBuildingId] || 0
+  const isMaxLvl = currentLvl >= 5
+  const nextLvl = currentLvl + 1
+  const currentLevelStats = selectedBuildingDef?.levels[currentLvl] || null
+  const nextLevelStats = !isMaxLvl ? selectedBuildingDef?.levels[nextLvl] : null
+  const upgradeCheck = canUpgradeBuilding(selectedBuildingId)
+
+  const handleUpgradeAction = (bId) => {
+    const res = upgradeBuilding(bId)
+    if (!res.success) {
+      alert(res.reason)
     }
   }
 
   return (
     <div className="view-panel build-panel">
+      {/* Encabezado Gaming */}
       <header className="panel-header">
         <div className="panel-title-wrap">
           <Hammer className="panel-icon" />
           <div>
             <h2>Mi Base y Ciudadela</h2>
-            <p>5 Edificios Alpha · Nivel Máximo 5 · 1 Constructor</p>
+            <p>5 Edificios Alpha · Nivel Máx 5 · 1 Constructor Universal</p>
           </div>
         </div>
         {onClose && (
@@ -62,340 +103,541 @@ export default function BuildView({ gameState, onClose }) {
         )}
       </header>
 
-      {/* HUB VISUAL DE LA CIUDADELA (Base Interactiva) */}
-      <div className="citadel-hub-card">
-        <div className="citadel-hub-header">
-          <div className="citadel-hub-title">
-            <span className="citadel-badge">🏛️ CIUDADELA PRINCIPAL</span>
-            <h3>Tu Fortaleza Alpha</h3>
-          </div>
-          <div className="citadel-power-tag">
-            <Sparkles size={13} />
-            <span>Poder Edificios: <strong>+{baseBuildingsPower.toLocaleString()}</strong></span>
-          </div>
-        </div>
-
-        {/* Rejilla Interactiva de los 5 Edificios */}
-        <div className="citadel-layout-grid">
-          {buildingList.map((b) => {
-            const lvl = buildings[b.id] || 0
-            const isUpgrading = underConstruction?.buildingId === b.id
-            const isSelected = selectedBuildingId === b.id
-
-            return (
-              <button
-                key={b.id}
-                type="button"
-                className={`citadel-building-slot ${isSelected ? 'selected' : ''} ${isUpgrading ? 'upgrading' : ''}`}
-                onClick={() => scrollToBuilding(b.id)}
-                title={`Ver detalles de ${b.name}`}
-              >
-                <div className="slot-icon-wrap">
-                  <span className="slot-emoji">{b.icon}</span>
-                  {isUpgrading && <span className="slot-hammer-pulse">🔨</span>}
-                </div>
-                <div className="slot-text-wrap">
-                  <strong className="slot-name">{b.name}</strong>
-                  <span className={`slot-lvl-badge ${lvl >= 5 ? 'max' : ''}`}>
-                    {lvl >= 5 ? 'Nv.5 (MÁX)' : `Nv. ${lvl}/5`}
-                  </span>
-                </div>
-                {isUpgrading && (
-                  <div className="slot-mini-progress">
-                    <div
-                      className="slot-mini-bar"
-                      style={{ width: `${Math.max(5, 100 - (remainingSec / underConstruction.totalSec) * 100)}%` }}
-                    />
-                  </div>
-                )}
-              </button>
-            )
-          })}
-        </div>
+      {/* Pestañas Gaming Intuitivas */}
+      <div className="gaming-subtabs">
+        <button
+          type="button"
+          className={`gaming-subtab-btn ${activeTab === 'citadel' ? 'active' : ''}`}
+          onClick={() => setActiveTab('citadel')}
+        >
+          <Castle size={14} /> Ciudadela
+        </button>
+        <button
+          type="button"
+          className={`gaming-subtab-btn ${activeTab === 'inspector' ? 'active' : ''}`}
+          onClick={() => setActiveTab('inspector')}
+        >
+          <Layers size={14} /> Inspector de Edificios
+        </button>
+        <button
+          type="button"
+          className={`gaming-subtab-btn ${activeTab === 'builder' ? 'active' : ''}`}
+          onClick={() => setActiveTab('builder')}
+        >
+          <Hammer size={14} /> Constructor {underConstruction && <span className="tab-pulse-badge">1</span>}
+        </button>
+        <button
+          type="button"
+          className={`gaming-subtab-btn ${activeTab === 'bonuses' ? 'active' : ''}`}
+          onClick={() => setActiveTab('bonuses')}
+        >
+          <BarChart3 size={14} /> Bonos del Reino
+        </button>
       </div>
 
-      {/* REGLA DE PROGRESIÓN DEL CASTILLO (Sección 6) */}
-      <div className="castle-progression-tracker">
-        <div className="tracker-header">
-          <span>🏰 Prerrequisito para Castillo Nv.{buildings.castle < 5 ? buildings.castle + 1 : 5}:</span>
-          <strong>{isCastleReadyForNext ? '✨ ¡Listo para mejorar!' : `Requiere otros 4 a Nv.${buildings.castle}`}</strong>
-        </div>
-        <div className="tracker-pills-row">
-          <div className={`tracker-pill ${buildings.barracks >= buildings.castle ? 'ready' : 'pending'}`}>
-            ⚔️ Cuartel: Nv.{buildings.barracks}/{buildings.castle}
-          </div>
-          <div className={`tracker-pill ${buildings.granary >= buildings.castle ? 'ready' : 'pending'}`}>
-            🌾 Granero: Nv.{buildings.granary}/{buildings.castle}
-          </div>
-          <div className={`tracker-pill ${buildings.treasury >= buildings.castle ? 'ready' : 'pending'}`}>
-            🪙 Tesoro: Nv.{buildings.treasury}/{buildings.castle}
-          </div>
-          <div className={`tracker-pill ${buildings.wall >= buildings.castle ? 'ready' : 'pending'}`}>
-            🛡️ Muralla: Nv.{buildings.wall}/{buildings.castle}
-          </div>
-        </div>
-      </div>
-
-      {/* TARJETA DEL CONSTRUCTOR ACTIVO */}
-      <div className={`builder-card ${underConstruction ? 'busy' : 'idle'}`}>
-        <div className="builder-header">
-          <strong>Constructor del Reino</strong>
-          <span className="badge">{underConstruction ? '1/1 Ocupado' : '1/1 Disponible'}</span>
-        </div>
-        {underConstruction ? (
-          <div className="builder-active-body">
-            <p>
-              Mejorando <strong>{BUILDINGS_CONFIG[underConstruction.buildingId].name}</strong> al Nivel <strong>{underConstruction.targetLevel}</strong>
-            </p>
-            <div className="progress-bar-wrap">
-              <div
-                className="progress-fill"
-                style={{
-                  width: `${Math.max(5, 100 - (remainingSec / underConstruction.totalSec) * 100)}%`,
-                }}
-              />
-            </div>
-            <div className="builder-actions">
-              <span className="timer-text">{remainingSec}s restantes</span>
-              <button
-                type="button"
-                className="speedup-btn"
-                onClick={speedupBuilding}
-                title="Acelerar inmediatamente (1 KING = 30s)"
-              >
-                <Zap size={14} /> Acelerar ({speedCost} KING)
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="builder-idle-text">Constructor libre. Selecciona un edificio para mejorar su nivel.</p>
-        )}
-      </div>
-
-      {/* LISTA DETALLADA DE EDIFICIOS */}
-      <div className="buildings-grid">
-        {buildingList.map((b) => {
-          const currentLvl = buildings[b.id] || 0
-          const isMax = currentLvl >= 5
-          const currentStats = b.levels[currentLvl] || b.levels[1]
-          const nextStats = !isMax ? b.levels[currentLvl + 1] : null
-          const upgradeCheck = !isMax ? canUpgradeBuilding(b.id) : { can: false }
-          const isCurrentlyUpgrading = underConstruction?.buildingId === b.id
-          const isSelected = selectedBuildingId === b.id
-
-          return (
-            <div
-              key={b.id}
-              id={`building-card-${b.id}`}
-              className={`building-card ${isCurrentlyUpgrading ? 'building-active-work' : ''} ${isSelected ? 'highlight-card' : ''}`}
-            >
-              <div className="building-card-top">
-                <span className="building-emoji">{b.icon}</span>
-                <div className="building-info">
-                  <div className="building-title-row">
-                    <h3>{b.name}</h3>
-                    <span className="building-level">Nv. {currentLvl}/5</span>
-                  </div>
-                  <p className="building-desc">{b.description}</p>
-                </div>
+      {/* PESTAÑA 1: CIUDADELA (HUB VISUAL) */}
+      {activeTab === 'citadel' && (
+        <div className="citadel-tab-content">
+          {/* Tarjeta de Resumen de la Ciudadela */}
+          <div className="citadel-hub-card">
+            <div className="citadel-hub-header">
+              <div className="citadel-hub-title">
+                <span className="citadel-badge">🏛️ BASE OPERATIVA ALPHA</span>
+                <h3>Fortaleza Central</h3>
               </div>
-
-              {/* Comparación de Estadísticas: Actual vs Siguiente Nivel */}
-              <div className="stat-comparison-grid">
-                <div className="comparison-column current">
-                  <small>NIVEL ACTUAL ({currentLvl})</small>
-                  <div className="stat-row-item">
-                    <span>Poder:</span>
-                    <strong>+{currentStats.power}</strong>
-                  </div>
-                  {b.id === 'castle' && (
-                    <>
-                      <div className="stat-row-item">
-                        <span>Marchas:</span>
-                        <strong>{currentStats.marches} simultánea(s)</strong>
-                      </div>
-                      <div className="stat-row-item">
-                        <span>Producción:</span>
-                        <strong>+{currentStats.passivePerHour.wood}W +{currentStats.passivePerHour.stone}S +{currentStats.passivePerHour.food}F/h</strong>
-                      </div>
-                    </>
-                  )}
-                  {b.id === 'barracks' && (
-                    <>
-                      <div className="stat-row-item">
-                        <span>Cola máxima:</span>
-                        <strong>{currentStats.maxQueue} tropas</strong>
-                      </div>
-                      <div className="stat-row-item">
-                        <span>Velocidad:</span>
-                        <strong>+{Math.round(currentStats.speedBonus * 100)}% rápida</strong>
-                      </div>
-                    </>
-                  )}
-                  {b.id === 'granary' && (
-                    <>
-                      <div className="stat-row-item">
-                        <span>Logística:</span>
-                        <strong>{currentStats.logisticsCapacity} tropas</strong>
-                      </div>
-                      <div className="stat-row-item">
-                        <span>Farming KING:</span>
-                        <strong>{currentStats.kingProductiveCap} tropas elegibles</strong>
-                      </div>
-                    </>
-                  )}
-                  {b.id === 'treasury' && (
-                    <>
-                      <div className="stat-row-item">
-                        <span>KING protegido:</span>
-                        <strong>{currentStats.protectedKing} KING</strong>
-                      </div>
-                      <div className="stat-row-item">
-                        <span>Pendiente máx:</span>
-                        <strong>{currentStats.pendingMax} KING</strong>
-                      </div>
-                    </>
-                  )}
-                  {b.id === 'wall' && (
-                    <>
-                      <div className="stat-row-item">
-                        <span>Defensa base:</span>
-                        <strong>+{Math.round(currentStats.defenseBonus * 100)}%</strong>
-                      </div>
-                      <div className="stat-row-item">
-                        <span>Reducción saqueo:</span>
-                        <strong>-{Math.round(currentStats.lootReduction * 100)}%</strong>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="comparison-column next">
-                  <small>{isMax ? 'NIVEL MÁXIMO' : `SIGUIENTE (Nv. ${currentLvl + 1})`}</small>
-                  {nextStats ? (
-                    <>
-                      <div className="stat-row-item">
-                        <span>Poder:</span>
-                        <strong className="highlight">+{nextStats.power}</strong>
-                      </div>
-                      {b.id === 'castle' && (
-                        <>
-                          <div className="stat-row-item">
-                            <span>Marchas:</span>
-                            <strong className="highlight">{nextStats.marches} simultánea(s)</strong>
-                          </div>
-                          <div className="stat-row-item">
-                            <span>Producción:</span>
-                            <strong className="highlight">+{nextStats.passivePerHour.wood}W +{nextStats.passivePerHour.stone}S +{nextStats.passivePerHour.food}F/h</strong>
-                          </div>
-                        </>
-                      )}
-                      {b.id === 'barracks' && (
-                        <>
-                          <div className="stat-row-item">
-                            <span>Cola máxima:</span>
-                            <strong className="highlight">{nextStats.maxQueue} tropas</strong>
-                          </div>
-                          <div className="stat-row-item">
-                            <span>Velocidad:</span>
-                            <strong className="highlight">+{Math.round(nextStats.speedBonus * 100)}% rápida</strong>
-                          </div>
-                        </>
-                      )}
-                      {b.id === 'granary' && (
-                        <>
-                          <div className="stat-row-item">
-                            <span>Logística:</span>
-                            <strong className="highlight">{nextStats.logisticsCapacity} tropas</strong>
-                          </div>
-                          <div className="stat-row-item">
-                            <span>Farming KING:</span>
-                            <strong className="highlight">{nextStats.kingProductiveCap} tropas</strong>
-                          </div>
-                        </>
-                      )}
-                      {b.id === 'treasury' && (
-                        <>
-                          <div className="stat-row-item">
-                            <span>KING protegido:</span>
-                            <strong className="highlight">{nextStats.protectedKing} KING</strong>
-                          </div>
-                          <div className="stat-row-item">
-                            <span>Pendiente máx:</span>
-                            <strong className="highlight">{nextStats.pendingMax} KING</strong>
-                          </div>
-                        </>
-                      )}
-                      {b.id === 'wall' && (
-                        <>
-                          <div className="stat-row-item">
-                            <span>Defensa base:</span>
-                            <strong className="highlight">+{Math.round(nextStats.defenseBonus * 100)}%</strong>
-                          </div>
-                          <div className="stat-row-item">
-                            <span>Reducción saqueo:</span>
-                            <strong className="highlight">-{Math.round(nextStats.lootReduction * 100)}%</strong>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <p style={{ margin: '8px 0 0', fontSize: '10px', color: '#ffd65a' }}>
-                      👑 ¡Edificio completamente desarrollado en Alpha!
-                    </p>
-                  )}
-                </div>
+              <div className="citadel-power-tag">
+                <Sparkles size={13} />
+                <span>Poder Total: <strong>+{baseBuildingsPower.toLocaleString()}</strong></span>
               </div>
+            </div>
 
-              {/* Sección de Costes y Botón de Mejora */}
-              {!isMax ? (
-                <div className="upgrade-section">
-                  <div className="cost-pills-row">
-                    <span className={`cost-pill ${resources.wood >= nextStats.cost.wood ? 'sufficient' : 'insufficient'}`}>
-                      🪵 {nextStats.cost.wood.toLocaleString()}
-                    </span>
-                    <span className={`cost-pill ${resources.stone >= nextStats.cost.stone ? 'sufficient' : 'insufficient'}`}>
-                      🪨 {nextStats.cost.stone.toLocaleString()}
-                    </span>
-                    <span className={`cost-pill ${resources.food >= nextStats.cost.food ? 'sufficient' : 'insufficient'}`}>
-                      🌾 {nextStats.cost.food.toLocaleString()}
-                    </span>
-                    <span className="cost-pill time-pill">
-                      ⏳ {Math.round(nextStats.upgradeTimeSec / 60)} min
-                    </span>
-                  </div>
+            {/* Rejilla de los 5 Edificios */}
+            <div className="citadel-layout-grid">
+              {buildingList.map((b) => {
+                const lvl = buildings[b.id] || 0
+                const isUpgrading = underConstruction?.buildingId === b.id
+                const isNotBuilt = lvl === 0
 
-                  {isCurrentlyUpgrading ? (
-                    <button type="button" className="upgrade-action-btn working" onClick={speedupBuilding}>
-                      <Zap size={14} /> En Construcción ({remainingSec}s) · Acelerar ({speedCost} KING)
-                    </button>
-                  ) : underConstruction ? (
-                    <button type="button" className="upgrade-action-btn disabled" disabled>
-                      🔨 Constructor ocupado en {BUILDINGS_CONFIG[underConstruction.buildingId]?.name}
-                    </button>
-                  ) : upgradeCheck.can ? (
+                return (
+                  <div
+                    key={b.id}
+                    className={`citadel-building-slot ${isUpgrading ? 'upgrading' : ''} ${isNotBuilt ? 'not-built' : ''}`}
+                    onClick={() => handleSelectBuildingInInspector(b.id)}
+                  >
+                    <div className="slot-icon-wrap">
+                      <span className="slot-emoji">{b.icon}</span>
+                      {isUpgrading && <span className="slot-hammer-pulse">🔨</span>}
+                    </div>
+                    <div className="slot-text-wrap">
+                      <strong className="slot-name">{b.name}</strong>
+                      <span className={`slot-lvl-badge ${lvl >= 5 ? 'max' : isNotBuilt ? 'warning' : ''}`}>
+                        {lvl >= 5 ? 'Nv.5 (MÁX)' : isNotBuilt ? '⚠️ Sin Construir' : `Nv. ${lvl}/5`}
+                      </span>
+                    </div>
+
+                    {isUpgrading && (
+                      <div className="slot-mini-progress">
+                        <div
+                          className="slot-mini-bar"
+                          style={{ width: `${Math.max(5, 100 - (remainingSec / underConstruction.totalSec) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      className="upgrade-action-btn ready"
-                      onClick={() => upgradeBuilding(b.id)}
+                      className="slot-inspect-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSelectBuildingInInspector(b.id)
+                      }}
                     >
-                      <ArrowUpCircle size={15} /> Mejorar a Nivel {currentLvl + 1}
+                      {isNotBuilt ? '🔨 Construir' : '🔍 Inspeccionar'}
                     </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Prerrequisitos del Castillo */}
+          <div className="castle-progression-tracker">
+            <div className="tracker-header">
+              <span>🏰 Requisito para Castillo Nv.{buildings.castle < 5 ? buildings.castle + 1 : 5}:</span>
+              <strong>{isCastleReadyForNext ? '✨ ¡Listo para mejorar!' : `Requiere otros 4 edificios a Nv.${buildings.castle}`}</strong>
+            </div>
+            <div className="tracker-pills-row">
+              <div className={`tracker-pill ${buildings.barracks >= buildings.castle ? 'ready' : 'pending'}`}>
+                ⚔️ Cuartel: Nv.{buildings.barracks}/{buildings.castle}
+              </div>
+              <div className={`tracker-pill ${buildings.granary >= buildings.castle ? 'ready' : 'pending'}`}>
+                🌾 Granero: Nv.{buildings.granary}/{buildings.castle}
+              </div>
+              <div className={`tracker-pill ${buildings.treasury >= buildings.castle ? 'ready' : 'pending'}`}>
+                🪙 Tesoro: Nv.{buildings.treasury}/{buildings.castle}
+              </div>
+              <div className={`tracker-pill ${buildings.wall >= buildings.castle ? 'ready' : 'pending'}`}>
+                🛡️ Muralla: Nv.{buildings.wall}/{buildings.castle}
+              </div>
+            </div>
+          </div>
+
+          {/* Estado Rápido del Constructor */}
+          {underConstruction ? (
+            <div className="builder-card busy" onClick={() => setActiveTab('builder')}>
+              <div className="builder-header">
+                <strong>🔨 Obra en Curso</strong>
+                <span className="badge">1/1 Ocupado</span>
+              </div>
+              <p>
+                Mejorando <strong>{BUILDINGS_CONFIG[underConstruction.buildingId].name}</strong> al Nivel <strong>{underConstruction.targetLevel}</strong> ({remainingSec}s restantes)
+              </p>
+              <div className="progress-bar-wrap">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${Math.max(5, 100 - (remainingSec / underConstruction.totalSec) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="builder-card idle" onClick={() => setActiveTab('inspector')}>
+              <div className="builder-header">
+                <strong>🔨 Constructor Disponible</strong>
+                <span className="badge ready">1/1 Libre</span>
+              </div>
+              <p>El constructor está listo para levantar o mejorar tus estructuras. Selecciona un edificio para comenzar.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PESTAÑA 2: INSPECTOR DE EDIFICIOS (ENFOCADO Y SIN SCROLL) */}
+      {activeTab === 'inspector' && (
+        <div className="inspector-tab-content">
+          {/* Selector Horizontal de los 5 Edificios */}
+          <div className="building-selector-pills">
+            {buildingList.map((b) => {
+              const lvl = buildings[b.id] || 0
+              const isSelected = selectedBuildingId === b.id
+              const isUpgrading = underConstruction?.buildingId === b.id
+
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={`selector-pill-btn ${isSelected ? 'active' : ''} ${isUpgrading ? 'upgrading' : ''}`}
+                  onClick={() => setSelectedBuildingId(b.id)}
+                >
+                  <span className="pill-emoji">{b.icon}</span>
+                  <span className="pill-name">{b.name}</span>
+                  <span className="pill-lvl">{lvl === 0 ? 'Nv.0' : `Nv.${lvl}`}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Ficha Enfocada del Edificio Seleccionado */}
+          <div className="building-focused-card">
+            <div className="building-focused-header">
+              <div className="focused-icon-box">
+                <span>{selectedBuildingDef.icon}</span>
+              </div>
+              <div className="focused-title-wrap">
+                <div className="focused-name-row">
+                  <h3>{selectedBuildingDef.name}</h3>
+                  <span className={`focused-lvl-tag ${currentLvl >= 5 ? 'max' : currentLvl === 0 ? 'not-built' : ''}`}>
+                    {currentLvl >= 5 ? 'Nv. 5 (Máximo)' : currentLvl === 0 ? '⚠️ No Construido' : `Nivel ${currentLvl} de 5`}
+                  </span>
+                </div>
+                <p className="focused-role-desc">{selectedBuildingDef.roleDescription}</p>
+              </div>
+            </div>
+
+            {/* Comparador de Estadísticas: Nivel Actual vs Siguiente Nivel */}
+            <div className="stats-comparison-grid">
+              <div className="comparison-col current">
+                <span className="col-label">Nivel Actual ({currentLvl === 0 ? 'Sin Construir' : `Nv. ${currentLvl}`})</span>
+                <div className="stat-rows-box">
+                  {currentLvl === 0 ? (
+                    <div className="stat-row muted">
+                      <span>Estructura inactiva. No aporta beneficios.</span>
+                    </div>
                   ) : (
-                    <button type="button" className="upgrade-action-btn disabled" disabled title={upgradeCheck.reason}>
-                      <ShieldAlert size={14} /> {upgradeCheck.reason}
-                    </button>
+                    <>
+                      <div className="stat-row">
+                        <span>Poder aportado:</span>
+                        <strong>+{currentLevelStats?.power || 0} ⭐</strong>
+                      </div>
+                      {selectedBuildingId === 'castle' && (
+                        <>
+                          <div className="stat-row">
+                            <span>Producción Pasiva:</span>
+                            <strong>+{currentLevelStats?.passivePerHour?.wood}/h</strong>
+                          </div>
+                          <div className="stat-row">
+                            <span>Marchas Simultáneas:</span>
+                            <strong>{currentLevelStats?.marches}</strong>
+                          </div>
+                        </>
+                      )}
+                      {selectedBuildingId === 'barracks' && (
+                        <>
+                          <div className="stat-row">
+                            <span>Tropas Desbloqueadas:</span>
+                            <strong>{currentLevelStats?.unlockedTroops?.join(', ')}</strong>
+                          </div>
+                          <div className="stat-row">
+                            <span>Bonus Velocidad:</span>
+                            <strong>{Math.round((currentLevelStats?.speedBonus || 0) * 100)}%</strong>
+                          </div>
+                        </>
+                      )}
+                      {selectedBuildingId === 'granary' && (
+                        <>
+                          <div className="stat-row">
+                            <span>Capacidad Logística:</span>
+                            <strong>{currentLevelStats?.logisticsCapacity} tropas</strong>
+                          </div>
+                          <div className="stat-row">
+                            <span>Tropas Productivas KING:</span>
+                            <strong>{currentLevelStats?.kingProductiveCap}</strong>
+                          </div>
+                        </>
+                      )}
+                      {selectedBuildingId === 'treasury' && (
+                        <>
+                          <div className="stat-row">
+                            <span>KING Protegido:</span>
+                            <strong>{currentLevelStats?.protectedKing} KING</strong>
+                          </div>
+                          <div className="stat-row">
+                            <span>Retiro Diario Máx:</span>
+                            <strong>{currentLevelStats?.dailyWithdrawMax} KING</strong>
+                          </div>
+                        </>
+                      )}
+                      {selectedBuildingId === 'wall' && (
+                        <>
+                          <div className="stat-row">
+                            <span>Mitigación de Daño:</span>
+                            <strong>{currentLevelStats?.defenseMitigation}</strong>
+                          </div>
+                          <div className="stat-row">
+                            <span>Guarnición Defensiva:</span>
+                            <strong>{currentLevelStats?.garrisonBonus}</strong>
+                          </div>
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
-              ) : (
-                <button type="button" className="upgrade-action-btn max-level" disabled>
-                  <CheckCircle size={14} /> Nivel Máximo de Alpha (Nv. 5)
-                </button>
+              </div>
+
+              {!isMaxLvl && (
+                <div className="comparison-col next">
+                  <span className="col-label next-label">
+                    <TrendingUp size={13} /> Siguiente Nivel (Nv. {nextLvl})
+                  </span>
+                  <div className="stat-rows-box">
+                    <div className="stat-row highlight">
+                      <span>Poder aportado:</span>
+                      <strong>+{nextLevelStats?.power} ⭐</strong>
+                    </div>
+                    {selectedBuildingId === 'castle' && (
+                      <>
+                        <div className="stat-row highlight">
+                          <span>Producción Pasiva:</span>
+                          <strong>+{nextLevelStats?.passivePerHour?.wood}/h</strong>
+                        </div>
+                        <div className="stat-row highlight">
+                          <span>Marchas Simultáneas:</span>
+                          <strong>{nextLevelStats?.marches}</strong>
+                        </div>
+                      </>
+                    )}
+                    {selectedBuildingId === 'barracks' && (
+                      <>
+                        <div className="stat-row highlight">
+                          <span>Tropas Desbloqueadas:</span>
+                          <strong>{nextLevelStats?.unlockedTroops?.join(', ')}</strong>
+                        </div>
+                        <div className="stat-row highlight">
+                          <span>Bonus Velocidad:</span>
+                          <strong>{Math.round((nextLevelStats?.speedBonus || 0) * 100)}%</strong>
+                        </div>
+                      </>
+                    )}
+                    {selectedBuildingId === 'granary' && (
+                      <>
+                        <div className="stat-row highlight">
+                          <span>Capacidad Logística:</span>
+                          <strong>{nextLevelStats?.logisticsCapacity} tropas</strong>
+                        </div>
+                        <div className="stat-row highlight">
+                          <span>Tropas Productivas KING:</span>
+                          <strong>{nextLevelStats?.kingProductiveCap}</strong>
+                        </div>
+                      </>
+                    )}
+                    {selectedBuildingId === 'treasury' && (
+                      <>
+                        <div className="stat-row highlight">
+                          <span>KING Protegido:</span>
+                          <strong>{nextLevelStats?.protectedKing} KING</strong>
+                        </div>
+                        <div className="stat-row highlight">
+                          <span>Retiro Diario Máx:</span>
+                          <strong>{nextLevelStats?.dailyWithdrawMax} KING</strong>
+                        </div>
+                      </>
+                    )}
+                    {selectedBuildingId === 'wall' && (
+                      <>
+                        <div className="stat-row highlight">
+                          <span>Mitigación de Daño:</span>
+                          <strong>{nextLevelStats?.defenseMitigation}</strong>
+                        </div>
+                        <div className="stat-row highlight">
+                          <span>Guarnición Defensiva:</span>
+                          <strong>{nextLevelStats?.garrisonBonus}</strong>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
-          )
-        })}
-      </div>
+
+            {/* Costes y Botón de Acción */}
+            {!isMaxLvl ? (
+              <div className="focused-action-section">
+                {/* Chequeo de Costes */}
+                <div className="cost-chips-row">
+                  <div className={`cost-chip ${resources.wood >= nextLevelStats.cost.wood ? 'ok' : 'missing'}`}>
+                    <span>🌲 Madera:</span>
+                    <strong>{(nextLevelStats.cost.wood || 0).toLocaleString()}</strong>
+                  </div>
+                  <div className={`cost-chip ${resources.stone >= nextLevelStats.cost.stone ? 'ok' : 'missing'}`}>
+                    <span>🪨 Piedra:</span>
+                    <strong>{(nextLevelStats.cost.stone || 0).toLocaleString()}</strong>
+                  </div>
+                  <div className={`cost-chip ${resources.food >= nextLevelStats.cost.food ? 'ok' : 'missing'}`}>
+                    <span>🌾 Comida:</span>
+                    <strong>{(nextLevelStats.cost.food || 0).toLocaleString()}</strong>
+                  </div>
+                  <div className="cost-chip time">
+                    <Clock size={12} />
+                    <strong>{Math.round(nextLevelStats.timeSec / 60)} min ({nextLevelStats.timeSec}s)</strong>
+                  </div>
+                </div>
+
+                {/* Motivo de bloqueo si no se puede mejorar */}
+                {!upgradeCheck.can && (
+                  <div className="upgrade-block-reason">
+                    <AlertTriangle size={14} />
+                    <span>{upgradeCheck.reason}</span>
+                  </div>
+                )}
+
+                {/* Botón Principal */}
+                <button
+                  type="button"
+                  className={`focused-upgrade-btn ${currentLvl === 0 ? 'build-new' : ''}`}
+                  onClick={() => handleUpgradeAction(selectedBuildingId)}
+                  disabled={!upgradeCheck.can}
+                >
+                  <Hammer size={16} />
+                  {currentLvl === 0 ? `Construir ${selectedBuildingDef.name} (Nivel 1)` : `Mejorar a Nivel ${nextLvl}`}
+                </button>
+              </div>
+            ) : (
+              <div className="max-level-banner">
+                <CheckCircle size={20} className="check-icon" />
+                <div>
+                  <strong>¡Nivel Máximo Alcanzado!</strong>
+                  <p>Este edificio está al Nivel 5, el tope establecido para la Alpha v0.1.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PESTAÑA 3: CONSTRUCTOR DEDICADO */}
+      {activeTab === 'builder' && (
+        <div className="builder-tab-content">
+          <div className="builder-queue-card">
+            <div className="queue-top-row">
+              <div className="queue-title-wrap">
+                <Hammer size={18} />
+                <div>
+                  <h3>Cola de Construcción</h3>
+                  <small>Capacidad Alpha: 1 Constructor Universal</small>
+                </div>
+              </div>
+              <span className={`builder-status-badge ${underConstruction ? 'busy' : 'idle'}`}>
+                {underConstruction ? 'Ocupado (1/1)' : 'Libre (1/1)'}
+              </span>
+            </div>
+
+            {underConstruction ? (
+              <div className="builder-active-details">
+                <div className="active-project-card">
+                  <div className="project-icon">
+                    {BUILDINGS_CONFIG[underConstruction.buildingId]?.icon}
+                  </div>
+                  <div className="project-info">
+                    <h4>{BUILDINGS_CONFIG[underConstruction.buildingId]?.name}</h4>
+                    <p>Subiendo a <strong>Nivel {underConstruction.targetLevel}</strong></p>
+                    <span className="project-timer">⏱️ {remainingSec} segundos restantes</span>
+                  </div>
+                </div>
+
+                <div className="project-progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${Math.max(5, 100 - (remainingSec / underConstruction.totalSec) * 100)}%`,
+                    }}
+                  />
+                </div>
+
+                {/* Botón de Aceleración con KING */}
+                <div className="speedup-action-box">
+                  <div className="speedup-info">
+                    <span>Aceleración Universal con KING:</span>
+                    <small>1 KING = 30 segundos · Coste exacto: <strong>{speedCost} KING</strong></small>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-speedup-king"
+                    onClick={speedupBuilding}
+                    disabled={king.claimed < speedCost}
+                  >
+                    <Zap size={15} /> Terminar Inmediatamente ({speedCost} KING)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="builder-empty-state">
+                <CheckCircle size={36} className="empty-icon-idle" />
+                <h4>Tu Constructor está libre</h4>
+                <p>Ve al <strong>Inspector de Edificios</strong> para ordenar una mejora o construir un nuevo edificio.</p>
+                <button
+                  type="button"
+                  className="go-inspector-btn"
+                  onClick={() => setActiveTab('inspector')}
+                >
+                  Ir al Inspector de Edificios
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PESTAÑA 4: BONOS DEL REINO */}
+      {activeTab === 'bonuses' && (
+        <div className="bonuses-tab-content">
+          <div className="bonuses-grid">
+            {/* Producción Pasiva */}
+            <div className="bonus-metric-card">
+              <div className="metric-header">
+                <Castle size={16} />
+                <strong>Producción Pasiva del Reino</strong>
+              </div>
+              <div className="metric-values">
+                <div><span>🌲 Madera:</span><strong>+{passiveProductionPerHour.wood}/h</strong></div>
+                <div><span>🪨 Piedra:</span><strong>+{passiveProductionPerHour.stone}/h</strong></div>
+                <div><span>🌾 Comida:</span><strong>+{passiveProductionPerHour.food}/h</strong></div>
+              </div>
+              <small>Otorgado por el Castillo (Nv. {buildings.castle})</small>
+            </div>
+
+            {/* Logística y Comida */}
+            <div className="bonus-metric-card">
+              <div className="metric-header">
+                <Wheat size={16} />
+                <strong>Logística y Mantenimiento</strong>
+              </div>
+              <div className="metric-values">
+                <div><span>Capacidad Logística:</span><strong>{logisticsCapacity} tropas</strong></div>
+                <div><span>Tropas Totales:</span><strong>{totalTroopsCount} tropas</strong></div>
+                <div><span>Multiplicador Penalización:</span><strong>{logisticsMultiplier.toFixed(2)}x</strong></div>
+                <div><span>Consumo Neto de Comida:</span><strong>-{totalFoodUpkeepPerHour}/h</strong></div>
+              </div>
+              <small>Otorgado por el Granero (Nv. {buildings.granary})</small>
+            </div>
+
+            {/* Farming de KING */}
+            <div className="bonus-metric-card">
+              <div className="metric-header">
+                <Coins size={16} />
+                <strong>Farming de KING Diario</strong>
+              </div>
+              <div className="metric-values">
+                <div><span>Tropas Productivas:</span><strong>{productiveTroopsCount} / {maxKingProductiveTroops} máx</strong></div>
+                <div><span>Estimado Diario:</span><strong>~{estimatedDailyKing} KING / día</strong></div>
+                <div><span>Pool Diario Servidor:</span><strong>2,488.89 KING</strong></div>
+              </div>
+              <small>Calculado según tropas en casa de mayor poder y Nivel de Granero</small>
+            </div>
+
+            {/* Seguridad de Tesorería */}
+            <div className="bonus-metric-card">
+              <div className="metric-header">
+                <Shield size={16} />
+                <strong>Seguridad de Tesorería</strong>
+              </div>
+              <div className="metric-values">
+                <div><span>KING Protegido:</span><strong>{treasuryProtectionLimit} KING</strong></div>
+                <div><span>Límite Retiro Diario:</span><strong>{treasuryDailyWithdrawLimit} KING / día</strong></div>
+              </div>
+              <small>Otorgado por la Tesorería (Nv. {buildings.treasury})</small>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

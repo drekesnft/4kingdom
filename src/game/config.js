@@ -48,10 +48,10 @@ export const INITIAL_PLAYER_DATA = {
   },
   buildings: {
     castle: 1,
-    barracks: 1,
-    granary: 1,
-    treasury: 1,
-    wall: 1,
+    barracks: 0, // Inicia sin construir
+    granary: 0,  // Inicia sin construir
+    treasury: 0, // Inicia sin construir
+    wall: 0,     // Inicia sin construir
   },
   builders: 1,
   shieldHours: 24, // 24h protección inicial
@@ -131,6 +131,7 @@ export const BUILDINGS_CONFIG = {
     description: 'Entrena y prepara las fuerzas militares. Desbloquea tropas y acelera el reclutamiento.',
     icon: '⚔️',
     levels: {
+      0: { power: 0, maxQueue: 0, speedBonus: 0.00, unlockedTroops: [], upgradeTimeSec: 600, cost: { wood: 500, stone: 300, food: 600 } },
       1: { power: 50, maxQueue: 5, speedBonus: 0.00, unlockedTroops: ['infantry'], upgradeTimeSec: 600, cost: { wood: 500, stone: 300, food: 600 } }, // 10 min
       2: { power: 120, maxQueue: 10, speedBonus: 0.10, unlockedTroops: ['infantry'], upgradeTimeSec: 7200, cost: { wood: 1500, stone: 900, food: 1800 } }, // 2h
       3: { power: 220, maxQueue: 15, speedBonus: 0.20, unlockedTroops: ['infantry', 'archer'], upgradeTimeSec: 28800, cost: { wood: 4200, stone: 2200, food: 4800 } }, // 8h
@@ -144,6 +145,7 @@ export const BUILDINGS_CONFIG = {
     description: 'Logística militar. Sostiene el mantenimiento del ejército y define tropas productivas para KING.',
     icon: '🌾',
     levels: {
+      0: { power: 0, logisticsCapacity: 100, kingProductiveCap: 20, upgradeTimeSec: 480, cost: { wood: 600, stone: 150, food: 800 } },
       1: { power: 40, logisticsCapacity: 100, kingProductiveCap: 20, upgradeTimeSec: 480, cost: { wood: 600, stone: 150, food: 800 } }, // 8 min
       2: { power: 100, logisticsCapacity: 250, kingProductiveCap: 25, upgradeTimeSec: 5400, cost: { wood: 1800, stone: 500, food: 2400 } }, // 1.5h
       3: { power: 180, logisticsCapacity: 500, kingProductiveCap: 30, upgradeTimeSec: 21600, cost: { wood: 5000, stone: 1400, food: 6500 } }, // 6h
@@ -157,6 +159,7 @@ export const BUILDINGS_CONFIG = {
     description: 'Custodia el KING obtenido jugando. Protege fondos ante saqueos PvP y gestiona retiros.',
     icon: '🏛️',
     levels: {
+      0: { power: 0, pendingMax: 20, protectedKing: 25, dailyWithdrawMax: 25, upgradeTimeSec: 900, cost: { wood: 300, stone: 700, food: 200 } },
       1: { power: 60, pendingMax: 20, protectedKing: 25, dailyWithdrawMax: 25, upgradeTimeSec: 900, cost: { wood: 300, stone: 700, food: 200 } }, // 15 min
       2: { power: 140, pendingMax: 50, protectedKing: 75, dailyWithdrawMax: 75, upgradeTimeSec: 10800, cost: { wood: 900, stone: 2100, food: 600 } }, // 3h
       3: { power: 260, pendingMax: 120, protectedKing: 175, dailyWithdrawMax: 175, upgradeTimeSec: 36000, cost: { wood: 2500, stone: 6000, food: 1600 } }, // 10h
@@ -170,6 +173,7 @@ export const BUILDINGS_CONFIG = {
     description: 'Defensa fortificada. Reduce el daño entrante en combates defensivos y reduce el saqueo PvP.',
     icon: '🛡️',
     levels: {
+      0: { power: 0, defenseBonus: 0.00, lootReduction: 0.00, upgradeTimeSec: 720, cost: { wood: 350, stone: 900, food: 250 } },
       1: { power: 80, defenseBonus: 0.10, lootReduction: 0.05, upgradeTimeSec: 720, cost: { wood: 350, stone: 900, food: 250 } }, // 12 min
       2: { power: 180, defenseBonus: 0.20, lootReduction: 0.10, upgradeTimeSec: 7200, cost: { wood: 1000, stone: 2800, food: 700 } }, // 2h
       3: { power: 320, defenseBonus: 0.30, lootReduction: 0.15, upgradeTimeSec: 28800, cost: { wood: 2800, stone: 8000, food: 2200 } }, // 8h

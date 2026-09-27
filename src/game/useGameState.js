@@ -111,6 +111,59 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     return []
   })
 
+  const [clan, setClan] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed.clan !== undefined) return parsed.clan
+      } catch {}
+    }
+    return {
+      id: 'clan_valyria',
+      name: 'Vanguardia Valyria',
+      tag: 'VAL',
+      level: 1,
+      membersCount: 14,
+      maxMembers: 30,
+      leader: 'Lord Comandante',
+      role: 'Miembro',
+      description: 'Hermandad de conquistadores. Rallies coordinados de 5 min y defensa territorial.',
+      donations: { wood: 5200, stone: 3800 },
+      vaultKing: 240,
+    }
+  })
+
+  const [clanRallies, setClanRallies] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed.clanRallies) return parsed.clanRallies
+      } catch {}
+    }
+    return [
+      {
+        id: 'rally_demo_1',
+        creator: 'Sir Ronald [VAL]',
+        isPlayerCreator: false,
+        targetX: 8,
+        targetY: -5,
+        targetName: 'Campamento Hostil Nv.3',
+        targetType: 'npc',
+        targetLevel: 3,
+        createdAt: Date.now() - 60000,
+        launchTime: Date.now() + 240000,
+        totalGatherSec: 300,
+        status: 'gathering',
+        participants: [
+          { name: 'Sir Ronald [VAL]', army: { infantry: 15, archer: 10, cavalry: 5 }, isPlayer: false },
+        ],
+        totalArmy: { infantry: 15, archer: 10, cavalry: 5 },
+      },
+    ]
+  })
+
   const [dailyWithdrawnKing, setDailyWithdrawnKing] = useState(0)
   const [pvpCooldowns, setPvpCooldowns] = useState({}) // { [targetId]: timestamp }
   const [activeRally, setActiveRally] = useState(null)
@@ -130,10 +183,12 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
       marches,
       hero,
       shieldUntil,
+      clan,
+      clanRallies,
       battleReports: battleReports.slice(0, 30),
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
-  }, [resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, battleReports])
+  }, [resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, clan, clanRallies, battleReports])
 
   // --- CÁLCULOS DINÁMICOS DERIVADOS ---
 
@@ -417,18 +472,51 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               const report = generateCombatReport(battle, loot, kingDrop, npcDef.name)
               setBattleReports((reps) => [report, ...reps])
 
-              if (totalTroopCount(battle.attackerSurviving) > 0) {
+              // Si es Rally de Clan: prorratear bajas y botín proporcionalmente entre aportantes
+              const initialTotal = totalTroopCount(march.army)
+              const survivingTotal = totalTroopCount(battle.attackerSurviving)
+              const survivalRatio = initialTotal > 0 ? (survivingTotal / initialTotal) : 0
+
+              let returningArmy = battle.attackerSurviving
+              let returningLoot = loot
+              let returningKingLoot = kingDrop
+
+              if (march.isRally && march.playerContributionArmy) {
+                const pContrib = march.playerContributionArmy
+                const pInitialCount = totalTroopCount(pContrib)
+                const pRatio = initialTotal > 0 ? pInitialCount / initialTotal : 1
+
+                returningArmy = {
+                  infantry: Math.round((pContrib.infantry || 0) * survivalRatio),
+                  archer: Math.round((pContrib.archer || 0) * survivalRatio),
+                  cavalry: Math.round((pContrib.cavalry || 0) * survivalRatio),
+                }
+
+                returningLoot = {
+                  wood: Math.round((loot.wood || 0) * pRatio),
+                  stone: Math.round((loot.stone || 0) * pRatio),
+                  food: Math.round((loot.food || 0) * pRatio),
+                }
+
+                returningKingLoot = Math.round(kingDrop * pRatio)
+
+                if (march.rallyId) {
+                  setClanRallies((rallies) => rallies.map((r) => r.id === march.rallyId ? { ...r, status: 'resolved' } : r))
+                }
+              }
+
+              if (totalTroopCount(returningArmy) > 0) {
                 // Viaje de regreso con supervivientes
                 const travelBackDuration = march.oneWayDurationMs
                 updated.push({
                   ...march,
                   status: 'returning',
-                  army: battle.attackerSurviving,
+                  army: returningArmy,
                   returnTime: now + travelBackDuration,
-                  loot,
-                  kingLoot: kingDrop,
+                  loot: returningLoot,
+                  kingLoot: returningKingLoot,
                 })
-                setRecentNotification(`¡Batalla contra ${npcDef.name}: ${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}! Supervivientes regresando.`)
+                setRecentNotification(`¡Batalla contra ${npcDef.name}: ${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}! ${march.isRally ? 'Tropas del Rally' : 'Supervivientes'} regresando.`)
               } else {
                 setRecentNotification(`Derrota total ante ${npcDef.name}. Todas las tropas enviadas fueron aniquiladas.`)
               }
@@ -453,14 +541,46 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               const report = generateCombatReport(battle, loot, kingStolen, march.targetName || 'Jugador Rival')
               setBattleReports((reps) => [report, ...reps])
 
-              if (totalTroopCount(battle.attackerSurviving) > 0) {
+              const initialTotal = totalTroopCount(march.army)
+              const survivingTotal = totalTroopCount(battle.attackerSurviving)
+              const survivalRatio = initialTotal > 0 ? (survivingTotal / initialTotal) : 0
+
+              let returningArmy = battle.attackerSurviving
+              let returningLoot = loot
+              let returningKingLoot = kingStolen
+
+              if (march.isRally && march.playerContributionArmy) {
+                const pContrib = march.playerContributionArmy
+                const pInitialCount = totalTroopCount(pContrib)
+                const pRatio = initialTotal > 0 ? pInitialCount / initialTotal : 1
+
+                returningArmy = {
+                  infantry: Math.round((pContrib.infantry || 0) * survivalRatio),
+                  archer: Math.round((pContrib.archer || 0) * survivalRatio),
+                  cavalry: Math.round((pContrib.cavalry || 0) * survivalRatio),
+                }
+
+                returningLoot = {
+                  wood: Math.round((loot.wood || 0) * pRatio),
+                  stone: Math.round((loot.stone || 0) * pRatio),
+                  food: Math.round((loot.food || 0) * pRatio),
+                }
+
+                returningKingLoot = Math.round(kingStolen * pRatio)
+
+                if (march.rallyId) {
+                  setClanRallies((rallies) => rallies.map((r) => r.id === march.rallyId ? { ...r, status: 'resolved' } : r))
+                }
+              }
+
+              if (totalTroopCount(returningArmy) > 0) {
                 updated.push({
                   ...march,
                   status: 'returning',
-                  army: battle.attackerSurviving,
+                  army: returningArmy,
                   returnTime: now + march.oneWayDurationMs,
-                  loot,
-                  kingLoot: kingStolen,
+                  loot: returningLoot,
+                  kingLoot: returningKingLoot,
                 })
                 setRecentNotification(`¡Asalto PvP: ${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}! Regresando con el botín.`)
               } else {
@@ -473,16 +593,49 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
               const report = generateCombatReport(battle, { wood: 1000, stone: 1000, food: 1000 }, 15, march.targetName)
               setBattleReports((reps) => [report, ...reps])
 
+              const initialTotal = totalTroopCount(march.army)
+              const survivingTotal = totalTroopCount(battle.attackerSurviving)
+              const survivalRatio = initialTotal > 0 ? (survivingTotal / initialTotal) : 0
+
+              let returningArmy = battle.attackerSurviving
+              let returningLoot = { wood: 1000, stone: 1000, food: 1000 }
+              let returningKingLoot = 15
+
+              if (march.isRally && march.playerContributionArmy) {
+                const pContrib = march.playerContributionArmy
+                const pInitialCount = totalTroopCount(pContrib)
+                const pRatio = initialTotal > 0 ? pInitialCount / initialTotal : 1
+
+                returningArmy = {
+                  infantry: Math.round((pContrib.infantry || 0) * survivalRatio),
+                  archer: Math.round((pContrib.archer || 0) * survivalRatio),
+                  cavalry: Math.round((pContrib.cavalry || 0) * survivalRatio),
+                }
+
+                returningLoot = {
+                  wood: Math.round(1000 * pRatio),
+                  stone: Math.round(1000 * pRatio),
+                  food: Math.round(1000 * pRatio),
+                }
+
+                returningKingLoot = Math.round(15 * pRatio)
+
+                if (march.rallyId) {
+                  setClanRallies((rallies) => rallies.map((r) => r.id === march.rallyId ? { ...r, status: 'resolved' } : r))
+                }
+              }
+
               if (battle.isAttackerVictory) {
                 setRecentNotification(`¡Conquista gloriosa de ${march.targetName}! Has reclamado el bastión.`)
-              } else if (totalTroopCount(battle.attackerSurviving) > 0) {
+              }
+              if (totalTroopCount(returningArmy) > 0) {
                 updated.push({
                   ...march,
                   status: 'returning',
-                  army: battle.attackerSurviving,
+                  army: returningArmy,
                   returnTime: now + march.oneWayDurationMs,
-                  loot: { wood: 0, stone: 0, food: 0 },
-                  kingLoot: 0,
+                  loot: battle.isAttackerVictory ? returningLoot : { wood: 0, stone: 0, food: 0 },
+                  kingLoot: battle.isAttackerVictory ? returningKingLoot : 0,
                 })
               }
             }
@@ -537,6 +690,77 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
 
         return updated
       })
+
+      // G. Verificación de Rallies de Clan (5 minutos de concentración de tropas)
+      setClanRallies((prevRallies) => {
+        if (!prevRallies || !prevRallies.length) return prevRallies
+        const updatedRallies = []
+
+        for (const rally of prevRallies) {
+          if (rally.status === 'gathering') {
+            // Compañero NPC aliado se une si el jugador convocó el rally
+            if (
+              rally.isPlayerCreator &&
+              rally.participants.length === 1 &&
+              now - rally.createdAt > 15000 / speedMultiplier
+            ) {
+              const allyArmy = { infantry: 10, archer: 6, cavalry: 4 }
+              rally.participants.push({ name: 'Sir Ronald [VAL]', army: allyArmy, isPlayer: false })
+              rally.totalArmy.infantry = (rally.totalArmy.infantry || 0) + allyArmy.infantry
+              rally.totalArmy.archer = (rally.totalArmy.archer || 0) + allyArmy.archer
+              rally.totalArmy.cavalry = (rally.totalArmy.cavalry || 0) + allyArmy.cavalry
+              setRecentNotification('¡Aliado Sir Ronald [VAL] se unió a tu Rally con 20 tropas!')
+            }
+
+            if (now >= rally.launchTime) {
+              // El Rally parte hacia el objetivo
+              const playerParticipant = rally.participants.find((p) => p.isPlayer)
+              const hasPlayerTroops = playerParticipant && totalTroopCount(playerParticipant.army) > 0
+
+              if (hasPlayerTroops) {
+                const dx = Math.abs(rally.targetX - baseCoord.worldX)
+                const dy = Math.abs(rally.targetY - baseCoord.worldY)
+                const distanceTiles = Math.max(dx, dy, 1)
+                const oneWaySec = Math.max(6, Math.round((distanceTiles * 60) / speedMultiplier))
+                const oneWayDurationMs = oneWaySec * 1000
+
+                const rallyMarch = {
+                  id: `march_rally_${now}_${Math.random().toString(36).substr(2, 4)}`,
+                  type: rally.targetType,
+                  targetX: rally.targetX,
+                  targetY: rally.targetY,
+                  targetName: `🚩 Rally: ${rally.targetName}`,
+                  army: { ...rally.totalArmy },
+                  isRally: true,
+                  rallyId: rally.id,
+                  playerContributionArmy: { ...playerParticipant.army },
+                  resourceType: rally.resourceType,
+                  nodeResourceMax: 500,
+                  targetLevel: rally.targetLevel || 1,
+                  startTime: now,
+                  arriveTime: now + oneWayDurationMs,
+                  gatherUntil: null,
+                  returnTime: null,
+                  oneWayDurationMs,
+                  status: 'traveling',
+                  distanceTiles,
+                }
+                setMarches((m) => [...m, rallyMarch])
+                setRecentNotification(`¡El Rally contra ${rally.targetName} ha partido con ${totalTroopCount(rally.totalArmy)} tropas combinadas!`)
+                updatedRallies.push({ ...rally, status: 'marching' })
+              } else {
+                updatedRallies.push({ ...rally, status: 'resolved' })
+                setRecentNotification(`El Rally de Clan contra ${rally.targetName} concluyó.`)
+              }
+            } else {
+              updatedRallies.push(rally)
+            }
+          } else {
+            updatedRallies.push(rally)
+          }
+        }
+        return updatedRallies
+      })
     }, 1000)
 
     return () => clearInterval(interval)
@@ -547,6 +771,8 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     estimatedDailyKing,
     treasuryPendingLimit,
     isHungry,
+    baseCoord,
+    speedMultiplier,
   ])
 
   // --- ACCIONES DEL JUGADOR ---
@@ -643,12 +869,15 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
 
   // 3. Reclutamiento de Tropas
   const recruitTroops = useCallback((troopId, count) => {
-    const barracksLvl = buildings.barracks
+    const barracksLvl = buildings.barracks || 0
+    if (barracksLvl < 1) {
+      return { success: false, reason: 'Debes construir el Cuartel Militar (Nivel 1) en Mi Base antes de entrenar tropas.' }
+    }
     const barracksDef = BUILDINGS_CONFIG.barracks.levels[barracksLvl]
 
     // Comprobar si la tropa está desbloqueada
     if (!barracksDef.unlockedTroops.includes(troopId)) {
-      return { success: false, reason: `Desbloquea ${TROOPS_CONFIG[troopId].name} subiendo el Cuartel.` }
+      return { success: false, reason: `Desbloquea ${TROOPS_CONFIG[troopId].name} subiendo el Cuartel a Nv.${TROOPS_CONFIG[troopId].requiredBarracksLevel}.` }
     }
 
     // Comprobar espacio en cola
@@ -814,6 +1043,139 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     return { success: true }
   }, [marches.length, maxSimultaneousMarches, troops, shieldUntil, baseCoord, isHungry, speedMultiplier])
 
+  // 4b. Convocar Rally de Clan (5 minutos de preparación)
+  const createRally = useCallback(({ targetX, targetY, targetName, targetType = 'npc', army, targetLevel = 1, resourceType = null }) => {
+    if (!clan) {
+      return { success: false, reason: 'Debes pertenecer a un clan para convocar un Rally.' }
+    }
+
+    const rallyTroopCount = totalTroopCount(army)
+    if (rallyTroopCount === 0) {
+      return { success: false, reason: 'Debes aportar al menos una tropa para convocar el Rally.' }
+    }
+
+    for (const [tId, count] of Object.entries(army)) {
+      if ((troops[tId] || 0) < count) {
+        return { success: false, reason: `No tienes suficientes tropas de ${TROOPS_CONFIG[tId]?.name || tId} en casa.` }
+      }
+    }
+
+    const rallyGatherSec = Math.max(10, Math.round(300 / speedMultiplier))
+    const now = Date.now()
+    const launchTime = now + rallyGatherSec * 1000
+
+    // Restar tropas de casa
+    setTroops((t) => ({
+      infantry: t.infantry - (army.infantry || 0),
+      archer: t.archer - (army.archer || 0),
+      cavalry: t.cavalry - (army.cavalry || 0),
+    }))
+
+    const newRally = {
+      id: `rally_${now}_${Math.random().toString(36).substr(2, 5)}`,
+      creator: 'Mi Base',
+      isPlayerCreator: true,
+      targetX,
+      targetY,
+      targetName,
+      targetType,
+      targetLevel,
+      resourceType,
+      createdAt: now,
+      launchTime,
+      totalGatherSec: 300,
+      status: 'gathering',
+      participants: [
+        { name: 'Mi Base (Tú)', army: { ...army }, isPlayer: true }
+      ],
+      totalArmy: { ...army },
+    }
+
+    setClanRallies((prev) => [newRally, ...prev])
+    setRecentNotification(`¡Rally de Clan convocado contra ${targetName}! Salida en 5 min. Las tropas se concentran.`)
+    return { success: true, rallyId: newRally.id }
+  }, [clan, troops, speedMultiplier])
+
+  // Unirse a un Rally existente
+  const joinRally = useCallback((rallyId, army) => {
+    const rally = clanRallies.find((r) => r.id === rallyId)
+    if (!rally) return { success: false, reason: 'Rally no encontrado.' }
+    if (rally.status !== 'gathering') return { success: false, reason: 'El Rally ya ha partido o finalizado.' }
+
+    const count = totalTroopCount(army)
+    if (count === 0) return { success: false, reason: 'Debes enviar al menos una tropa.' }
+
+    for (const [tId, c] of Object.entries(army)) {
+      if ((troops[tId] || 0) < c) {
+        return { success: false, reason: `No tienes suficientes tropas de ${TROOPS_CONFIG[tId]?.name || tId}.` }
+      }
+    }
+
+    setTroops((t) => ({
+      infantry: t.infantry - (army.infantry || 0),
+      archer: t.archer - (army.archer || 0),
+      cavalry: t.cavalry - (army.cavalry || 0),
+    }))
+
+    setClanRallies((prev) => prev.map((r) => {
+      if (r.id !== rallyId) return r
+      const existingPart = r.participants.find((p) => p.isPlayer)
+      let newParticipants = [...r.participants]
+      if (existingPart) {
+        newParticipants = newParticipants.map((p) => p.isPlayer ? {
+          ...p,
+          army: {
+            infantry: (p.army.infantry || 0) + (army.infantry || 0),
+            archer: (p.army.archer || 0) + (army.archer || 0),
+            cavalry: (p.army.cavalry || 0) + (army.cavalry || 0),
+          }
+        } : p)
+      } else {
+        newParticipants.push({ name: 'Mi Base (Tú)', army: { ...army }, isPlayer: true })
+      }
+
+      const newTotalArmy = {
+        infantry: (r.totalArmy.infantry || 0) + (army.infantry || 0),
+        archer: (r.totalArmy.archer || 0) + (army.archer || 0),
+        cavalry: (r.totalArmy.cavalry || 0) + (army.cavalry || 0),
+      }
+
+      return {
+        ...r,
+        participants: newParticipants,
+        totalArmy: newTotalArmy,
+      }
+    }))
+
+    setRecentNotification(`¡Aportaste ${count} tropas al Rally contra ${rally.targetName}!`)
+    return { success: true }
+  }, [clanRallies, troops])
+
+  // Donar al tesoro del Clan
+  const donateToClan = useCallback((resourceType, amount) => {
+    const amt = Number(amount)
+    if (amt <= 0 || (resources[resourceType] || 0) < amt) {
+      setRecentNotification('Recursos insuficientes para donar.')
+      return { success: false }
+    }
+
+    setResources((r) => ({ ...r, [resourceType]: r[resourceType] - amt }))
+    setClan((c) => {
+      if (!c) return c
+      const currentDonations = c.donations || {}
+      return {
+        ...c,
+        donations: {
+          ...currentDonations,
+          [resourceType]: (currentDonations[resourceType] || 0) + amt,
+        },
+      }
+    })
+
+    setRecentNotification(`¡Donaste ${amt} de ${resourceType} al Clan!`)
+    return { success: true }
+  }, [resources])
+
   // Acelerar Marcha con KING
   const speedupMarch = useCallback((marchId) => {
     const march = marches.find((m) => m.id === marchId)
@@ -965,6 +1327,39 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     setTroops({ ...INITIAL_PLAYER_DATA.troops })
     setTrainingQueue([])
     setMarches([])
+    setClan({
+      id: 'clan_valyria',
+      name: 'Vanguardia Valyria',
+      tag: 'VAL',
+      level: 1,
+      membersCount: 14,
+      maxMembers: 30,
+      leader: 'Lord Comandante',
+      role: 'Miembro',
+      description: 'Hermandad de conquistadores. Rallies coordinados de 5 min y defensa territorial.',
+      donations: { wood: 5200, stone: 3800 },
+      vaultKing: 240,
+    })
+    setClanRallies([
+      {
+        id: 'rally_demo_1',
+        creator: 'Sir Ronald [VAL]',
+        isPlayerCreator: false,
+        targetX: 8,
+        targetY: -5,
+        targetName: 'Campamento Hostil Nv.3',
+        targetType: 'npc',
+        targetLevel: 3,
+        createdAt: Date.now() - 60000,
+        launchTime: Date.now() + 240000,
+        totalGatherSec: 300,
+        status: 'gathering',
+        participants: [
+          { name: 'Sir Ronald [VAL]', army: { infantry: 15, archer: 10, cavalry: 5 }, isPlayer: false },
+        ],
+        totalArmy: { infantry: 15, archer: 10, cavalry: 5 },
+      },
+    ])
     setHero({
       energy: 3,
       maxEnergy: 3,
@@ -1006,6 +1401,9 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     marches,
     hero,
     shieldUntil,
+    clan,
+    setClan,
+    clanRallies,
     battleReports,
     recentNotification,
     setRecentNotification,
@@ -1040,6 +1438,9 @@ export function useGameState(baseCoord = { worldX: 4, worldY: -3 }) {
     speedupTraining,
     dispatchMarch,
     speedupMarch,
+    createRally,
+    joinRally,
+    donateToClan,
     claimPendingKing,
     withdrawKingToVault,
     startHeroMission,

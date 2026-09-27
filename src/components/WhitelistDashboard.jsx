@@ -35,21 +35,43 @@ export default function WhitelistDashboard({ user, onLogout }) {
   const [referralInput, setReferralInput] = useState('')
   const [refMsg, setRefMsg] = useState('')
   const [refError, setRefError] = useState('')
+  const [isSubmittingRef, setIsSubmittingRef] = useState(false)
 
   const myCode = stats.referralCode || user.referralCode || 'FK-SOVEREIGN'
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/?ref=${myCode}`
-    : `https://fourkingdoms.io/?ref=${myCode}`
+    : `https://fourkingdoms.online/?ref=${myCode}`
 
-  // Pulso de nuevos registros comunitarios
+  // Carga y sincronización dinámica en tiempo real desde Supabase
   useEffect(() => {
-    const interval = setInterval(() => {
-      const updatedCount = authService.getGlobalPreRegistrationCount() + Math.floor(Math.random() * 2)
-      setTotalPreReg(updatedCount)
-      setTopReferrers(authService.getTopReferrers())
-    }, 15000)
-    return () => clearInterval(interval)
-  }, [])
+    let isMounted = true
+
+    const syncRealData = async () => {
+      try {
+        const [realCount, realStats, realLeaders] = await Promise.all([
+          authService.fetchGlobalPreRegistrationCount(),
+          authService.fetchReferralStats(user.email),
+          authService.fetchTopReferrers(),
+        ])
+
+        if (isMounted) {
+          setTotalPreReg(realCount)
+          setStats(realStats)
+          setTopReferrers(realLeaders)
+        }
+      } catch (err) {
+        console.error('[WhitelistDashboard] Error sincronizando datos dinámicos:', err)
+      }
+    }
+
+    syncRealData()
+    const interval = setInterval(syncRealData, 20000)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [user.email])
 
   const handleCopyCode = async () => {
     try {
@@ -92,33 +114,37 @@ export default function WhitelistDashboard({ user, onLogout }) {
     e.preventDefault()
     setRefMsg('')
     setRefError('')
-    if (!referralInput.trim()) return
+    if (!referralInput.trim() || isSubmittingRef) return
 
-    const normalized = referralInput.trim().toUpperCase()
-    if (normalized === myCode) {
-      setRefError('No puedes usar tu propio código de referencia.')
-      return
-    }
-
-    const res = await authService.registerWhitelist({
-      email: user.email,
-      provider: user.provider || 'google',
-      referralCode: normalized,
-    })
-
-    if (res.rewardedReferrer) {
-      setRefMsg(`¡Código ${normalized} vinculado con éxito! Tu aliado ha recibido sus 5 tokens KING.`)
-      setStats(authService.getReferralStats(user.email))
-      setTopReferrers(authService.getTopReferrers())
-      setReferralInput('')
-    } else {
-      setRefMsg(`Código ${normalized} guardado en tu registro de Whitelist.`)
-      setReferralInput('')
+    setIsSubmittingRef(true)
+    try {
+      const res = await authService.linkReferralCode(user.email, referralInput)
+      if (res.success) {
+        setRefMsg(res.message || '¡Código vinculado con éxito! Tu aliado ha recibido sus 5 tokens KING.')
+        setReferralInput('')
+        const [realStats, realLeaders, realCount] = await Promise.all([
+          authService.fetchReferralStats(user.email),
+          authService.fetchTopReferrers(),
+          authService.fetchGlobalPreRegistrationCount(),
+        ])
+        setStats(realStats)
+        setTopReferrers(realLeaders)
+        setTotalPreReg(realCount)
+        if (user) {
+          user.referredBy = referralInput.trim().toUpperCase()
+        }
+      } else {
+        setRefError(res.error || 'No se pudo vincular el código de aliado.')
+      }
+    } catch (err) {
+      setRefError(err?.message || 'Error inesperado al vincular aliado.')
+    } finally {
+      setIsSubmittingRef(false)
     }
   }
 
-  // Progreso general hacia el hito máximo de 2,500
-  const progressPercent = Math.min(100, Math.round((totalPreReg / 2500) * 100))
+  // Progreso general hacia el hito supremo de 2,000 gobernantes
+  const progressPercent = Math.min(100, Math.round((totalPreReg / 2000) * 100))
 
   return (
     <div className="whitelist-dashboard-root">
@@ -161,13 +187,8 @@ export default function WhitelistDashboard({ user, onLogout }) {
 
       {/* Main Container */}
       <main className="wl-main-content">
-        {/* Hero Section con Fecha Oficial */}
+        {/* Hero Section */}
         <section className="wl-hero-card">
-          <div className="wl-hero-badge">
-            <Flame size={14} className="fire-icon" />
-            <span>APERTURA OFICIAL · 29 DE SEPTIEMBRE DE 2026 (00:00 UTC)</span>
-          </div>
-
           <h1 className="wl-hero-title">
             ¡Has Asegurado tu Trono en la Whitelist Oficial!
           </h1>
@@ -199,7 +220,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
                 ></div>
               </div>
               <div className="wl-milestone-progress-text">
-                <span>Progreso hacia el Hito Supremo: <strong>{totalPreReg} / 2,500 Gobernantes</strong></span>
+                <span>Progreso hacia el Hito Supremo: <strong>{totalPreReg.toLocaleString()} / 2,000 Gobernantes</strong></span>
                 <span>{progressPercent}% Completado</span>
               </div>
             </div>
@@ -207,7 +228,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
         </section>
 
         {/* ============================================================== */}
-        {/* SECCIÓN 1: HITOS COMUNITARIOS CADA 500 REGISTROS (COSAS REALES)*/}
+        {/* SECCIÓN 1: HITOS COMUNITARIOS (PRIMEROS 2,000 GOBERNANTES)     */}
         {/* ============================================================== */}
         <section className="wl-milestones-section">
           <div className="section-title-wrap">
@@ -215,8 +236,8 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <Sparkles size={20} className="gold-icon" />
             </div>
             <div>
-              <h2>Hitos Comunitarios de Pre-Registro (Cada 500 Gobernantes)</h2>
-              <p>Recompensas directas y reales para TODOS los jugadores pre-registrados al alcanzar cada meta.</p>
+              <h2>Hitos Comunitarios de Pre-Registro (Primeros 2,000 Gobernantes)</h2>
+              <p>Recompensas directas y reales para los primeros 2,000 gobernantes al alcanzar cada meta.</p>
             </div>
           </div>
 
@@ -465,7 +486,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
         </section>
 
         {/* Sección de Vincular Aliado si no tiene */}
-        {!user.referredBy && (
+        {!(user.referredBy || stats.referredBy) ? (
           <section className="wl-claim-ref-card">
             <div className="claim-ref-info">
               <Sparkles size={20} className="gold-icon" />
@@ -482,14 +503,31 @@ export default function WhitelistDashboard({ user, onLogout }) {
                 onChange={(e) => setReferralInput(e.target.value)}
                 placeholder="Ejemplo: FK-AMIGO-9X"
                 className="ref-input"
+                disabled={isSubmittingRef}
               />
-              <button type="submit" className="btn-apply-ref">
-                Vincular Aliado (+5 KING)
+              <button
+                type="submit"
+                className="btn-apply-ref"
+                disabled={isSubmittingRef || !referralInput.trim()}
+              >
+                {isSubmittingRef ? 'Validando...' : 'Vincular Aliado (+5 KING)'}
               </button>
             </form>
 
             {refMsg && <p className="ref-success-msg">{refMsg}</p>}
             {refError && <p className="ref-error-msg">{refError}</p>}
+          </section>
+        ) : (
+          <section className="wl-claim-ref-card linked">
+            <div className="claim-ref-info">
+              <Check size={20} className="green-icon" />
+              <div>
+                <strong>Aliado Vinculado Exitosamente</strong>
+                <p>
+                  Estás vinculado con el código de alianza <code>{user.referredBy || stats.referredBy}</code>.
+                </p>
+              </div>
+            </div>
           </section>
         )}
       </main>

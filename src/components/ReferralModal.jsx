@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Crown,
   Coins,
@@ -27,14 +27,38 @@ export default function ReferralModal({ isOpen, onClose, user }) {
   if (!isOpen) return null
 
   const [activeTab, setActiveTab] = useState('referral') // 'referral' | 'milestones' | 'leaderboard'
-  const stats = authService.getReferralStats(user?.email || '')
-  const totalPreReg = authService.getGlobalPreRegistrationCount()
-  const topReferrers = authService.getTopReferrers()
+  const [stats, setStats] = useState(() => authService.getReferralStats(user?.email || ''))
+  const [totalPreReg, setTotalPreReg] = useState(() => authService.getGlobalPreRegistrationCount())
+  const [topReferrers, setTopReferrers] = useState(() => authService.getTopReferrers())
+
+  useEffect(() => {
+    let isMounted = true
+    async function loadDynamic() {
+      try {
+        const [realCount, realStats, realLeaders] = await Promise.all([
+          authService.fetchGlobalPreRegistrationCount(),
+          authService.fetchReferralStats(user?.email || ''),
+          authService.fetchTopReferrers(),
+        ])
+        if (isMounted) {
+          setTotalPreReg(realCount)
+          setStats(realStats)
+          setTopReferrers(realLeaders)
+        }
+      } catch (err) {
+        console.error('[ReferralModal] Error cargando datos dinámicos:', err)
+      }
+    }
+    loadDynamic()
+    return () => {
+      isMounted = false
+    }
+  }, [user?.email])
 
   const myCode = stats.referralCode || user?.referralCode || 'FK-ALPHA-WAR'
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/?ref=${myCode}`
-    : `https://fourkingdoms.io/?ref=${myCode}`
+    : `https://fourkingdoms.online/?ref=${myCode}`
 
   const [copiedCode, setCopiedCode] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)

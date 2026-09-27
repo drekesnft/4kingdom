@@ -15,49 +15,45 @@ const REFERRALS_STORAGE_KEY = 'fourkingdoms_referrals_v1'
 const SESSION_STORAGE_KEY = 'fourkingdoms_alpha_session_v1'
 const PENDING_REF_STORAGE_KEY = 'fourkingdoms_pending_ref_code'
 
-// Base de la comunidad para progreso de hitos de 500 en 500
-const COMMUNITY_BASE_PREREG = 742
+// Cache en memoria para conteos dinámicos en tiempo real
+let cachedPreRegCount = 0
+let cachedTopReferrers = []
 
 export const COMMUNITY_MILESTONES = [
   {
     target: 500,
-    title: '🪙 5 Tokens KING para Todos',
-    reward: '5 Tokens KING entregados a todas las cuentas pre-registradas en el Día 1',
-    badge: 'Comunitario',
-    unlocked: true,
-    desc: '¡Hito superado! Cada comandante pre-registrado inicia con 5 Tokens KING en su Vault.',
+    title: '🛡️ Escudo de Paz 24 Horas (+2,000 Recursos)',
+    reward: 'Escudo de Paz 24h + 2,000 Recursos variados al Día 1',
+    badge: 'Protección',
+    desc: 'Inmunidad total contra saqueos en tu primera jornada de construcción y cargamento inicial de recursos.',
   },
   {
     target: 1000,
-    title: '🛡️ Escudo de Paz 24 Horas',
-    reward: 'Escudo de Paz de 24 horas garantizado para el Día 1',
-    badge: 'Protección',
-    unlocked: false,
-    desc: 'Inmunidad total contra saqueos de otros jugadores en tu primera jornada de construcción.',
+    title: '🪙 5 Tokens KING para Todos',
+    reward: '5 Tokens KING entregados a todas las cuentas pre-registradas en el Día 1',
+    badge: 'Airdrop Comunitario',
+    desc: '¡Hito de 1,000 Gobernantes! Cada comandante pre-registrado inicia con 5 Tokens KING en su Vault oficial.',
   },
   {
     target: 1500,
-    title: '🌾 Cargamento Masivo de Recursos',
-    reward: '+1,000 Madera · +1,000 Piedra · +1,000 Comida',
-    badge: 'Economía',
-    unlocked: false,
-    desc: 'Impulso inicial para subir tu Castillo y tus edificios de producción sin demoras.',
+    title: '🐎 10 Caballerías Iniciales de Choque',
+    reward: 'Escuadrón montado de 10 Caballerías listo para combate',
+    badge: 'Fuerza Militar',
+    desc: 'Tropa pesada desbloqueada inmediatamente sin costo ni tiempo de entrenamiento para dominar el mapa.',
+  },
+  {
+    target: 1800,
+    title: '🌾 Cargamento Masivo de Recursos (+5,000)',
+    reward: '+2,000 Madera · +2,000 Piedra · +1,000 Comida extra',
+    badge: 'Economía Real',
+    desc: 'Impulso sustancial para subir tu Castillo y tus edificios de producción a nivel superior sin demoras.',
   },
   {
     target: 2000,
-    title: '🐎 10 Caballerías Iniciales',
-    reward: 'Escuadrón montado de 10 Caballerías listo para combate',
-    badge: 'Militar',
-    unlocked: false,
-    desc: 'Tropa pesada desbloqueada inmediatamente sin costo ni tiempo de entrenamiento.',
-  },
-  {
-    target: 2500,
-    title: '👑 Plano de Fundador & Título VIP',
-    reward: 'Plano Arquitectónico de Fortaleza + Título Honorífico Permanente',
-    badge: 'Soberano',
-    unlocked: false,
-    desc: 'Plano indispensable para subir fortificaciones al máximo nivel y distinción en el mapa.',
+    title: '👑 Meta Suprema (Primeros 2,000): Plano Exclusivo + VIP',
+    reward: 'Plano Exclusivo de Ciudadela + Distinción VIP Fundador para los primeros 2,000',
+    badge: 'Soberano Fundador',
+    desc: 'Plano indispensable de alta arquitectura para fortificaciones y distinción permanente de Fundador Alpha.',
   },
 ]
 
@@ -1050,7 +1046,7 @@ export const authService = {
   },
 
   /**
-   * Obtiene las estadísticas de referidos de un usuario
+   * Obtiene de forma síncrona las estadísticas de referidos (desde cache local y estado guardado)
    */
   getReferralStats(email) {
     const normalized = (email || '').trim().toLowerCase()
@@ -1067,6 +1063,7 @@ export const authService = {
         referralCode: generateReferralCode(email),
         referralsCount: 0,
         airdropTokens: 0,
+        referredBy: null,
         referralsList: [],
       }
     }
@@ -1075,64 +1072,477 @@ export const authService = {
       (r) => r.referrerEmail?.toLowerCase() === normalized || r.referrerCode === user.referralCode
     )
 
+    const count = user.referralsCount || myReferrals.length
+
     return {
       referralCode: user.referralCode || generateReferralCode(user.email),
-      referralsCount: user.referralsCount || myReferrals.length,
-      airdropTokens: (user.referralsCount || myReferrals.length) * 5,
+      referralsCount: count,
+      airdropTokens: count * 5,
+      referredBy: user.referredBy || null,
       referralsList: myReferrals,
     }
   },
 
   /**
-   * Obtiene la cantidad total global de pre-registros
+   * Consulta las estadísticas de referidos reales directamente desde Supabase en tiempo real.
    */
-  getGlobalPreRegistrationCount() {
-    const whitelist = getStoredWhitelist()
-    return COMMUNITY_BASE_PREREG + whitelist.length
-  },
+  async fetchReferralStats(email) {
+    const normalized = (email || '').trim().toLowerCase()
+    if (!normalized) return this.getReferralStats('')
 
-  /**
-   * Obtiene el Top 5 de Reclutadores (100 KING repartidos + 3 Pases VIP)
-   */
-  getTopReferrers() {
-    const alphaAccounts = getStoredAccounts()
-    const whitelist = getStoredWhitelist()
-    const allUsers = [...alphaAccounts, ...whitelist]
+    let referralCode = ''
+    let referralsCount = 0
+    let airdropTokens = 0
+    let referredBy = null
+    let referralsList = []
 
-    const baseLeaders = [
-      { name: 'Lord Valkor (Norte)', code: 'FK-VALK-91', referralsCount: 24, email: 'valkor***@gmail.com' },
-      { name: 'Sovereign Kael (Sur)', code: 'FK-KAEL-44', referralsCount: 18, email: 'kael***@gmail.com' },
-      { name: 'Lady Aethel (Este)', code: 'FK-AETH-12', referralsCount: 14, email: 'aethel***@gmail.com' },
-      { name: 'Archon Darius (Oeste)', code: 'FK-DARI-83', referralsCount: 9, email: 'darius***@gmail.com' },
-      { name: 'General Ronald', code: 'FK-RONA-05', referralsCount: 5, email: 'ronald***@gmail.com' },
-    ]
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: userAcc, error: accErr } = await supabase
+          .from('user_accounts')
+          .select('referral_code, referred_by, referrals_count, airdrop_tokens')
+          .eq('email', normalized)
+          .maybeSingle()
 
-    const realWithRefs = allUsers
-      .filter((u) => (u.referralsCount || 0) > 0)
-      .map((u) => ({
-        name: (u.email || '').split('@')[0],
-        code: u.referralCode,
-        referralsCount: u.referralsCount,
-        email: u.email,
-        isRealUser: true,
-      }))
+        if (!accErr && userAcc) {
+          referralCode = userAcc.referral_code || ''
+          referredBy = userAcc.referred_by || null
+          referralsCount = userAcc.referrals_count || 0
+          airdropTokens = userAcc.airdrop_tokens || (referralsCount * 5)
+        }
 
-    const combined = [...realWithRefs]
-    for (const leader of baseLeaders) {
-      if (!combined.find((c) => c.code === leader.code || c.email === leader.email)) {
-        combined.push(leader)
+        const effectiveCode = referralCode || generateReferralCode(normalized)
+        const { data: refsData, error: refsErr } = await supabase
+          .from('referrals')
+          .select('*')
+          .or(`referrer_email.eq.${normalized},referrer_code.eq.${effectiveCode}`)
+
+        if (!refsErr && Array.isArray(refsData) && refsData.length > 0) {
+          referralsList = refsData
+          referralsCount = Math.max(referralsCount, refsData.length)
+          airdropTokens = referralsCount * 5
+        }
+      } catch (err) {
+        console.error('[authService] Error al consultar stats de referidos en Supabase:', err)
       }
     }
 
-    combined.sort((a, b) => (b.referralsCount || 0) - (a.referralsCount || 0))
+    const localStats = this.getReferralStats(normalized)
+    if (!referralCode) referralCode = localStats.referralCode
+    if (!referredBy) referredBy = localStats.referredBy
+    if (referralsCount === 0 && localStats.referralsCount > 0) {
+      referralsCount = localStats.referralsCount
+      airdropTokens = localStats.airdropTokens
+      referralsList = localStats.referralsList
+    }
 
-    return combined.slice(0, 5).map((item, idx) => ({
-      ...item,
-      rank: idx + 1,
-      prizeKing: TOP_REFERRAL_PRIZES[idx].king,
-      hasVip: TOP_REFERRAL_PRIZES[idx].vip,
-      rankLabel: TOP_REFERRAL_PRIZES[idx].label,
-    }))
+    return {
+      referralCode,
+      referralsCount,
+      airdropTokens: referralsCount * 5,
+      referredBy,
+      referralsList,
+    }
+  },
+
+  /**
+   * Obtiene la cantidad total global de pre-registros (síncrono desde cache o local)
+   */
+  getGlobalPreRegistrationCount() {
+    if (cachedPreRegCount > 0) return cachedPreRegCount
+    const whitelist = getStoredWhitelist()
+    const alphaAccounts = getStoredAccounts()
+    return Math.max(whitelist.length, alphaAccounts.length, DEFAULT_ACCOUNTS.length)
+  },
+
+  /**
+   * Consulta el conteo real y dinámico de gobernantes pre-registrados en Supabase
+   */
+  async fetchGlobalPreRegistrationCount() {
+    let count = 0
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { count: wlCount, error: wlErr } = await supabase
+          .from('whitelist_signups')
+          .select('*', { count: 'exact', head: true })
+        if (!wlErr && typeof wlCount === 'number') {
+          count = Math.max(count, wlCount)
+        }
+
+        const { count: accCount, error: accErr } = await supabase
+          .from('user_accounts')
+          .select('*', { count: 'exact', head: true })
+        if (!accErr && typeof accCount === 'number') {
+          count = Math.max(count, accCount)
+        }
+      } catch (err) {
+        console.error('[authService] Error al consultar conteo de pre-registros en Supabase:', err)
+      }
+    }
+
+    const localWl = getStoredWhitelist()
+    const localAcc = getStoredAccounts()
+    const localTotal = Math.max(localWl.length, localAcc.length, DEFAULT_ACCOUNTS.length)
+
+    cachedPreRegCount = Math.max(count, localTotal)
+    return cachedPreRegCount
+  },
+
+  /**
+   * Obtiene el Top 5 de Reclutadores basado exclusivamente en datos reales
+   */
+  getTopReferrers() {
+    if (cachedTopReferrers && cachedTopReferrers.length > 0) {
+      return cachedTopReferrers
+    }
+
+    const alphaAccounts = getStoredAccounts()
+    const whitelist = getStoredWhitelist()
+    const allUsers = [...alphaAccounts, ...whitelist]
+    const deduped = []
+    const seen = new Set()
+
+    for (const u of allUsers) {
+      if (!u.email || seen.has(u.email.toLowerCase())) continue
+      seen.add(u.email.toLowerCase())
+      const rawName = u.email.split('@')[0]
+      const masked = rawName.length > 3 ? `${rawName.substring(0, 3)}***` : rawName
+      deduped.push({
+        name: masked,
+        code: u.referralCode || 'FK-SOV',
+        referralsCount: u.referralsCount || 0,
+        airdropTokens: (u.referralsCount || 0) * 5,
+        email: u.email,
+        isRealUser: true,
+      })
+    }
+
+    deduped.sort((a, b) => (b.referralsCount || 0) - (a.referralsCount || 0))
+
+    const finalTop5 = []
+    for (let idx = 0; idx < 5; idx++) {
+      const userItem = deduped[idx]
+      const prize = TOP_REFERRAL_PRIZES[idx]
+
+      if (userItem) {
+        finalTop5.push({
+          ...userItem,
+          rank: idx + 1,
+          prizeKing: prize.king,
+          hasVip: prize.vip,
+          rankLabel: prize.label,
+        })
+      } else {
+        finalTop5.push({
+          name: `Puesto Vacante #${idx + 1}`,
+          code: '---',
+          referralsCount: 0,
+          airdropTokens: 0,
+          email: '',
+          rank: idx + 1,
+          prizeKing: prize.king,
+          hasVip: prize.vip,
+          rankLabel: prize.label,
+          isVacant: true,
+        })
+      }
+    }
+
+    cachedTopReferrers = finalTop5
+    return finalTop5
+  },
+
+  /**
+   * Consulta el Top 5 real desde Supabase ordenado por número de referidos
+   */
+  async fetchTopReferrers() {
+    let realLeaders = []
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('user_accounts')
+          .select('email, referral_code, referrals_count, airdrop_tokens')
+          .order('referrals_count', { ascending: false })
+          .limit(10)
+
+        if (!error && Array.isArray(data)) {
+          realLeaders = data.map((u) => {
+            const rawName = (u.email || '').split('@')[0]
+            const masked = rawName.length > 3 ? `${rawName.substring(0, 3)}***` : rawName
+            return {
+              name: masked,
+              code: u.referral_code || 'FK-SOV',
+              referralsCount: u.referrals_count || 0,
+              airdropTokens: u.airdrop_tokens || (u.referrals_count || 0) * 5,
+              email: u.email,
+              isRealUser: true,
+            }
+          })
+        }
+      } catch (err) {
+        console.error('[authService] Error al consultar top referrers en Supabase:', err)
+      }
+    }
+
+    if (realLeaders.length === 0) {
+      return this.getTopReferrers()
+    }
+
+    const finalTop5 = []
+    for (let idx = 0; idx < 5; idx++) {
+      const userItem = realLeaders[idx]
+      const prize = TOP_REFERRAL_PRIZES[idx]
+
+      if (userItem) {
+        finalTop5.push({
+          ...userItem,
+          rank: idx + 1,
+          prizeKing: prize.king,
+          hasVip: prize.vip,
+          rankLabel: prize.label,
+        })
+      } else {
+        finalTop5.push({
+          name: `Puesto Vacante #${idx + 1}`,
+          code: '---',
+          referralsCount: 0,
+          airdropTokens: 0,
+          email: '',
+          rank: idx + 1,
+          prizeKing: prize.king,
+          hasVip: prize.vip,
+          rankLabel: prize.label,
+          isVacant: true,
+        })
+      }
+    }
+
+    cachedTopReferrers = finalTop5
+    return finalTop5
+  },
+
+  /**
+   * Vincula un código de aliado con máxima protección antifugas:
+   * 1. Previene auto-referidos (propio código o propio email)
+   * 2. Previene doble vinculación (usuario ya referido)
+   * 3. Valida existencia real del código en la base de datos
+   * 4. Inserción atómica en tabla `referrals` (constraint UNIQUE en referred_email)
+   * 5. Actualiza `referrals_count` y `airdrop_tokens` (= count * 5) en ambas tablas
+   */
+  async linkReferralCode(userEmail, codeToLink) {
+    const email = (userEmail || '').trim().toLowerCase()
+    const code = (codeToLink || '').trim().toUpperCase()
+
+    if (!email) {
+      return { success: false, error: 'Sesión no válida. Vuelve a iniciar sesión.' }
+    }
+    if (!code || code.length < 4) {
+      return { success: false, error: 'Ingresa un código de alianza válido (ej: FK-XXXX-XX).' }
+    }
+
+    // 1. Obtener datos del usuario actual
+    const alphaAccounts = getStoredAccounts()
+    const whitelist = getStoredWhitelist()
+    const localUser =
+      alphaAccounts.find((a) => a.email.toLowerCase() === email) ||
+      whitelist.find((w) => w.email.toLowerCase() === email) ||
+      this.getCurrentUser()
+
+    const myCode = (localUser?.referralCode || localUser?.referral_code || generateReferralCode(email)).toUpperCase()
+
+    // 2. Anti-Self-Referral
+    if (code === myCode) {
+      return { success: false, error: 'No puedes usar tu propio código de referencia.' }
+    }
+
+    // 3. Anti-Doble Vinculación en local
+    if (localUser?.referredBy || localUser?.referred_by) {
+      return { success: false, error: 'Tu cuenta ya tiene un aliado vinculado anteriormente.' }
+    }
+
+    let referrer = null
+
+    // 4. Si Supabase está disponible, verificar en backend
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: dbUser } = await supabase
+          .from('user_accounts')
+          .select('referred_by, referral_code')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (dbUser?.referred_by) {
+          return { success: false, error: 'Tu cuenta ya tiene un aliado vinculado en el sistema.' }
+        }
+
+        const { data: existingRef } = await supabase
+          .from('referrals')
+          .select('id, referrer_code')
+          .eq('referred_email', email)
+          .maybeSingle()
+
+        if (existingRef) {
+          return { success: false, error: 'Esta cuenta ya fue acreditada como referida anteriormente.' }
+        }
+
+        // Buscar al dueño del código en user_accounts
+        const { data: refUserAcc } = await supabase
+          .from('user_accounts')
+          .select('email, referral_code, referrals_count, airdrop_tokens')
+          .ilike('referral_code', code)
+          .maybeSingle()
+
+        if (refUserAcc) {
+          referrer = refUserAcc
+        } else {
+          // Buscar en whitelist_signups
+          const { data: refWl } = await supabase
+            .from('whitelist_signups')
+            .select('email, referral_code, referrals_count, airdrop_tokens')
+            .ilike('referral_code', code)
+            .maybeSingle()
+          if (refWl) {
+            referrer = refWl
+          }
+        }
+      } catch (err) {
+        console.error('[authService] Error al consultar datos de alianza en Supabase:', err)
+      }
+    }
+
+    // Fallback a cuentas locales si no se encontró en Supabase o estamos en offline
+    if (!referrer) {
+      const matchLocal =
+        alphaAccounts.find((a) => (a.referralCode || '').toUpperCase() === code) ||
+        whitelist.find((w) => (w.referralCode || '').toUpperCase() === code) ||
+        DEFAULT_ACCOUNTS.find((d) => (d.referralCode || '').toUpperCase() === code)
+
+      if (matchLocal) {
+        referrer = {
+          email: matchLocal.email,
+          referral_code: matchLocal.referralCode,
+          referrals_count: matchLocal.referralsCount || 0,
+          airdrop_tokens: matchLocal.airdropTokens || 0,
+        }
+      }
+    }
+
+    if (!referrer) {
+      return { success: false, error: 'El código de aliado ingresado no existe en FourKingdoms.' }
+    }
+
+    // Verificar que el dueño del código no sea uno mismo por email
+    if (referrer.email.toLowerCase() === email) {
+      return { success: false, error: 'No puedes usar tu propio código de referencia.' }
+    }
+
+    // 5. Inserción en Supabase con protección estricta contra duplicados
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error: insErr } = await supabase.from('referrals').insert({
+          referrer_code: code,
+          referrer_email: referrer.email.toLowerCase(),
+          referred_email: email,
+          tokens_rewarded: 5,
+        })
+
+        if (insErr) {
+          console.error('[authService] Error al insertar en referrals:', insErr)
+          if (insErr.code === '23505' || insErr.message?.includes('duplicate key') || insErr.message?.includes('unique')) {
+            return { success: false, error: 'Tu cuenta ya ha sido vinculada previamente como aliada.' }
+          }
+          return { success: false, error: 'Error al vincular aliado en la base de datos. Intenta nuevamente.' }
+        }
+
+        // Consultar el conteo real exacto en referrals para evitar discrepancias
+        const { count: exactCount } = await supabase
+          .from('referrals')
+          .select('*', { count: 'exact', head: true })
+          .eq('referrer_code', code)
+
+        const finalRefCount = typeof exactCount === 'number' && exactCount > 0
+          ? exactCount
+          : (Number(referrer.referrals_count || 0) + 1)
+        const finalTokens = finalRefCount * 5
+
+        // Actualizar cuentas del referente
+        await supabase
+          .from('user_accounts')
+          .update({
+            referrals_count: finalRefCount,
+            airdrop_tokens: finalTokens,
+          })
+          .eq('email', referrer.email.toLowerCase())
+
+        await supabase
+          .from('whitelist_signups')
+          .update({
+            referrals_count: finalRefCount,
+            airdrop_tokens: finalTokens,
+          })
+          .eq('email', referrer.email.toLowerCase())
+
+        // Actualizar cuenta del usuario vinculado
+        await supabase
+          .from('user_accounts')
+          .update({ referred_by: code })
+          .eq('email', email)
+
+        await supabase
+          .from('whitelist_signups')
+          .update({ referred_by: code })
+          .eq('email', email)
+      } catch (err) {
+        console.error('[authService] Excepción al procesar vinculación en Supabase:', err)
+        return { success: false, error: 'Error al procesar la vinculación con el servidor.' }
+      }
+    }
+
+    // 6. Actualizar cache y estado local
+    const referralsList = getStoredReferrals()
+    if (!referralsList.some((r) => r.referredEmail?.toLowerCase() === email)) {
+      referralsList.push({
+        referrerCode: code,
+        referrerEmail: referrer.email.toLowerCase(),
+        referredEmail: email,
+        tokensRewarded: 5,
+        createdAt: new Date().toISOString(),
+      })
+      saveStoredReferrals(referralsList)
+    }
+
+    const refTarget =
+      alphaAccounts.find((a) => a.email.toLowerCase() === referrer.email.toLowerCase()) ||
+      whitelist.find((w) => w.email.toLowerCase() === referrer.email.toLowerCase())
+    if (refTarget) {
+      refTarget.referralsCount = (refTarget.referralsCount || 0) + 1
+      refTarget.airdropTokens = refTarget.referralsCount * 5
+      saveStoredAccounts(alphaAccounts)
+      saveStoredWhitelist(whitelist)
+    }
+
+    const userTarget =
+      alphaAccounts.find((a) => a.email.toLowerCase() === email) ||
+      whitelist.find((w) => w.email.toLowerCase() === email)
+    if (userTarget) {
+      userTarget.referredBy = code
+      saveStoredAccounts(alphaAccounts)
+      saveStoredWhitelist(whitelist)
+    }
+
+    const curUser = this.getCurrentUser()
+    if (curUser && curUser.email.toLowerCase() === email) {
+      curUser.referredBy = code
+      this.setCurrentUser(curUser)
+    }
+
+    return {
+      success: true,
+      message: `¡Código ${code} vinculado exitosamente! Tu aliado ha recibido sus 5 tokens KING de Airdrop.`,
+      referrerCode: code,
+      referrerEmail: referrer.email,
+    }
   },
 
   /**

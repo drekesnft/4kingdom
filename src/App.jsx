@@ -630,6 +630,7 @@ export default function App() {
     const baseX = currentBase.worldX ?? currentBase.x
     const baseY = currentBase.worldY ?? currentBase.y
     const isOwnBase = targetTile.worldX === baseX && targetTile.worldY === baseY
+    const tileLabel = `Sector (${targetTile.worldX}, ${targetTile.worldY})`
 
     if (targetTile.isPlayerBase) {
       const isAlly = Boolean(targetTile.clanTag && gameState.clan && targetTile.clanTag === gameState.clan.tag)

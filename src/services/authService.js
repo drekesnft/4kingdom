@@ -522,6 +522,23 @@ export const authService = {
         return null
       }
 
+      if (user.email) {
+        const normEmail = user.email.toLowerCase()
+        const savedKingdom = localStorage.getItem(`fk_assigned_kingdom_${normEmail}`)
+        const savedCoordRaw = localStorage.getItem(`fk_base_coord_${normEmail}`)
+        const savedOnboarding = localStorage.getItem(`fk_onboarding_completed_${normEmail}`)
+
+        if (!user.assignedKingdom && savedKingdom) {
+          user.assignedKingdom = savedKingdom
+        }
+        if (!user.baseCoord && savedCoordRaw) {
+          user.baseCoord = normalizeBaseCoord(savedCoordRaw)
+        }
+        if (!user.onboardingCompleted && savedOnboarding === 'true') {
+          user.onboardingCompleted = true
+        }
+      }
+
       return user
     } catch {
       return null
@@ -539,8 +556,34 @@ export const authService = {
       }
     } else {
       const sessionExpiresAt = user.sessionExpiresAt || Date.now() + SEVEN_DAYS_MS
+      const normEmail = (user.email || '').toLowerCase()
+
+      // Salvaguarda: recuperar valores previos si vienen vacíos en esta llamada
+      const savedKingdom = normEmail ? localStorage.getItem(`fk_assigned_kingdom_${normEmail}`) : null
+      const savedCoordRaw = normEmail ? localStorage.getItem(`fk_base_coord_${normEmail}`) : null
+      const savedOnboarding = normEmail ? localStorage.getItem(`fk_onboarding_completed_${normEmail}`) : null
+
+      const assignedKingdom = user.assignedKingdom || savedKingdom || null
+      const baseCoord = user.baseCoord || normalizeBaseCoord(savedCoordRaw) || null
+      const onboardingCompleted = Boolean(user.onboardingCompleted || savedOnboarding === 'true')
+
+      if (normEmail) {
+        if (assignedKingdom) {
+          localStorage.setItem(`fk_assigned_kingdom_${normEmail}`, assignedKingdom)
+        }
+        if (baseCoord) {
+          localStorage.setItem(`fk_base_coord_${normEmail}`, JSON.stringify(baseCoord))
+        }
+        if (onboardingCompleted) {
+          localStorage.setItem(`fk_onboarding_completed_${normEmail}`, 'true')
+        }
+      }
+
       const userWithExpiry = {
         ...user,
+        assignedKingdom,
+        baseCoord,
+        onboardingCompleted,
         sessionExpiresAt,
       }
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(userWithExpiry))
@@ -983,18 +1026,46 @@ export const authService = {
             }
           }
 
+          // Buscar respaldo local si Supabase devolvió null o falló (ej. tabla pendiente)
+          const localAccounts = getStoredAccounts()
+          const localFound = localAccounts.find((a) => a.email.toLowerCase() === email)
+          const currentSession = this.getCurrentUser()
+
+          const assignedKingdom =
+            existingUser?.assigned_kingdom ||
+            localFound?.assignedKingdom ||
+            currentSession?.assignedKingdom ||
+            localStorage.getItem(`fk_assigned_kingdom_${email}`) ||
+            null
+
+          const rawBaseCoord =
+            existingUser?.base_coord ||
+            localFound?.baseCoord ||
+            currentSession?.baseCoord ||
+            localStorage.getItem(`fk_base_coord_${email}`) ||
+            null
+
+          const baseCoord = normalizeBaseCoord(rawBaseCoord)
+
+          const onboardingCompleted = Boolean(
+            existingUser?.onboarding_completed ||
+            localFound?.onboardingCompleted ||
+            currentSession?.onboardingCompleted ||
+            localStorage.getItem(`fk_onboarding_completed_${email}`) === 'true'
+          )
+
           const userObj = {
             email,
             role: userRole,
             provider: 'google',
             referralCode: myRefCode,
             referredBy,
-            referralsCount: existingUser?.referrals_count || 0,
-            airdropTokens: existingUser?.airdrop_tokens || 0,
+            referralsCount: existingUser?.referrals_count || localFound?.referralsCount || 0,
+            airdropTokens: existingUser?.airdrop_tokens || localFound?.airdropTokens || 0,
             mustChangePassword: false,
-            assignedKingdom: existingUser?.assigned_kingdom || null,
-            baseCoord: normalizeBaseCoord(existingUser?.base_coord),
-            onboardingCompleted: existingUser?.onboarding_completed || false,
+            assignedKingdom,
+            baseCoord,
+            onboardingCompleted,
             sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
           }
 
@@ -1952,6 +2023,42 @@ export const authService = {
    */
   async assignRandomKingdom(emailInput) {
     const email = (emailInput || '').trim().toLowerCase()
+    const accounts = getStoredAccounts()
+    const target = accounts.find((a) => a.email.toLowerCase() === email)
+    const currentUser = this.getCurrentUser()
+
+    // REGLA: Si ya fue asignado previamente a un Reino, NUNCA re-asignar a otro
+    const existingKingdom =
+      currentUser?.assignedKingdom ||
+      target?.assignedKingdom ||
+      localStorage.getItem(`fk_assigned_kingdom_${email}`)
+    const existingCoordRaw =
+      currentUser?.baseCoord ||
+      target?.baseCoord ||
+      localStorage.getItem(`fk_base_coord_${email}`)
+    const existingCoord = normalizeBaseCoord(existingCoordRaw)
+
+    if (existingKingdom && existingCoord) {
+      if (currentUser && (!currentUser.assignedKingdom || !currentUser.baseCoord)) {
+        currentUser.assignedKingdom = existingKingdom
+        currentUser.baseCoord = existingCoord
+        this.setCurrentUser(currentUser)
+      }
+      if (target && (!target.assignedKingdom || !target.baseCoord)) {
+        target.assignedKingdom = existingKingdom
+        target.baseCoord = existingCoord
+        saveStoredAccounts(accounts)
+      }
+      return {
+        success: true,
+        kingdomKey: existingKingdom,
+        kingdomData: REGIONAL_KINGDOMS[existingKingdom] || REGIONAL_KINGDOMS.north,
+        baseCoord: existingCoord,
+        user: currentUser,
+        alreadyAssigned: true,
+      }
+    }
+
     const kingdomKeys = ['north', 'south', 'east', 'west']
     const chosenKey = kingdomKeys[Math.floor(Math.random() * kingdomKeys.length)]
     const kingdomData = REGIONAL_KINGDOMS[chosenKey]
@@ -1973,6 +2080,9 @@ export const authService = {
     }
     const baseCoord = { x: bx, y: by, worldX: bx, worldY: by }
 
+    localStorage.setItem(`fk_assigned_kingdom_${email}`, chosenKey)
+    localStorage.setItem(`fk_base_coord_${email}`, JSON.stringify(baseCoord))
+
     if (isSupabaseConfigured && supabase) {
       try {
         const { error: accErr } = await supabase
@@ -1985,7 +2095,7 @@ export const authService = {
           .eq('email', email)
 
         if (accErr) {
-          console.error('[Supabase Kingdom Assignment Error]:', accErr.message, accErr)
+          console.warn('[Supabase Kingdom Assignment Notice]:', accErr.message)
         }
 
         const { error: kingErr } = await supabase.from('kingdoms').upsert({
@@ -1996,22 +2106,19 @@ export const authService = {
         })
 
         if (kingErr) {
-          console.error('[Supabase Kingdom Upsert Error]:', kingErr.message, kingErr)
+          console.warn('[Supabase Kingdom Upsert Notice]:', kingErr.message)
         }
       } catch (err) {
-        console.error('[Supabase Kingdom Assignment Exception]: Error guardando asignación:', err)
+        console.warn('[Supabase Kingdom Assignment Exception]:', err)
       }
     }
 
-    const accounts = getStoredAccounts()
-    const target = accounts.find((a) => a.email.toLowerCase() === email)
     if (target) {
       target.assignedKingdom = chosenKey
       target.baseCoord = baseCoord
       saveStoredAccounts(accounts)
     }
 
-    const currentUser = this.getCurrentUser()
     if (currentUser && currentUser.email.toLowerCase() === email) {
       currentUser.assignedKingdom = chosenKey
       currentUser.baseCoord = baseCoord
@@ -2032,6 +2139,7 @@ export const authService = {
    */
   async completeOnboarding(emailInput) {
     const email = (emailInput || '').trim().toLowerCase()
+    localStorage.setItem(`fk_onboarding_completed_${email}`, 'true')
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -2044,10 +2152,10 @@ export const authService = {
           .eq('email', email)
 
         if (error) {
-          console.error('[Supabase Onboarding Error]: Error marcando onboarding:', error.message, error)
+          console.warn('[Supabase Onboarding Notice]:', error.message)
         }
       } catch (err) {
-        console.error('[Supabase Onboarding Exception]: Error marcando onboarding:', err)
+        console.warn('[Supabase Onboarding Exception]:', err)
       }
     }
 

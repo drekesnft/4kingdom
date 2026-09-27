@@ -55,13 +55,18 @@ export default function KingdomAssignmentModal({ user, onKingdomConfirmed }) {
     let isMounted = true
 
     async function assign() {
-      // Si el usuario ya tenía reino asignado, lo cargamos
-      if (user?.assignedKingdom && user?.baseCoord) {
+      // Si el usuario ya tenía reino asignado (en objeto o almacenamiento persistente), lo cargamos
+      const normEmail = (user?.email || '').toLowerCase()
+      const savedKingdom = user?.assignedKingdom || localStorage.getItem(`fk_assigned_kingdom_${normEmail}`)
+      const savedCoordRaw = user?.baseCoord || localStorage.getItem(`fk_base_coord_${normEmail}`)
+      const savedCoord = authService.normalizeBaseCoord ? authService.normalizeBaseCoord(savedCoordRaw) : (typeof savedCoordRaw === 'string' ? JSON.parse(savedCoordRaw) : savedCoordRaw)
+
+      if (savedKingdom && savedCoord) {
         if (isMounted) {
           setAssigned({
-            kingdomKey: user.assignedKingdom,
-            baseCoord: user.baseCoord,
-            kingdomData: REGIONAL_KINGDOMS[user.assignedKingdom],
+            kingdomKey: savedKingdom,
+            baseCoord: savedCoord,
+            kingdomData: REGIONAL_KINGDOMS[savedKingdom] || REGIONAL_KINGDOMS.north,
           })
           setLoading(false)
           setTimeout(() => setRevealed(true), 400)

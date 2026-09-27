@@ -79,18 +79,6 @@ export default function ClanView({ gameState, onClose }) {
               El sistema de gremios y hermandades se activará en la siguiente fase multiplayer. No hay jugadores bot ni clanes ficticios creados.
             </p>
 
-            <div style={{ background: 'rgba(7, 18, 30, 0.8)', border: '1px solid rgba(80, 180, 255, 0.25)', borderRadius: '12px', padding: '14px 16px', maxWidth: '540px', margin: '0 auto 20px', textAlign: 'left', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <Info size={20} style={{ color: '#4cb7ff', flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <strong style={{ color: '#ffd65a', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
-                  Regla Cero Fallbacks — Todos los Señores son Reales:
-                </strong>
-                <p style={{ margin: 0, fontSize: '12px', color: '#c5ddf5', lineHeight: '1.4' }}>
-                  En FourKingdoms garantizamos una economía auténtica y transparente. Por eso no asignamos clanes ficticios ni bots simulados en tu partida. Cuando se abra el sistema de Clanes, podrás fundar tu propia Hermandad o unirte a señores feudales reales.
-                </p>
-              </div>
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px', maxWidth: '560px', margin: '0 auto', textAlign: 'left' }}>
               <div style={{ background: 'rgba(12, 30, 52, 0.7)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ fontSize: '18px', marginBottom: '6px' }}>👑</div>

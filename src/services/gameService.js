@@ -19,12 +19,12 @@ export const gameService = {
         .maybeSingle()
 
       if (error) {
-        console.warn('[Supabase] Error al cargar reino:', error.message)
+        console.error('[Supabase] Error al cargar reino:', error.message)
         return null
       }
       return data
     } catch (err) {
-      console.warn('[Supabase] Excepción en loadKingdom:', err)
+      console.error('[Supabase] Excepción en loadKingdom:', err)
       return null
     }
   },
@@ -55,12 +55,12 @@ export const gameService = {
         .upsert(payload, { onConflict: 'id' })
 
       if (error) {
-        console.warn('[Supabase] Error al sincronizar reino:', error.message)
+        console.error('[Supabase] Error al sincronizar reino:', error.message)
         return false
       }
       return true
     } catch (err) {
-      console.warn('[Supabase] Excepción en syncKingdom:', err)
+      console.error('[Supabase] Excepción en syncKingdom:', err)
       return false
     }
   },
@@ -86,12 +86,12 @@ export const gameService = {
       })
 
       if (error) {
-        console.warn('[Supabase] Error al guardar reporte:', error.message)
+        console.error('[Supabase] Error al guardar reporte:', error.message)
         return false
       }
       return true
     } catch (err) {
-      console.warn('[Supabase] Excepción en saveReport:', err)
+      console.error('[Supabase] Excepción en saveReport:', err)
       return false
     }
   },
@@ -111,13 +111,13 @@ export const gameService = {
         .limit(50)
 
       if (error) {
-        console.warn('[Supabase] Error al cargar reportes:', error.message)
+        console.error('[Supabase] Error al cargar reportes:', error.message)
         return null
       }
 
       return data.map((item) => item.data || item)
     } catch (err) {
-      console.warn('[Supabase] Excepción en fetchReports:', err)
+      console.error('[Supabase] Excepción en fetchReports:', err)
       return null
     }
   },
@@ -143,12 +143,12 @@ export const gameService = {
       })
 
       if (error) {
-        console.warn('[Supabase] Error al registrar marcha:', error.message)
+        console.error('[Supabase] Error al registrar marcha:', error.message)
         return false
       }
       return true
     } catch (err) {
-      console.warn('[Supabase] Excepción en registerMarch:', err)
+      console.error('[Supabase] Excepción en registerMarch:', err)
       return false
     }
   },

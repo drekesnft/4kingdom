@@ -175,16 +175,16 @@ const TUTORIAL_STEPS = [
     color: '#f59e0b',
     keyPoints: [
       {
-        title: 'Pool Diario de Clasificación (70,000 KING)',
-        desc: 'Cada 24 horas, el sistema toma una instantánea del Poder Militar Total (⭐) de todos los reinos y premia a los 5 mejores del continente:',
+        title: 'Pool Anual de Ranking (70,000 KING) con Halving',
+        desc: 'El pool total de 70,000 KING se divide anualmente en 4 trimestres con halving. Cada 24 horas, el backend emite la cuota diaria del pool hacia los 5 líderes continentales.',
       },
       {
-        title: 'Premios del Top 5 Diario',
-        desc: '🥇 1º Lugar: 15 KING · 🥈 2º Lugar: 10 KING · 🥉 3º Lugar: 7 KING · 🎖️ 4º Lugar: 5 KING · 🎖️ 5º Lugar: 3 KING directamente acreditados a su saldo.',
+        title: 'Reparto Porcentual Dinámico del Top 5',
+        desc: '🥇 1º: 37.5% · 🥈 2º: 25.0% · 🥉 3º: 17.5% · 🎖️ 4º: 12.5% · 🎖️ 5º: 7.5% del pool diario emitido (en fase base de 40 KING/d equivale a 15, 10, 7, 5 y 3 KING).',
       },
       {
-        title: '¿Cómo escalar posiciones en el Top 5?',
-        desc: 'Mejora tu Castillo a niveles superiores, construye y fortifica tus 4 estructuras de apoyo y entrena macroejércitos en el Cuartel para disparar tu Poder ⭐.',
+        title: 'Cálculo Auditado por Poder Militar Total (⭐)',
+        desc: 'La posición en el ranking no es fija: se calcula sumando el Poder de tus Edificios (Castillo hasta 1,500⭐) más el de tus Tropas (Inf: +30⭐, Arq: +32⭐, Cab: +50⭐). Sube tus construcciones y entrena divisiones para alcanzar el podio.',
       },
     ],
   },

@@ -104,9 +104,12 @@ export const authService = {
           .eq('email', email)
           .maybeSingle()
 
-        if (!error && data) {
+        if (error) {
+          console.error('[Supabase Auth Error]: Fallo al consultar usuario en base de datos:', error.message, error)
+        } else if (data) {
           const isValidPass = data.password_hash === password || data.temp_password === password
           if (!isValidPass) {
+            console.error('[Auth Error]: Contraseña incorrecta para el usuario:', email)
             return { success: false, error: 'Contraseña incorrecta. Verifica tu clave temporal.' }
           }
 
@@ -129,7 +132,7 @@ export const authService = {
           return { success: true, user }
         }
       } catch (err) {
-        console.warn('[authService] Error al consultar Supabase:', err)
+        console.error('[Supabase Auth Exception]: Fallo crítico de conexión con backend:', err)
       }
     }
 
@@ -178,7 +181,7 @@ export const authService = {
     // 1. Actualizar en Supabase si está disponible
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('user_accounts')
           .update({
             password_hash: newPassword,
@@ -187,8 +190,12 @@ export const authService = {
             updated_at: new Date().toISOString(),
           })
           .eq('email', email)
+
+        if (error) {
+          console.error('[Supabase Auth Error]: Error actualizando clave en base de datos:', error.message, error)
+        }
       } catch (err) {
-        console.warn('[authService] Error actualizando clave en Supabase:', err)
+        console.error('[Supabase Auth Exception]: Error actualizando clave en Supabase:', err)
       }
     }
 
@@ -251,7 +258,7 @@ export const authService = {
     // 1. Guardar en Supabase si está disponible
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const { error: accErr } = await supabase
           .from('user_accounts')
           .update({
             assigned_kingdom: chosenKey,
@@ -260,15 +267,23 @@ export const authService = {
           })
           .eq('email', email)
 
+        if (accErr) {
+          console.error('[Supabase Kingdom Assignment Error]:', accErr.message, accErr)
+        }
+
         // Registrar o actualizar reino
-        await supabase.from('kingdoms').upsert({
+        const { error: kingErr } = await supabase.from('kingdoms').upsert({
           id: email,
           username: email.split('@')[0],
           coord_x: baseCoord.x,
           coord_y: baseCoord.y,
         })
+
+        if (kingErr) {
+          console.error('[Supabase Kingdom Upsert Error]:', kingErr.message, kingErr)
+        }
       } catch (err) {
-        console.warn('[authService] Error al guardar asignación de reino en Supabase:', err)
+        console.error('[Supabase Kingdom Assignment Exception]: Error guardando asignación:', err)
       }
     }
 
@@ -305,15 +320,19 @@ export const authService = {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('user_accounts')
           .update({
             onboarding_completed: true,
             updated_at: new Date().toISOString(),
           })
           .eq('email', email)
+
+        if (error) {
+          console.error('[Supabase Onboarding Error]: Error marcando onboarding:', error.message, error)
+        }
       } catch (err) {
-        console.warn('[authService] Error marcando onboarding en Supabase:', err)
+        console.error('[Supabase Onboarding Exception]: Error marcando onboarding:', err)
       }
     }
 

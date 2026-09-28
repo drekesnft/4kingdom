@@ -391,13 +391,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     return count
   }, [troops, maxKingProductiveTroops])
 
-  // Estimación de farming diario de KING (Sección 34)
-  // poolDiario = 2488.89, estimando mundo inicial = 2000 tropas productivas
-  const estimatedDailyKing = useMemo(() => {
-    const worldProductiveTroops = 2000
-    const pool = KING_CONFIG.DAILY_FARMING_POOL_INITIAL
-    return Number(((pool * productiveTroopsCount) / (worldProductiveTroops + productiveTroopsCount)).toFixed(2))
-  }, [productiveTroopsCount])
+  // KING no se genera pasivamente con el tiempo
+  const estimatedDailyKing = 0
 
   // 3. Tesorería: Protegido vs Expuesto (Sección 11)
   const treasuryDef = BUILDINGS_CONFIG.treasury.levels[buildings.treasury]
@@ -527,15 +522,6 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         return null
       })
 
-      // B. Acumulación pasiva de KING pendiente (farming cada tick)
-      if (productiveTroopsCount > 0) {
-        setKing((prev) => {
-          const kingPerSec = estimatedDailyKing / 86400
-          const maxOverflow = treasuryPendingLimit * 1.25 // Overflow de 25%
-          const newPending = Math.min(maxOverflow, prev.pending + kingPerSec)
-          return { ...prev, pending: Number(newPending.toFixed(4)) }
-        })
-      }
 
       // C. Verificación de Construcción completada
       setBuildingUnderConstruction((current) => {

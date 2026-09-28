@@ -937,7 +937,7 @@ export default function App() {
             <div className="king-resource">
               <Crown size={20} />
               <strong>{gameState.king.claimed.toFixed(0)}</strong>
-              <small>+{gameState.estimatedDailyKing}/d</small>
+              <small>KING</small>
             </div>
           </div>
         </header>

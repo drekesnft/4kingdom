@@ -217,8 +217,8 @@ export default function MarketView({ gameState, onClose }) {
                 <strong>{KING_CONFIG.DAILY_FARMING_POOL_INITIAL} KING/día</strong>
               </div>
               <div className="metric-box">
-                <small>Tu Participación Estimada</small>
-                <strong className="reward-est">+{estimatedDailyKing} KING/día</strong>
+                <small>Método de Obtención</small>
+                <strong className="reward-est">Misiones y Batallas</strong>
               </div>
             </div>
           </div>

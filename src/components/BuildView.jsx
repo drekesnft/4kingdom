@@ -617,18 +617,17 @@ export default function BuildView({ gameState, onClose }) {
               <small>Otorgado por el Granero (Nv. {buildings.granary})</small>
             </div>
 
-            {/* Farming de KING */}
+            {/* Estado de KING */}
             <div className="bonus-metric-card">
               <div className="metric-header">
                 <Coins size={16} />
-                <strong>Farming de KING Diario</strong>
+                <strong>Tesoro y Recompensas KING</strong>
               </div>
               <div className="metric-values">
-                <div><span>Tropas Productivas:</span><strong>{productiveTroopsCount} / {maxKingProductiveTroops} máx</strong></div>
-                <div><span>Estimado Diario:</span><strong>~{estimatedDailyKing} KING / día</strong></div>
-                <div><span>Pool Diario Servidor:</span><strong>2,488.89 KING</strong></div>
+                <div><span>Estado del Token:</span><strong>Activo</strong></div>
+                <div><span>Obtención:</span><strong>Misiones, Asaltos y Botín</strong></div>
               </div>
-              <small>Calculado según tropas en casa de mayor poder y Nivel de Granero</small>
+              <small>El token KING no se genera pasivamente. Se obtiene únicamente mediante misiones, asaltos a campamentos hostiles y victorias PvP.</small>
             </div>
 
             {/* Seguridad de Tesorería */}

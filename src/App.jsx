@@ -177,6 +177,23 @@ export default function App() {
 
   // Escuchar retorno de Google OAuth y persistencia de 7 días
   useEffect(() => {
+    // Limpieza de parámetros de error OAuth en URL (ej. bad_oauth_state)
+    try {
+      if (typeof window !== 'undefined' && window.location.search) {
+        const params = new URLSearchParams(window.location.search)
+        const error = params.get('error')
+        const errorDesc = params.get('error_description')
+        if (error || errorDesc) {
+          console.warn('[OAuth URL Warning]:', error, errorDesc)
+          setNotice(`Aviso de inicio de sesión: ${errorDesc || 'La sesión con Google expiró o fue cancelada.'}`)
+          const cleanRef = params.get('ref') ? `?ref=${params.get('ref')}` : ''
+          window.history.replaceState({}, document.title, window.location.pathname + cleanRef)
+        }
+      }
+    } catch (err) {
+      console.warn('[URL Cleaner Exception]:', err)
+    }
+
     const unsubscribe = authService.initSupabaseAuthListener((authenticatedUser) => {
       if (authenticatedUser) {
         setCurrentUser(authenticatedUser)
@@ -625,12 +642,13 @@ export default function App() {
   }, [gameState.clan, currentBase])
 
   function popupData(tile) {
+    if (!tile) return null
     const targetTile = tile
-    const def = TILE_TYPES[targetTile.type]
-    const baseX = currentBase.worldX ?? currentBase.x
-    const baseY = currentBase.worldY ?? currentBase.y
+    const def = TILE_TYPES[targetTile?.type] || TILE_TYPES.base
+    const baseX = currentBase?.worldX ?? currentBase?.x ?? 0
+    const baseY = currentBase?.worldY ?? currentBase?.y ?? 0
     const isOwnBase = targetTile.worldX === baseX && targetTile.worldY === baseY
-    const tileLabel = `Sector (${targetTile.worldX}, ${targetTile.worldY})`
+    const tileLabel = `Sector (${targetTile.worldX ?? 0}, ${targetTile.worldY ?? 0})`
 
     if (targetTile.isPlayerBase) {
       const isAlly = Boolean(targetTile.clanTag && gameState.clan && targetTile.clanTag === gameState.clan.tag)
@@ -769,7 +787,15 @@ export default function App() {
     setNotice(`Coordenada encontrada: (${worldX}, ${worldY}) · ${tile.isPlayerBase ? 'Base de jugador' : TILE_TYPES[tile.type].name}`)
   }
 
-  const detail = selected ? popupData(selected) : null
+  const detail = useMemo(() => {
+    if (!selected) return null
+    try {
+      return popupData(selected)
+    } catch (err) {
+      console.error('[Error al procesar popupData]:', err)
+      return null
+    }
+  }, [selected, currentBase, gameState.clan, gameState.buildings, gameState.troops, gameState.passiveProductionPerHour])
   const netFoodRate = Math.round(gameState.passiveProductionPerHour.food - gameState.totalFoodUpkeepPerHour)
 
   if (currentView === 'landing') {

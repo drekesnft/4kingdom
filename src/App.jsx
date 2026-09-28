@@ -18,7 +18,8 @@ import ReferralModal from './components/ReferralModal'
 import PreLaunchModal from './components/PreLaunchModal'
 import { authService } from './services/authService'
 import { useGameState } from './game/useGameState'
-import { ALPHA_LAUNCH_CONFIG } from './game/config'
+import { ALPHA_LAUNCH_CONFIG, NPC_TIERS, RESOURCE_TIERS } from './game/config'
+import { calculateArmyAttack, totalTroopCount } from './game/combat'
 
 const MAP_SIZE = 50
 const TILE_SIZE = 112
@@ -57,6 +58,20 @@ const TileButton = memo(function TileButton({ tile, def, important, isSelected, 
   const baseY = baseCoord?.worldY ?? baseCoord?.y
   const isOwnBase = typeof baseX === 'number' && typeof baseY === 'number' && tile.worldX === baseX && tile.worldY === baseY
 
+  let badgeText = null
+  let badgeClass = ''
+  if (def.role === 'enemy') {
+    const dist = Math.max(Math.abs(tile.worldX - (baseX || 0)), Math.abs(tile.worldY - (baseY || 0)), 1)
+    const lvl = Math.min(5, Math.max(1, Math.floor(dist / 4) + 1))
+    badgeText = `Nv.${lvl}`
+    badgeClass = 'tile-badge-enemy'
+  } else if (def.resource && def.resource !== 'none' && def.role === 'resource') {
+    const dist = Math.max(Math.abs(tile.worldX - (baseX || 0)), Math.abs(tile.worldY - (baseY || 0)), 1)
+    const lvl = Math.min(5, Math.max(1, Math.floor(dist / 5) + 1))
+    badgeText = `Nv.${lvl}`
+    badgeClass = 'tile-badge-res'
+  }
+
   return (
     <button
       type="button"
@@ -68,6 +83,7 @@ const TileButton = memo(function TileButton({ tile, def, important, isSelected, 
     >
       <TileImage def={def} />
       <span className="axis-coordinate">{tile.worldX},{tile.worldY}</span>
+      {badgeText && <span className={`tile-lvl-badge ${badgeClass}`}>{badgeText}</span>}
       {tile.isPlayerBase && <img className="base-layer" src={BASE_ASSET} alt="" draggable="false" aria-hidden="true" />}
       {isOwnBase && (
         <div className="own-base-marker">
@@ -701,20 +717,41 @@ export default function App() {
       }
     }
 
-    if (def.resource === 'wood' || def.resource === 'stone' || def.resource === 'food') return {
-      title: def.name,
-      subtitle: `${tileLabel} · Recurso: ${def.resource.toUpperCase()}`,
-      lines: [
-        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
-        'Nodo de recursos naturales. Envía una marcha para recolectar.',
-        `Tropas disponibles en tu ciudadela: ${gameState.troops.infantry} Inf, ${gameState.troops.archer} Arq, ${gameState.troops.cavalry} Cab`,
-      ],
-      image: def.assets?.[0],
-      action: 'Enviar a Recolectar',
-      onClick: () => {
-        setPopupOpen(false)
-        setMarchModalTarget(targetTile)
-      },
+    if (def.resource === 'wood' || def.resource === 'stone' || def.resource === 'food') {
+      const dx = Math.abs(targetTile.worldX - baseX)
+      const dy = Math.abs(targetTile.worldY - baseY)
+      const distance = Math.max(dx, dy, 1)
+      const level = Math.min(5, Math.max(1, Math.floor(distance / 5) + 1))
+      const tier = RESOURCE_TIERS[level] || RESOURCE_TIERS[1]
+      const resName = def.resource === 'wood' ? 'Madera' : def.resource === 'stone' ? 'Piedra' : 'Comida'
+      const resEmoji = def.resource === 'wood' ? '🪵' : def.resource === 'stone' ? '🪨' : '🌾'
+      const travelSec = distance * (gameState.isHungry ? 80 : 60)
+      const travelDesc = travelSec >= 60 ? `${Math.floor(travelSec / 60)}m ${travelSec % 60}s` : `${travelSec}s`
+
+      return {
+        title: `${def.name} (Nv. ${level})`,
+        subtitle: `${tileLabel} · Yacimiento de ${resName}`,
+        badge: `Nv.${level}`,
+        badgeType: 'resource',
+        stats: [
+          { label: 'Nivel', val: `Nv.${level}`, highlight: 'gold' },
+          { label: 'Reserva', val: `${tier.reserve.toLocaleString()} ${resName}`, highlight: 'success' },
+          { label: 'Distancia', val: `${distance} casillas`, highlight: 'info' },
+          { label: 'Viaje Ida', val: `~${travelDesc}`, highlight: 'info' },
+        ],
+        lines: [
+          `${resEmoji} Reserva natural disponible: ${tier.reserve.toLocaleString()} unidades de ${resName}`,
+          `⏱️ Tiempo de extracción total: ~${Math.round(tier.drainTimeSec / 60)} minutos`,
+          `📏 Distancia desde tu base: ${distance} casillas (~${travelDesc} de viaje)`,
+          `🛡️ Tropas en tu ciudadela: ${gameState.troops.infantry} Inf, ${gameState.troops.archer} Arq, ${gameState.troops.cavalry} Cab`,
+        ],
+        image: def.assets?.[0],
+        action: `🌾 Enviar a Recolectar (Nv.${level})`,
+        onClick: () => {
+          setPopupOpen(false)
+          setMarchModalTarget(targetTile)
+        },
+      }
     }
 
     if (def.resource === 'gems') return {
@@ -732,19 +769,63 @@ export default function App() {
       },
     }
 
-    if (def.role === 'enemy') return {
-      title: 'Campamento Hostil (NPC)',
-      subtitle: `${tileLabel} · Campamento Enemigo`,
-      lines: [
-        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
-        'Asalta este campamento hostil para conseguir botín de recursos y probabilidad de drop de KING.',
-      ],
-      image: def.assets?.[0],
-      action: 'Asaltar Campamento',
-      onClick: () => {
-        setPopupOpen(false)
-        setMarchModalTarget(targetTile)
-      },
+    if (def.role === 'enemy') {
+      const dx = Math.abs(targetTile.worldX - baseX)
+      const dy = Math.abs(targetTile.worldY - baseY)
+      const distance = Math.max(dx, dy, 1)
+      const level = Math.min(5, Math.max(1, Math.floor(distance / 4) + 1))
+      const npc = NPC_TIERS[level] || NPC_TIERS[1]
+
+      const playerAttack = calculateArmyAttack(gameState.troops, gameState.isHungry)
+      let riskLevel = 'low'
+      let riskLabel = '🟢 Riesgo Bajo'
+      let riskDesc = 'Tu ejército actual supera con holgura al campamento. Victoria probable sin bajas severas.'
+      if (playerAttack < npc.power) {
+        riskLevel = 'high'
+        riskLabel = '🔴 Riesgo Crítico'
+        riskDesc = '¡Peligro de aniquilación! Tu ataque actual es inferior al poder hostil. Entrena más tropas antes de asaltar.'
+      } else if (playerAttack < npc.power * 1.4) {
+        riskLevel = 'medium'
+        riskLabel = '🟡 Riesgo Moderado'
+        riskDesc = 'Combate parejo. Tienes posibilidades de vencer pero sufrirás bajas en la línea de frente.'
+      }
+
+      const enemyArmyParts = []
+      if (npc.army.infantry) enemyArmyParts.push(`${npc.army.infantry} Infantería`)
+      if (npc.army.archer) enemyArmyParts.push(`${npc.army.archer} Arqueros`)
+      if (npc.army.cavalry) enemyArmyParts.push(`${npc.army.cavalry} Caballería`)
+      const enemyArmyStr = enemyArmyParts.join(', ') || 'Guarnición armada'
+
+      const kingDropPct = Math.round(npc.kingDropRate * 100)
+      const travelSec = distance * (gameState.isHungry ? 80 : 60)
+      const travelDesc = travelSec >= 60 ? `${Math.floor(travelSec / 60)}m ${travelSec % 60}s` : `${travelSec}s`
+
+      return {
+        title: `${npc.name} (Nv. ${level})`,
+        subtitle: `${tileLabel} · Campamento Hostil (Poder ${npc.power} ⭐)`,
+        badge: `Nv.${level}`,
+        badgeType: 'enemy',
+        stats: [
+          { label: 'Nivel', val: `Nv.${level}`, highlight: 'gold' },
+          { label: 'Poder Enemigo', val: `${npc.power} ⭐`, highlight: 'danger' },
+          { label: 'Tu Ataque', val: `${playerAttack} ⚔️`, highlight: playerAttack >= npc.power ? 'success' : 'danger' },
+          { label: 'Riesgo', val: riskLabel, highlight: riskLevel },
+        ],
+        lines: [
+          `⚔️ Guarnición enemiga: ${enemyArmyStr} (Poder Hostil: ${npc.power} ⭐)`,
+          `🛡️ Tropas recomendadas: ${npc.recommended}`,
+          `💰 Botín garantizado si ganas: ${npc.minResourceReward.toLocaleString()} - ${npc.maxResourceReward.toLocaleString()} recursos`,
+          `👑 Probabilidad de botín KING: ${kingDropPct}% (+${npc.kingDropAmount} KING)`,
+          `📏 Distancia desde tu base: ${distance} casillas (~${travelDesc} de viaje)`,
+          `⚠️ Evaluación táctica: ${riskDesc}`,
+        ],
+        image: def.assets?.[0],
+        action: `⚔️ Asaltar Nv.${level} (${npc.name})`,
+        onClick: () => {
+          setPopupOpen(false)
+          setMarchModalTarget(targetTile)
+        },
+      }
     }
 
     if (def.role === 'rubble') return {
@@ -1173,12 +1254,30 @@ export default function App() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <button className="popup-close" type="button" onClick={() => setPopupOpen(false)} aria-label="Cerrar"><X size={20} /></button>
-                <div className="popup-art"><img src={detail.image} alt="" /></div>
+                <div className="popup-art">
+                  <img src={detail.image} alt="" />
+                  {detail.badge && (
+                    <span className={`popup-badge-overlay ${detail.badgeType || ''}`}>
+                      {detail.badge}
+                    </span>
+                  )}
+                </div>
                 <div className="popup-copy">
                   <small>COORD. ({selected.worldX}, {selected.worldY}) · TILE {TILE_TYPES[selected.type].tileNumber}</small>
                   <h2>{detail.title}</h2>
                   <strong>{detail.subtitle}</strong>
-                  {detail.lines.map((line) => <p key={line}>{line}</p>)}
+                  {detail.stats && (
+                    <div className="popup-stats-chips">
+                      {detail.stats.map((s, idx) => (
+                        <span key={idx} className={`stat-chip ${s.highlight || ''}`}>
+                          <small>{s.label}:</small> <strong>{s.val}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="popup-lines-list">
+                    {detail.lines.map((line) => <p key={line}>{line}</p>)}
+                  </div>
                 </div>
                 <button
                   type="button"

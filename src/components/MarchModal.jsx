@@ -31,7 +31,7 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
   if (tileDef.role === 'enemy') {
     marchType = 'npc'
     targetLevel = Math.min(5, Math.max(1, Math.floor(distance / 4) + 1))
-    targetTitle = `Campamento Hostil Nv.${targetLevel}`
+    targetTitle = `${NPC_TIERS[targetLevel]?.name || 'Campamento Hostil'} (Nv.${targetLevel})`
   } else if (tile.isPlayerBase) {
     if (isAllyBase) {
       marchType = 'reinforce'
@@ -197,16 +197,37 @@ export default function MarchModal({ tile, tileDef, baseCoord, gameState, onClos
         )}
 
         {/* Resumen del objetivo */}
-        {marchType === 'npc' && (
-          <div className="target-summary-box">
-            <div className="target-summary-header">
-              <strong>Enemigos: {NPC_TIERS[targetLevel].name}</strong>
-              <small>Poder: {NPC_TIERS[targetLevel].power}</small>
+        {marchType === 'npc' && (() => {
+          const npc = NPC_TIERS[targetLevel]
+          const enemyTroopsStr = Object.entries(npc.army)
+            .filter(([_, count]) => count > 0)
+            .map(([t, count]) => `${count} ${t === 'infantry' ? 'Infantería' : t === 'archer' ? 'Arquero' : 'Caballería'}`)
+            .join(', ') || 'Guarnición armada'
+
+          let riskPill = '🟢 Riesgo Bajo'
+          let riskStyle = { color: '#86efac', fontWeight: 'bold' }
+          if (totalAttack < npc.power) {
+            riskPill = '🔴 Riesgo Crítico (Poder insuficiente, sufrirás derrota)'
+            riskStyle = { color: '#fca5a5', fontWeight: 'bold' }
+          } else if (totalAttack < npc.power * 1.4) {
+            riskPill = '🟡 Riesgo Moderado (Combate parejo, se esperan bajas)'
+            riskStyle = { color: '#fde047', fontWeight: 'bold' }
+          }
+
+          return (
+            <div className="target-summary-box">
+              <div className="target-summary-header">
+                <strong>Enemigos: {npc.name} (Nv.{targetLevel})</strong>
+                <small>Poder Hostil: {npc.power} ⭐</small>
+              </div>
+              <p><strong>Guarnición Enemiga:</strong> {enemyTroopsStr}</p>
+              <p><strong>Recomendación:</strong> {npc.recommended}</p>
+              <p><strong>Botín Garantizado:</strong> {npc.minResourceReward.toLocaleString()} - {npc.maxResourceReward.toLocaleString()} recursos</p>
+              <p><strong>Tu Ataque Seleccionado:</strong> {totalAttack} ⚔️ · <span style={riskStyle}>{riskPill}</span></p>
+              <small className="king-loot-hint">Posibilidad de drop KING: {Math.round(npc.kingDropRate * 100)}% (+{npc.kingDropAmount} KING)</small>
             </div>
-            <p>Guarnición: {NPC_TIERS[targetLevel].recommended}</p>
-            <small className="king-loot-hint">Posibilidad de drop KING: {Math.round(NPC_TIERS[targetLevel].kingDropRate * 100)}% ({NPC_TIERS[targetLevel].kingDropAmount} KING)</small>
-          </div>
-        )}
+          )
+        })()}
 
         {marchType === 'gather' && (
           <div className="target-summary-box">

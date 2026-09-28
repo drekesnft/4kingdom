@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TROOPS_CONFIG, BUILDINGS_CONFIG, HERO_MISSIONS } from '../game/config'
 import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles, ArrowRight, Compass } from 'lucide-react'
 
@@ -29,11 +29,23 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
   const [activeTab, setActiveTab] = useState('recruit') // 'recruit' | 'hero' | 'reports'
   const [recruitCounts, setRecruitCounts] = useState({ infantry: 5, archer: 5, cavalry: 5 })
 
+  const [now, setNow] = useState(() => Date.now())
+
+  const hasActiveTimer = trainingQueue.length > 0 || Boolean(hero?.activeMission)
+
+  useEffect(() => {
+    if (!hasActiveTimer) return
+    setNow(Date.now())
+    const timer = setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [hasActiveTimer])
+
   const barracksLvl = buildings.barracks || 0
   const barracksDef = barracksLvl > 0 ? BUILDINGS_CONFIG.barracks.levels[barracksLvl] : { maxQueue: 0, speedBonus: 0, unlockedTroops: [] }
 
   const currentBatch = trainingQueue.length > 0 ? trainingQueue[0] : null
-  const now = Date.now()
   const trainingRemainingSec = currentBatch ? Math.max(1, Math.ceil((currentBatch.finishTime - now) / 1000)) : 0
   const trainingSpeedCost = calculateKingCostForSec(trainingRemainingSec)
 

@@ -9,7 +9,7 @@ export const gameService = {
    * Carga el estado del reino desde Supabase
    */
   async loadKingdom(playerId) {
-    if (!isSupabaseConfigured || !supabase) return null
+    if (!isSupabaseConfigured || !supabase || !playerId || !playerId.includes('@')) return null
 
     try {
       const { data, error } = await supabase
@@ -33,9 +33,46 @@ export const gameService = {
    * Guarda o actualiza el estado del reino en Supabase
    */
   async syncKingdom(playerId, state) {
-    if (!isSupabaseConfigured || !supabase) return false
+    if (!isSupabaseConfigured || !supabase || !playerId || !playerId.includes('@')) return false
 
     try {
+      // Limpiar y empaquetar edificios con el proceso de construcción activo (si existe)
+      const cleanBuildings = {}
+      for (const [k, v] of Object.entries(state.buildings || {})) {
+        if (k !== '_construction' && typeof v === 'number') {
+          cleanBuildings[k] = v
+        }
+      }
+      if (state.buildingUnderConstruction && state.buildingUnderConstruction.buildingId) {
+        cleanBuildings._construction = {
+          buildingId: state.buildingUnderConstruction.buildingId,
+          targetLevel: state.buildingUnderConstruction.targetLevel,
+          finishTime: state.buildingUnderConstruction.finishTime,
+          totalSec: state.buildingUnderConstruction.totalSec,
+        }
+      } else {
+        cleanBuildings._construction = null
+      }
+
+      // Limpiar y empaquetar tropas con la cola de reclutamiento activa (si existe)
+      const cleanTroops = {}
+      for (const [k, v] of Object.entries(state.troops || {})) {
+        if (k !== '_trainingQueue' && typeof v === 'number') {
+          cleanTroops[k] = v
+        }
+      }
+      if (Array.isArray(state.trainingQueue) && state.trainingQueue.length > 0) {
+        cleanTroops._trainingQueue = state.trainingQueue.map((item) => ({
+          id: item.id,
+          troopId: item.troopId,
+          count: item.count,
+          finishTime: item.finishTime,
+          totalSec: item.totalSec,
+        }))
+      } else {
+        cleanTroops._trainingQueue = []
+      }
+
       const payload = {
         id: playerId,
         wood: Math.floor(state.resources.wood),
@@ -43,8 +80,8 @@ export const gameService = {
         food: Math.floor(state.resources.food),
         king_claimed: Number(state.king.claimed.toFixed(2)),
         king_pending: Number(state.king.pending.toFixed(4)),
-        buildings: state.buildings,
-        troops: state.troops,
+        buildings: cleanBuildings,
+        troops: cleanTroops,
         shield_until: state.shieldUntil,
         power: state.kingdomPower,
         updated_at: new Date().toISOString(),
@@ -293,6 +330,7 @@ export const gameService = {
       const { data, error } = await supabase
         .from('kingdoms')
         .select('id, username, power, buildings, troops, updated_at')
+        .like('id', '%@%')
         .order('power', { ascending: false })
         .limit(limit)
 
@@ -323,7 +361,7 @@ export const gameService = {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'kingdoms' },
         (payload) => {
-          if (onKingdomChanged && payload.new) {
+          if (onKingdomChanged && payload.new && payload.new.id && payload.new.id.includes('@')) {
             onKingdomChanged(payload.new)
           }
         }

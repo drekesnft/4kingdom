@@ -102,7 +102,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
   // Sincronización y Realtime con Supabase Backend (PC y Celular sincronizados sin feedback loop)
   useEffect(() => {
-    if (!isSupabaseConfigured || !playerId) return
+    if (!isSupabaseConfigured || !playerId || !playerId.includes('@')) return
     let isCancelled = false
 
     // 1. Cargar Reino Oficial y Marchas Activas directamente desde Supabase Backend (100% Backend)
@@ -129,16 +129,43 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
       console.info('[Supabase Backend] Reino cargado 100% desde backend:', playerId, remoteKingdom)
 
-      // Cargar edificios directamente del backend
-      const loadedBuildings = (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object')
-        ? { ...INITIAL_PLAYER_DATA.buildings, ...remoteKingdom.buildings }
-        : { ...INITIAL_PLAYER_DATA.buildings }
-      setBuildings(loadedBuildings)
+      // Cargar edificios y proceso de construcción activo directamente del backend
+      const rawBuildings = (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object')
+        ? remoteKingdom.buildings
+        : {}
+      const loadedBuildings = {}
+      for (const [key, val] of Object.entries(rawBuildings)) {
+        if (key !== '_construction' && typeof val === 'number') {
+          loadedBuildings[key] = val
+        }
+      }
+      for (const [key, val] of Object.entries(INITIAL_PLAYER_DATA.buildings)) {
+        if (loadedBuildings[key] === undefined) {
+          loadedBuildings[key] = val
+        }
+      }
 
-      // Cargar tropas directamente del backend
-      const loadedTroops = (remoteKingdom.troops && typeof remoteKingdom.troops === 'object')
-        ? { ...INITIAL_PLAYER_DATA.troops, ...remoteKingdom.troops }
-        : { ...INITIAL_PLAYER_DATA.troops }
+      let activeConstruction = (rawBuildings._construction && typeof rawBuildings._construction === 'object' && rawBuildings._construction.buildingId)
+        ? rawBuildings._construction
+        : null
+
+      // Cargar tropas y cola de entrenamiento activa directamente del backend
+      const rawTroops = (remoteKingdom.troops && typeof remoteKingdom.troops === 'object')
+        ? remoteKingdom.troops
+        : {}
+      const loadedTroops = {}
+      for (const [key, val] of Object.entries(rawTroops)) {
+        if (key !== '_trainingQueue' && typeof val === 'number') {
+          loadedTroops[key] = val
+        }
+      }
+      for (const [key, val] of Object.entries(INITIAL_PLAYER_DATA.troops)) {
+        if (loadedTroops[key] === undefined) {
+          loadedTroops[key] = val
+        }
+      }
+
+      let activeQueue = Array.isArray(rawTroops._trainingQueue) ? [...rawTroops._trainingQueue] : []
 
       let baseWood = Math.floor(Number(remoteKingdom.wood) || 0)
       let baseStone = Math.floor(Number(remoteKingdom.stone) || 0)
@@ -252,10 +279,52 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         }
       }
 
+      // CÁLCULO DE PROCESOS ACTIVOS OFFLINE (Construcción y Entrenamiento en ausencia)
+      let constructionChangedOffline = false
+      if (activeConstruction && activeConstruction.finishTime) {
+        if (nowMs >= activeConstruction.finishTime) {
+          const bId = activeConstruction.buildingId
+          const targetLvl = activeConstruction.targetLevel
+          if (BUILDINGS_CONFIG[bId]) {
+            loadedBuildings[bId] = targetLvl
+            constructionChangedOffline = true
+            const bName = BUILDINGS_CONFIG[bId].name
+            setRecentNotification(`¡Construcción finalizada en tu ausencia! ${bName} ha subido al Nivel ${targetLvl}.`)
+            console.info(`[Offline Construction] Completado en backend: ${bName} Nv.${targetLvl}`)
+          }
+          activeConstruction = null
+        } else {
+          console.info(`[Offline Construction] Construcción activa continuada: ${activeConstruction.buildingId} Nv.${activeConstruction.targetLevel}, restan ${Math.ceil((activeConstruction.finishTime - nowMs) / 1000)}s`)
+        }
+      }
+
+      let queueChangedOffline = false
+      if (activeQueue.length > 0) {
+        const remainingQueue = []
+        for (const batch of activeQueue) {
+          if (nowMs >= batch.finishTime) {
+            const tId = batch.troopId
+            const count = batch.count
+            if (TROOPS_CONFIG[tId]) {
+              loadedTroops[tId] = (loadedTroops[tId] || 0) + count
+              queueChangedOffline = true
+              setRecentNotification(`¡Entrenamiento completado en tu ausencia! +${count} ${TROOPS_CONFIG[tId].name}.`)
+              console.info(`[Offline Training] Tropas entrenadas offline: +${count} ${TROOPS_CONFIG[tId].name}`)
+            }
+          } else {
+            remainingQueue.push(batch)
+          }
+        }
+        activeQueue = remainingQueue
+      }
+
+      setBuildings(loadedBuildings)
+      setBuildingUnderConstruction(activeConstruction)
       setTroops(loadedTroops)
+      setTrainingQueue(activeQueue)
       setMarches(ongoingMarches)
 
-      if (marchesChangedState) {
+      if (marchesChangedState || constructionChangedOffline || queueChangedOffline) {
         lastLocalSaveTimeRef.current = Date.now()
         gameService.syncKingdom(playerId, {
           resources: { wood: baseWood, stone: baseStone, food: baseFood },
@@ -268,6 +337,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           troops: loadedTroops,
           shieldUntil: Number(remoteKingdom.shield_until || 0),
           kingdomPower: (loadedBuildings.castle || 1) * 300 + (loadedTroops.infantry || 0) * 10 + (loadedTroops.archer || 0) * 15 + (loadedTroops.cavalry || 0) * 20,
+          buildingUnderConstruction: activeConstruction,
+          trainingQueue: activeQueue,
         })
       }
 
@@ -334,6 +405,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
             troops: loadedTroops,
             shieldUntil: Number(remoteKingdom.shield_until || 0),
             kingdomPower: Number(remoteKingdom.power || 300),
+            buildingUnderConstruction: activeConstruction,
+            trainingQueue: activeQueue,
           })
         }
       }
@@ -397,10 +470,26 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           })
         }
         if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
-          setBuildings({ ...INITIAL_PLAYER_DATA.buildings, ...remoteKingdom.buildings })
+          const rawB = remoteKingdom.buildings
+          const cleanB = {}
+          for (const [k, v] of Object.entries(rawB)) {
+            if (k !== '_construction' && typeof v === 'number') cleanB[k] = v
+          }
+          setBuildings((prev) => ({ ...prev, ...cleanB }))
+          if (rawB._construction !== undefined) {
+            setBuildingUnderConstruction(rawB._construction)
+          }
         }
         if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
-          setTroops({ ...INITIAL_PLAYER_DATA.troops, ...remoteKingdom.troops })
+          const rawT = remoteKingdom.troops
+          const cleanT = {}
+          for (const [k, v] of Object.entries(rawT)) {
+            if (k !== '_trainingQueue' && typeof v === 'number') cleanT[k] = v
+          }
+          setTroops((prev) => ({ ...prev, ...cleanT }))
+          if (Array.isArray(rawT._trainingQueue)) {
+            setTrainingQueue(rawT._trainingQueue)
+          }
         }
         if (remoteKingdom.king_claimed !== undefined) {
           setKing((prev) => ({
@@ -538,6 +627,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     troops,
     shieldUntil,
     kingdomPower,
+    buildingUnderConstruction,
+    trainingQueue,
   }
 
   // Disparador de sincronización directa con Supabase Backend (Cero almacenamiento local)
@@ -578,8 +669,50 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       if (document.visibilityState === 'hidden') {
         handleExitSync()
       } else if (document.visibilityState === 'visible') {
-        // Al regresar del segundo plano en móvil o PC, recuperar producción de inmediato
+        // Al regresar del segundo plano en móvil o PC, recuperar producción y chequear construcciones de inmediato
         const now = Date.now()
+
+        // 1. Evaluar si la construcción en curso finalizó mientras la pestaña estuvo en segundo plano
+        setBuildingUnderConstruction((current) => {
+          if (!current) return null
+          if (now >= current.finishTime) {
+            setBuildings((b) => {
+              const nextB = { ...b, [current.buildingId]: current.targetLevel }
+              triggerBackendSync({
+                ...latestStateRef.current,
+                buildings: nextB,
+                buildingUnderConstruction: null,
+              })
+              return nextB
+            })
+            setRecentNotification(`¡${BUILDINGS_CONFIG[current.buildingId]?.name || 'Edificio'} ha subido al Nivel ${current.targetLevel}!`)
+            return null
+          }
+          return current
+        })
+
+        // 2. Evaluar si algún lote de reclutamiento finalizó mientras la pestaña estuvo en segundo plano
+        setTrainingQueue((prevQueue) => {
+          if (!prevQueue.length) return prevQueue
+          const currentBatch = prevQueue[0]
+          if (now >= currentBatch.finishTime) {
+            let nextTroops = null
+            setTroops((t) => {
+              nextTroops = { ...t, [currentBatch.troopId]: (t[currentBatch.troopId] || 0) + currentBatch.count }
+              return nextTroops
+            })
+            setRecentNotification(`¡Entrenamiento completado: +${currentBatch.count} ${TROOPS_CONFIG[currentBatch.troopId]?.name || 'tropas'}!`)
+            const nextQueue = prevQueue.slice(1)
+            triggerBackendSync({
+              ...latestStateRef.current,
+              troops: nextTroops || latestStateRef.current.troops,
+              trainingQueue: nextQueue,
+            })
+            return nextQueue
+          }
+          return prevQueue
+        })
+
         const lastTick = lastTickTimeRef.current || now
         const elapsedSec = (now - lastTick) / 1000
         if (elapsedSec >= 2) {
@@ -632,14 +765,14 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     }
   }, [playerId, triggerBackendSync, passiveProductionPerHour, totalFoodUpkeepPerHour])
 
-  // Sincronizar inmediatamente al completar o cambiar edificios, tropas o escudo
+  // Sincronizar inmediatamente al completar o cambiar edificios, tropas, construcciones o escudo
   useEffect(() => {
     if (!isSupabaseConfigured || !playerId) return
     const debounceTimer = setTimeout(() => {
       triggerBackendSync()
     }, 1000)
     return () => clearTimeout(debounceTimer)
-  }, [playerId, buildings, troops, shieldUntil, triggerBackendSync])
+  }, [playerId, buildings, troops, shieldUntil, buildingUnderConstruction, trainingQueue, triggerBackendSync])
 
   // --- TICKS EN TIEMPO REAL (1s) ---
   useEffect(() => {
@@ -723,8 +856,17 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       setBuildingUnderConstruction((current) => {
         if (!current) return null
         if (now >= current.finishTime) {
-          setBuildings((b) => ({ ...b, [current.buildingId]: current.targetLevel }))
-          setRecentNotification(`¡${BUILDINGS_CONFIG[current.buildingId].name} ha subido al Nivel ${current.targetLevel}!`)
+          let updatedBuildings = null
+          setBuildings((b) => {
+            updatedBuildings = { ...b, [current.buildingId]: current.targetLevel }
+            triggerBackendSync({
+              ...latestStateRef.current,
+              buildings: updatedBuildings,
+              buildingUnderConstruction: null,
+            })
+            return updatedBuildings
+          })
+          setRecentNotification(`¡${BUILDINGS_CONFIG[current.buildingId]?.name || 'Edificio'} ha subido al Nivel ${current.targetLevel}!`)
           return null
         }
         return current
@@ -736,8 +878,12 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         const currentBatch = prevQueue[0]
         if (now >= currentBatch.finishTime) {
           // Finalizó este lote de tropas
-          setTroops((t) => ({ ...t, [currentBatch.troopId]: t[currentBatch.troopId] + currentBatch.count }))
-          setRecentNotification(`¡Entrenamiento completado: +${currentBatch.count} ${TROOPS_CONFIG[currentBatch.troopId].name}!`)
+          let updatedTroops = null
+          setTroops((t) => {
+            updatedTroops = { ...t, [currentBatch.troopId]: (t[currentBatch.troopId] || 0) + currentBatch.count }
+            return updatedTroops
+          })
+          setRecentNotification(`¡Entrenamiento completado: +${currentBatch.count} ${TROOPS_CONFIG[currentBatch.troopId]?.name || 'tropas'}!`)
           const nextQueue = prevQueue.slice(1)
           // Si hay otro lote, ajustar su finishTime si no había comenzado
           if (nextQueue.length > 0) {
@@ -746,6 +892,11 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
               finishTime: now + nextQueue[0].totalSec * 1000,
             }
           }
+          triggerBackendSync({
+            ...latestStateRef.current,
+            troops: updatedTroops || { ...latestStateRef.current.troops, [currentBatch.troopId]: (latestStateRef.current.troops[currentBatch.troopId] || 0) + currentBatch.count },
+            trainingQueue: nextQueue,
+          })
           return nextQueue
         }
         return prevQueue
@@ -1305,16 +1456,19 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     }
     setResources(nextResources)
 
-    setBuildingUnderConstruction({
+    const newConstruction = {
       buildingId,
       targetLevel: targetLvl,
       finishTime: Date.now() + durationSec * 1000,
       totalSec: durationSec,
-    })
+    }
+
+    setBuildingUnderConstruction(newConstruction)
 
     triggerBackendSync({
       ...latestStateRef.current,
       resources: nextResources,
+      buildingUnderConstruction: newConstruction,
     })
 
     setRecentNotification(`Construcción iniciada: ${BUILDINGS_CONFIG[buildingId].name} Nv.${targetLvl}.`)
@@ -1346,6 +1500,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       ...latestStateRef.current,
       king: nextKing,
       buildings: nextBuildings,
+      buildingUnderConstruction: null,
     })
   }, [buildingUnderConstruction, king, buildings, triggerBackendSync])
 
@@ -1409,10 +1564,12 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       totalSec: finalSec,
     }
 
-    setTrainingQueue((q) => [...q, newBatch])
+    const nextQueue = [...trainingQueue, newBatch]
+    setTrainingQueue(nextQueue)
     triggerBackendSync({
       ...latestStateRef.current,
       resources: nextResources,
+      trainingQueue: nextQueue,
     })
     setRecentNotification(`Reclutando ${count} ${conf.name}...`)
     return { success: true }
@@ -1431,9 +1588,6 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
     const nextKing = { ...king, claimed: Math.max(0, Number((king.claimed - cost).toFixed(2))) }
     const nextTroops = { ...troops, [currentBatch.troopId]: (troops[currentBatch.troopId] || 0) + currentBatch.count }
-
-    setKing(nextKing)
-    setTroops(nextTroops)
     setRecentNotification(`¡Entrenamiento acelerado con ${cost} KING! +${currentBatch.count} ${TROOPS_CONFIG[currentBatch.troopId].name}`)
 
     const nextQueue = trainingQueue.slice(1)
@@ -1443,11 +1597,14 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         finishTime: Date.now() + nextQueue[0].totalSec * 1000,
       }
     }
+    setKing(nextKing)
+    setTroops(nextTroops)
     setTrainingQueue(nextQueue)
     triggerBackendSync({
       ...latestStateRef.current,
       king: nextKing,
       troops: nextTroops,
+      trainingQueue: nextQueue,
     })
   }, [trainingQueue, king, troops, triggerBackendSync])
 

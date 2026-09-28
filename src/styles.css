@@ -4665,6 +4665,141 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   color: #64748b;
 }
 
+/* Banner Oficial de Precio de Lanzamiento ($0.005 USD) */
+.wl-token-price-banner {
+  width: 100%;
+  max-width: 720px;
+  background: linear-gradient(135deg, rgba(22, 101, 52, 0.22) 0%, rgba(15, 23, 42, 0.75) 50%, rgba(202, 138, 4, 0.18) 100%);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 18px rgba(34, 197, 94, 0.12);
+  border-radius: 14px;
+  padding: 14px 20px;
+  margin-top: 4px;
+}
+
+.wl-token-price-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.token-price-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.token-price-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #86efac;
+  text-transform: uppercase;
+}
+
+.token-price-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.token-symbol-glow {
+  color: #ffd65a;
+  text-shadow: 0 0 12px rgba(255, 214, 90, 0.5);
+}
+
+.token-usd-green {
+  color: #4ade80;
+  font-size: 20px;
+  text-shadow: 0 0 14px rgba(74, 222, 128, 0.45);
+}
+
+.token-price-divider {
+  width: 1px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.token-price-example {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: right;
+  flex: 1;
+  min-width: 200px;
+}
+
+.example-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.example-val {
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffd65a;
+  letter-spacing: 0.02em;
+}
+
+.example-sub {
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.3;
+}
+
+.wl-usd-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4ade80;
+  margin-top: 2px;
+}
+
+.wl-usd-sub-stat {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #4ade80;
+  margin-top: 1px;
+}
+
+.usd-prize-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #4ade80;
+  display: block;
+  margin-top: 1px;
+}
+
+@media (max-width: 640px) {
+  .wl-token-price-inner {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 12px;
+  }
+  .token-price-col {
+    text-align: center;
+    align-items: center;
+  }
+  .token-price-divider {
+    width: 100%;
+    height: 1px;
+  }
+  .token-price-example {
+    text-align: center;
+    align-items: center;
+  }
+}
+
 /* Tarjeta Épica de Referidos (5 TOKENS) */
 .wl-referral-epic-card {
   background: linear-gradient(180deg, #132235 0%, #09131f 100%);
@@ -6079,55 +6214,21 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   border: 1px solid rgba(255, 214, 90, 0.35);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
   gap: 14px;
 }
 
-.banner-live-col {
+.ranking-realtime-banner.banner-clean .banner-countdown-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.live-status-pill {
-  display: inline-flex;
+  gap: 6px;
   align-items: center;
-  gap: 8px;
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.4);
-  color: #4ade80;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  width: fit-content;
-}
-
-.pulsing-green-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 10px #22c55e;
-  animation: pulseDot 1.5s infinite;
-}
-
-.live-status-desc {
-  font-size: 11.5px;
-  color: #94a3b8;
-  margin: 0;
-}
-
-.banner-countdown-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
+  text-align: center;
+  width: 100%;
 }
 
 .countdown-pill {
@@ -6479,6 +6580,148 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
     display: none;
   }
 }
+
+/* ========================================================================= */
+/* DESKTOP FULL-WIDTH RANKING STYLES (PC > 900px)                            */
+/* Optimizado para aprovechar la pantalla completa en PC sin alterar móvil   */
+/* ========================================================================= */
+@media (min-width: 900px) {
+  .game-phone.ranking-expanded {
+    width: min(96vw, 1180px);
+    max-width: 1180px;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .game-phone.ranking-expanded .top-bar {
+    padding: 14px 28px;
+  }
+
+  .game-phone.ranking-expanded .bottom-nav {
+    max-width: 580px;
+    margin: 0 auto;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .ranking-panel {
+    padding: 24px 36px 40px;
+    gap: 24px;
+    max-width: 100%;
+  }
+
+  .ranking-panel .panel-header {
+    padding-bottom: 14px;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .ranking-panel .panel-header h2 {
+    font-size: 22px;
+  }
+
+  .ranking-panel .panel-header p {
+    font-size: 13.5px;
+  }
+
+  .ranking-realtime-banner.banner-clean {
+    max-width: 650px;
+    margin: 0 auto;
+    padding: 16px 28px;
+  }
+
+  .ranking-realtime-banner .countdown-pill {
+    padding: 8px 20px;
+    font-size: 13.5px;
+  }
+
+  .ranking-realtime-banner .countdown-pill strong {
+    font-size: 16px;
+  }
+
+  .ranking-realtime-banner .pool-info {
+    font-size: 12.5px;
+  }
+
+  .podium-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .podium-card {
+    padding: 22px 18px;
+    gap: 10px;
+  }
+
+  .podium-crown {
+    font-size: 34px;
+  }
+
+  .podium-name {
+    font-size: 16px;
+  }
+
+  .champion-name {
+    font-size: 18px;
+  }
+
+  .podium-power-badge {
+    font-size: 14px;
+    padding: 6px 14px;
+  }
+
+  .podium-prize {
+    padding: 6px 14px;
+  }
+
+  .podium-prize strong {
+    font-size: 14px;
+  }
+
+  .my-standing-banner {
+    max-width: 950px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 14px 24px;
+  }
+
+  .my-standing-info strong {
+    font-size: 15px;
+  }
+
+  .ranking-table-card {
+    max-width: 950px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .ranking-table-header,
+  .ranking-table-row {
+    grid-template-columns: 80px 1fr 130px 130px 150px 160px;
+    padding: 15px 24px;
+    font-size: 13.5px;
+  }
+
+  .rank-number-badge {
+    font-size: 14px;
+  }
+
+  .player-name-cell strong {
+    font-size: 14.5px;
+  }
+
+  .power-number {
+    font-size: 14px;
+  }
+
+  .reward-king-badge {
+    font-size: 12.5px;
+    padding: 5px 12px;
+  }
+}
+
 
 
 

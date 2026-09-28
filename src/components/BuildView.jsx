@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { BUILDINGS_CONFIG, KING_CONFIG } from '../game/config'
 import {
   Hammer,
@@ -44,7 +44,17 @@ export default function BuildView({ gameState, onClose }) {
   const [activeTab, setActiveTab] = useState('citadel') // 'citadel' | 'inspector' | 'builder' | 'bonuses'
   const [selectedBuildingId, setSelectedBuildingId] = useState('castle')
 
-  const now = Date.now()
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!buildingUnderConstruction) return
+    setNow(Date.now())
+    const timer = setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [buildingUnderConstruction])
+
   const underConstruction = buildingUnderConstruction
   const remainingSec = underConstruction ? Math.max(1, Math.ceil((underConstruction.finishTime - now) / 1000)) : 0
   const speedCost = calculateKingCostForSec(remainingSec)

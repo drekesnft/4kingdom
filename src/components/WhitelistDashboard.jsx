@@ -237,6 +237,25 @@ export default function WhitelistDashboard({ user, onLogout }) {
               </div>
             </div>
           </div>
+
+          {/* Banner Oficial de Precio de Lanzamiento ($0.005 USD) */}
+          <div className="wl-token-price-banner">
+            <div className="wl-token-price-inner">
+              <div className="token-price-col">
+                <span className="token-price-eyebrow">PRECIO DE LANZAMIENTO OFICIAL ($KING)</span>
+                <div className="token-price-val">
+                  <span className="token-symbol-glow">🪙 1 $KING =</span>
+                  <strong className="token-usd-green">$0.005 USD</strong>
+                </div>
+              </div>
+              <div className="token-price-divider"></div>
+              <div className="token-price-example">
+                <span className="example-label">VALOR POR CADA ALIADO INVITADO:</span>
+                <strong className="example-val">5 KING ≈ $0.025 USD</strong>
+                <small className="example-sub">Airdrop garantizado en tu Vault para el lanzamiento oficial (29/09/2026)</small>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* ============================================================== */}
@@ -298,9 +317,9 @@ export default function WhitelistDashboard({ user, onLogout }) {
             <div className="wl-title-icon-wrap">
               <Coins size={26} className="gold-icon pulse" />
               <div>
-                <h2>Airdrop de Reclutamiento: 5 Tokens KING por Aliado</h2>
+                <h2>Airdrop de Reclutamiento: 5 Tokens KING (~$0.025 USD) por Aliado</h2>
                 <p>
-                  Ganas <strong>5 Tokens KING</strong> asegurados para tu Vault por cada gobernante que se registre en la Whitelist con tu código.
+                  Ganas <strong>5 Tokens KING (~$0.025 USD a precio de $0.005)</strong> asegurados para tu Vault por cada gobernante que se registre en la Whitelist con tu código.
                 </p>
               </div>
             </div>
@@ -309,6 +328,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <div>
                 <small>Tu Airdrop Acumulado:</small>
                 <strong>{stats.airdropTokens} KING</strong>
+                <span className="wl-usd-sub">≈ ${(stats.airdropTokens * 0.005).toFixed(3)} USD</span>
               </div>
             </div>
           </div>
@@ -397,6 +417,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <div>
                 <small>Tokens Ganados (5 c/u)</small>
                 <strong>{stats.airdropTokens} KING</strong>
+                <span className="wl-usd-sub-stat">≈ ${(stats.airdropTokens * 0.005).toFixed(3)} USD</span>
               </div>
             </div>
 
@@ -417,7 +438,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
         </section>
 
         {/* ============================================================== */}
-        {/* SECCIÓN 3: TOP 5 DE RECLUTADORES (100 KING + 3 PASES VIP)      */}
+        {/* SECCIÓN 3: TOP 5 DE RECLUTADORES (100 KING + DISTINCIONES)     */}
         {/* ============================================================== */}
         <section className="wl-top-referrals-section">
           <div className="section-title-wrap">
@@ -425,9 +446,9 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <Trophy size={20} className="gold-icon" />
             </div>
             <div>
-              <h2>Top 5 de Reclutadores (Pool Adicional de 100 KING + 3 Pases VIP)</h2>
+              <h2>Top 5 de Reclutadores (Pool Adicional de 100 KING / ~$0.50 USD)</h2>
               <p>
-                Los 5 comandantes que traigan más aliados se reparten 100 KING extra y los 3 primeros obtienen Pase VIP Fundador.
+                Los 5 comandantes que traigan más aliados se reparten 100 KING extra (~$0.50 USD a precio oficial de $0.005).
               </p>
             </div>
           </div>
@@ -475,6 +496,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
                     <div className="col-prize">
                       <div className="prize-wrap">
                         <span className="king-amt">+{ref.prizeKing} KING</span>
+                        <small className="usd-prize-tag">≈ ${(ref.prizeKing * 0.005).toFixed(3)} USD</small>
                         {ref.hasVip && <small className="vip-tag">+ Pase VIP</small>}
                       </div>
                     </div>
@@ -487,9 +509,9 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <div className="user-standing-summary">
                 <Award size={16} className="gold" />
                 <span>
-                  Tu récord actual: <strong>{stats.referralsCount} referidos</strong> · Airdrop directo: <strong>{stats.airdropTokens} KING</strong>.
+                  Tu récord actual: <strong>{stats.referralsCount} referidos</strong> · Airdrop directo: <strong>{stats.airdropTokens} KING (~${(stats.airdropTokens * 0.005).toFixed(3)} USD)</strong>.
                   {stats.referralsCount < 5
-                    ? ' ¡Invita aliados para escalar al Top 5 y ganar hasta 40 KING extra + Pase VIP!'
+                    ? ' ¡Invita aliados a $0.005/KING para escalar al Top 5 y ganar hasta 40 KING extra!'
                     : ' ¡Estás compitiendo en la cima de los 4 Reinos!'}
                 </span>
               </div>

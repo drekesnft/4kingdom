@@ -82,7 +82,6 @@ export default function LandingPage({ onPlay }) {
           <a href="#reinos">Cuatro Reinos</a>
           <a href="#economia">Economía</a>
           <a href="#guerra">Guerra de Clanes</a>
-          <a href="#packs">Packs de Inicio</a>
         </nav>
         {currentUser ? (
           <div className="landing-user-badge">
@@ -444,7 +443,8 @@ export default function LandingPage({ onPlay }) {
           </div>
         </section>
 
-        {/* 5. Packs de Inicio (PROTAGONISMO MÁXIMO) */}
+        {/* 5. Packs de Inicio (Oculto temporalmente) */}
+        {/*
         <section id="packs" className="section-container">
           <div className="section-header">
             <div className="eyebrow">TIENDA DE FUNDADORES</div>
@@ -456,7 +456,6 @@ export default function LandingPage({ onPlay }) {
           </div>
 
           <div className="packs-showcase">
-            {/* Pack Básico */}
             <article className="pack-card-premium">
               <div className="pack-tier-header">
                 <h3>Explorador</h3>
@@ -492,7 +491,6 @@ export default function LandingPage({ onPlay }) {
               </button>
             </article>
 
-            {/* Pack Avanzado (Destacado) */}
             <article className="pack-card-premium featured">
               <div className="pack-featured-badge">👑 MÁS RECOMENDADO</div>
               <div className="pack-tier-header">
@@ -533,7 +531,6 @@ export default function LandingPage({ onPlay }) {
               </button>
             </article>
 
-            {/* Pack Élite */}
             <article className="pack-card-premium">
               <div className="pack-tier-header">
                 <h3>Soberano</h3>
@@ -578,6 +575,7 @@ export default function LandingPage({ onPlay }) {
             </article>
           </div>
         </section>
+        */}
 
         {/* Final CTA Banner */}
         <section className="cta-banner">

@@ -5,7 +5,6 @@ import {
   Swords,
   Castle,
   Sparkles,
-  RefreshCw,
   Clock,
   Award,
   Shield,
@@ -149,21 +148,11 @@ export default function RankingView({ gameState, currentUser, onClose }) {
         )}
       </header>
 
-      {/* Banner de Estado en Tiempo Real & Reparto Diario */}
-      <div className="ranking-realtime-banner">
-        <div className="banner-live-col">
-          <div className="live-status-pill">
-            <span className="pulsing-green-dot"></span>
-            <strong>SUPABASE REALTIME ACTIVO</strong>
-          </div>
-          <p className="live-status-desc">
-            Cada mejora de edificio o tropa reordena los puestos en vivo sin recargar la página.
-          </p>
-        </div>
-
+      {/* Banner de Corte Diario */}
+      <div className="ranking-realtime-banner banner-clean">
         <div className="banner-countdown-col">
           <div className="countdown-pill">
-            <Clock size={14} className="gold" />
+            <Clock size={16} className="gold" />
             <span>Siguiente Corte Diario (00:00 UTC):</span>
             <strong>{schedule.formattedCountdown}</strong>
           </div>
@@ -171,16 +160,6 @@ export default function RankingView({ gameState, currentUser, onClose }) {
             Pool Diario: <strong>40 KING</strong> repartidos entre el Top 5
           </small>
         </div>
-
-        <button
-          type="button"
-          className={`btn-ranking-refresh ${isLoading ? 'loading' : ''}`}
-          onClick={handleManualRefresh}
-          title="Refrescar ranking manualmente"
-        >
-          <RefreshCw size={14} />
-          <span>{isLoading ? 'Sincronizando...' : 'Refrescar'}</span>
-        </button>
       </div>
 
       {/* PÓDIUM TOP 3 */}
@@ -223,7 +202,7 @@ export default function RankingView({ gameState, currentUser, onClose }) {
               </div>
               <div className="podium-prize champion-prize">
                 <strong>+15 KING</strong>
-                <small>/ corte diario + Pase VIP</small>
+                <small>/ corte diario</small>
               </div>
             </div>
           )}

@@ -435,6 +435,22 @@ const DEFAULT_ACCOUNTS = [
     onboardingCompleted: false,
     createdAt: new Date().toISOString(),
   },
+  {
+    email: 'sergiowalterdullar@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-SERG-WALT',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: true,
+    createdAt: new Date().toISOString(),
+  },
 ]
 
 export function normalizeBaseCoord(raw) {

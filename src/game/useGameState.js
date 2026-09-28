@@ -167,6 +167,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   const [speedMultiplier, setSpeedMultiplier] = useState(1) // 1x normal, configurable para testing
   const [hungerStartTime, setHungerStartTime] = useState(null)
   const resourceAccRef = useRef({ wood: 0, stone: 0, food: 0 })
+  const lastLocalSaveTimeRef = useRef(0)
+  const latestStateRef = useRef(null)
 
   // Guardar estado local
   useEffect(() => {
@@ -190,7 +192,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     } catch {}
   }, [userStorageKey, resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, clan, clanRallies, battleReports])
 
-  // Sincronización y Realtime con Supabase Backend (PC y Celular sincronizados)
+  // Sincronización y Realtime con Supabase Backend (PC y Celular sincronizados sin feedback loop)
   useEffect(() => {
     if (!isSupabaseConfigured || !playerId) return
     let isCancelled = false
@@ -198,21 +200,40 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     // 1. Cargar Reino Oficial desde Supabase
     gameService.loadKingdom(playerId).then((remoteKingdom) => {
       if (isCancelled || !remoteKingdom) return
-      console.info('[Supabase Sync] Reino sincronizado desde el Backend:', playerId)
 
-      if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
-        setResources({
-          wood: Math.floor(Number(remoteKingdom.wood) || 0),
-          stone: Math.floor(Number(remoteKingdom.stone) || 0),
-          food: Math.floor(Number(remoteKingdom.food) || 0),
+      // Cargar edificios fusionando con el progreso más avanzado
+      if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
+        setBuildings((prev) => {
+          const merged = { ...prev }
+          for (const [bId, lvl] of Object.entries(remoteKingdom.buildings)) {
+            merged[bId] = Math.max(prev[bId] || 0, Number(lvl) || 0)
+          }
+          return merged
         })
       }
-      if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
-        setBuildings((prev) => ({ ...prev, ...remoteKingdom.buildings }))
+
+      // Cargar recursos respetando progreso local si es mayor
+      if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
+        setResources((prev) => {
+          const localTotal = (prev.wood || 0) + (prev.stone || 0) + (prev.food || 0)
+          const remoteTotal = (Number(remoteKingdom.wood) || 0) + (Number(remoteKingdom.stone) || 0) + (Number(remoteKingdom.food) || 0)
+          if (localTotal > remoteTotal && localTotal > 0) return prev
+          return {
+            wood: Math.floor(Number(remoteKingdom.wood) || 0),
+            stone: Math.floor(Number(remoteKingdom.stone) || 0),
+            food: Math.floor(Number(remoteKingdom.food) || 0),
+          }
+        })
       }
+
       if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
-        setTroops((prev) => ({ ...prev, ...remoteKingdom.troops }))
+        setTroops((prev) => {
+          const localCount = totalTroopCount(prev)
+          const remoteCount = totalTroopCount(remoteKingdom.troops)
+          return remoteCount >= localCount ? { ...prev, ...remoteKingdom.troops } : prev
+        })
       }
+
       if (remoteKingdom.king_claimed !== undefined) {
         setKing((prev) => ({
           ...prev,
@@ -220,6 +241,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           pending: Number(remoteKingdom.king_pending || 0),
         }))
       }
+
       if (remoteKingdom.shield_until !== undefined && remoteKingdom.shield_until > 0) {
         setShieldUntil(Number(remoteKingdom.shield_until))
       }
@@ -249,7 +271,12 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       },
       (remoteKingdom) => {
         if (!remoteKingdom) return
-        console.info('[Supabase Realtime] Actualización de reino detectada desde otro dispositivo:', remoteKingdom)
+        // Evitar loop de eco si acabamos de guardar nosotros mismos
+        if (Date.now() - lastLocalSaveTimeRef.current < 5000) {
+          return
+        }
+
+        console.info('[Supabase Realtime] Actualización de reino desde otro dispositivo:', remoteKingdom)
         if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
           setResources({
             wood: Math.floor(Number(remoteKingdom.wood) || 0),
@@ -258,7 +285,13 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           })
         }
         if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
-          setBuildings((prev) => ({ ...prev, ...remoteKingdom.buildings }))
+          setBuildings((prev) => {
+            const merged = { ...prev }
+            for (const [bId, lvl] of Object.entries(remoteKingdom.buildings)) {
+              merged[bId] = Math.max(prev[bId] || 0, Number(lvl) || 0)
+            }
+            return merged
+          })
         }
         if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
           setTroops((prev) => ({ ...prev, ...remoteKingdom.troops }))
@@ -393,35 +426,34 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   const maxSimultaneousMarches = castleDef.marches
   const activeMarchesCount = marches.length
 
-  // Sincronización periódica con Supabase Backend (cada 20 segundos y al desmontar)
+  latestStateRef.current = {
+    resources,
+    king,
+    buildings,
+    troops,
+    shieldUntil,
+    kingdomPower,
+  }
+
+  // Sincronización periódica con Supabase Backend cada 30 segundos (estable, sin re-montar en cada tick)
   useEffect(() => {
     if (!isSupabaseConfigured || !playerId) return
 
     const timer = setInterval(() => {
-      const stateToSync = {
-        resources,
-        king,
-        buildings,
-        troops,
-        shieldUntil,
-        kingdomPower,
+      if (latestStateRef.current) {
+        lastLocalSaveTimeRef.current = Date.now()
+        gameService.syncKingdom(playerId, latestStateRef.current)
       }
-      gameService.syncKingdom(playerId, stateToSync)
-    }, 20000)
+    }, 30000)
 
     return () => {
       clearInterval(timer)
-      const stateToSync = {
-        resources,
-        king,
-        buildings,
-        troops,
-        shieldUntil,
-        kingdomPower,
+      if (latestStateRef.current) {
+        lastLocalSaveTimeRef.current = Date.now()
+        gameService.syncKingdom(playerId, latestStateRef.current)
       }
-      gameService.syncKingdom(playerId, stateToSync)
     }
-  }, [playerId, resources, king, buildings, troops, shieldUntil, kingdomPower])
+  }, [playerId])
 
   // --- TICKS EN TIEMPO REAL (1s) ---
   useEffect(() => {

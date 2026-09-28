@@ -65,7 +65,7 @@ export const TOP_REFERRAL_PRIZES = [
   { rank: 5, king: 8, vip: false, label: '🎖️ Top 5' },
 ]
 
-// Cuentas semilla de evaluadores Alpha autorizados (21 cuentas)
+// Cuentas semilla de evaluadores Alpha autorizados (22 cuentas)
 const DEFAULT_ACCOUNTS = [
   {
     email: 'antoniox4253@gmail.com',
@@ -394,6 +394,22 @@ const DEFAULT_ACCOUNTS = [
     role: 'alpha_player',
     provider: 'email',
     referralCode: 'FK-AYVA-GAM7',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    email: 'luiscelis38@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-LUIS-CELI',
     referredBy: null,
     referralsCount: 0,
     airdropTokens: 0,

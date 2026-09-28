@@ -105,8 +105,11 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     if (!isSupabaseConfigured || !playerId) return
     let isCancelled = false
 
-    // 1. Cargar Reino Oficial directamente desde Supabase Backend (100% Backend)
-    gameService.loadKingdom(playerId).then(async (remoteKingdom) => {
+    // 1. Cargar Reino Oficial y Marchas Activas directamente desde Supabase Backend (100% Backend)
+    Promise.all([
+      gameService.loadKingdom(playerId),
+      gameService.fetchActiveMarches(playerId),
+    ]).then(async ([remoteKingdom, remoteMarches]) => {
       if (isCancelled) return
 
       if (!remoteKingdom) {
@@ -136,12 +139,139 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       const loadedTroops = (remoteKingdom.troops && typeof remoteKingdom.troops === 'object')
         ? { ...INITIAL_PLAYER_DATA.troops, ...remoteKingdom.troops }
         : { ...INITIAL_PLAYER_DATA.troops }
-      setTroops(loadedTroops)
 
-      // CÁLCULO DE PRODUCCIÓN OFFLINE (Recursos acumulados mientras el jugador estuvo ausente)
       let baseWood = Math.floor(Number(remoteKingdom.wood) || 0)
       let baseStone = Math.floor(Number(remoteKingdom.stone) || 0)
       let baseFood = Math.floor(Number(remoteKingdom.food) || 0)
+      let baseKingPending = Number(remoteKingdom.king_pending || 0)
+
+      // Reconciliación y Rehidratación de Marchas desde Supabase (evita pérdida de tropas en refresh/offline)
+      const ongoingMarches = []
+      let marchesChangedState = false
+      const nowMs = Date.now()
+
+      if (Array.isArray(remoteMarches) && remoteMarches.length > 0) {
+        for (const rm of remoteMarches) {
+          const createdAt = rm.created_at ? new Date(rm.created_at).getTime() : nowMs
+          const arriveTime = rm.arrive_time ? new Date(rm.arrive_time).getTime() : nowMs
+          const returnTime = rm.return_time ? new Date(rm.return_time).getTime() : null
+          const army = rm.army || { infantry: 0, archer: 0, cavalry: 0 }
+          const loot = rm.loot || { wood: 0, stone: 0, food: 0 }
+          const kingLoot = Number(rm.king_loot || 0)
+
+          const oneWayMs = Math.max(10000, arriveTime - createdAt)
+          const carry = calculateArmyCarry(army)
+          const gatherMs = Math.max(15000, Math.min(180000, carry * 500))
+
+          let estimatedReturnTime = returnTime
+          if (!estimatedReturnTime) {
+            if (rm.type === 'gather') {
+              estimatedReturnTime = arriveTime + gatherMs + oneWayMs
+            } else {
+              estimatedReturnTime = arriveTime + oneWayMs
+            }
+          }
+
+          if (nowMs >= estimatedReturnTime) {
+            marchesChangedState = true
+            loadedTroops.infantry = (loadedTroops.infantry || 0) + (army.infantry || 0)
+            loadedTroops.archer = (loadedTroops.archer || 0) + (army.archer || 0)
+            loadedTroops.cavalry = (loadedTroops.cavalry || 0) + (army.cavalry || 0)
+
+            let finalLoot = { ...loot }
+            if (rm.type === 'gather' && finalLoot.wood === 0 && finalLoot.stone === 0 && finalLoot.food === 0) {
+              const mined = Math.min(carry, 500)
+              const tName = (rm.target_name || '').toLowerCase()
+              if (tName.includes('madera') || tName.includes('bosque')) finalLoot.wood = mined
+              else if (tName.includes('piedra') || tName.includes('cantera')) finalLoot.stone = mined
+              else finalLoot.food = mined
+            }
+            baseWood += (finalLoot.wood || 0)
+            baseStone += (finalLoot.stone || 0)
+            baseFood += (finalLoot.food || 0)
+            baseKingPending += kingLoot
+
+            await gameService.removeMarch(rm.id)
+
+            if (rm.type === 'gather') {
+              const gatherRep = generateGatherReport({
+                targetName: rm.target_name || 'Nodo de Recursos',
+                targetX: rm.target_x,
+                targetY: rm.target_y,
+                resourceType: finalLoot.wood > 0 ? 'wood' : (finalLoot.stone > 0 ? 'stone' : 'food'),
+                loot: finalLoot,
+                army: army,
+                carryCapacity: carry,
+                nodeResourceMax: 500,
+              })
+              setBattleReports((prev) => [gatherRep, ...prev])
+              gameService.saveReport(playerId, gatherRep)
+            }
+          } else {
+            let currentStatus = rm.status || 'traveling'
+            let gatherUntil = null
+            if (rm.type === 'gather') {
+              gatherUntil = arriveTime + gatherMs
+              if (nowMs >= gatherUntil) {
+                currentStatus = 'returning'
+              } else if (nowMs >= arriveTime) {
+                currentStatus = 'gathering'
+              } else {
+                currentStatus = 'traveling'
+              }
+            } else {
+              if (nowMs >= arriveTime) {
+                currentStatus = 'returning'
+              } else {
+                currentStatus = 'traveling'
+              }
+            }
+
+            ongoingMarches.push({
+              id: rm.id,
+              type: rm.type || 'gather',
+              originX: normalizedBase.worldX,
+              originY: normalizedBase.worldY,
+              targetX: rm.target_x,
+              targetY: rm.target_y,
+              targetName: rm.target_name || 'Objetivo',
+              army: army,
+              resourceType: rm.type === 'gather' ? (rm.target_name?.toLowerCase().includes('madera') ? 'wood' : rm.target_name?.toLowerCase().includes('piedra') ? 'stone' : 'food') : null,
+              nodeResourceMax: 500,
+              startTime: createdAt,
+              arriveTime: arriveTime,
+              gatherUntil: gatherUntil,
+              returnTime: estimatedReturnTime,
+              oneWayDurationMs: oneWayMs,
+              status: currentStatus,
+              loot: loot,
+              kingLoot: kingLoot,
+              distanceTiles: Math.max(Math.abs(rm.target_x - normalizedBase.worldX), Math.abs(rm.target_y - normalizedBase.worldY), 1),
+            })
+          }
+        }
+      }
+
+      setTroops(loadedTroops)
+      setMarches(ongoingMarches)
+
+      if (marchesChangedState) {
+        lastLocalSaveTimeRef.current = Date.now()
+        gameService.syncKingdom(playerId, {
+          resources: { wood: baseWood, stone: baseStone, food: baseFood },
+          king: {
+            claimed: Number(remoteKingdom.king_claimed || 0),
+            pending: Number(baseKingPending.toFixed(4)),
+            vault: Number(remoteKingdom.king_vault || 0),
+          },
+          buildings: loadedBuildings,
+          troops: loadedTroops,
+          shieldUntil: Number(remoteKingdom.shield_until || 0),
+          kingdomPower: (loadedBuildings.castle || 1) * 300 + (loadedTroops.infantry || 0) * 10 + (loadedTroops.archer || 0) * 15 + (loadedTroops.cavalry || 0) * 20,
+        })
+      }
+
+      // CÁLCULO DE PRODUCCIÓN OFFLINE (Recursos acumulados mientras el jugador estuvo ausente)
 
       if (remoteKingdom.updated_at) {
         const lastUpdatedMs = new Date(remoteKingdom.updated_at).getTime()
@@ -219,7 +349,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         setKing((prev) => ({
           ...prev,
           claimed: Number(remoteKingdom.king_claimed || 0),
-          pending: Number(remoteKingdom.king_pending || 0),
+          pending: Number(baseKingPending ?? remoteKingdom.king_pending ?? 0),
           vault: Number(remoteKingdom.king_vault || 0),
         }))
       }
@@ -697,6 +827,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                 ...march,
                 status: 'gathering',
               })
+              gameService.updateMarch(march.id, { status: 'gathering' })
               setRecentNotification(`Tus tropas llegaron a (${march.targetX}, ${march.targetY}) y han comenzado a recolectar.`)
             } else if (march.type === 'npc') {
               // Combate instantáneo contra NPC
@@ -767,8 +898,16 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                   loot: returningLoot,
                   kingLoot: returningKingLoot,
                 })
+                gameService.updateMarch(march.id, {
+                  status: 'returning',
+                  army: returningArmy,
+                  returnTime: now + travelBackDuration,
+                  loot: returningLoot,
+                  kingLoot: returningKingLoot,
+                })
                 setRecentNotification(`¡Batalla contra ${npcDef.name}: ${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}! ${march.isRally ? 'Tropas del Rally' : 'Supervivientes'} regresando.`)
               } else {
+                gameService.removeMarch(march.id)
                 setRecentNotification(`Derrota total ante ${npcDef.name}. Todas las tropas enviadas fueron aniquiladas.`)
               }
             } else if (march.type === 'pvp') {
@@ -834,8 +973,16 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                   loot: returningLoot,
                   kingLoot: returningKingLoot,
                 })
+                gameService.updateMarch(march.id, {
+                  status: 'returning',
+                  army: returningArmy,
+                  returnTime: now + march.oneWayDurationMs,
+                  loot: returningLoot,
+                  kingLoot: returningKingLoot,
+                })
                 setRecentNotification(`¡Asalto PvP: ${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}! Regresando con el botín.`)
               } else {
+                gameService.removeMarch(march.id)
                 setRecentNotification(`Tus tropas fueron derrotadas en el asalto PvP contra ${march.targetName}.`)
               }
             } else if (march.type === 'fortress' || march.type === 'capital') {
@@ -882,14 +1029,25 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                 setRecentNotification(`¡Conquista gloriosa de ${march.targetName}! Has reclamado el bastión.`)
               }
               if (totalTroopCount(returningArmy) > 0) {
+                const fLoot = battle.isAttackerVictory ? returningLoot : { wood: 0, stone: 0, food: 0 }
+                const fKing = battle.isAttackerVictory ? returningKingLoot : 0
                 updated.push({
                   ...march,
                   status: 'returning',
                   army: returningArmy,
                   returnTime: now + march.oneWayDurationMs,
-                  loot: battle.isAttackerVictory ? returningLoot : { wood: 0, stone: 0, food: 0 },
-                  kingLoot: battle.isAttackerVictory ? returningKingLoot : 0,
+                  loot: fLoot,
+                  kingLoot: fKing,
                 })
+                gameService.updateMarch(march.id, {
+                  status: 'returning',
+                  army: returningArmy,
+                  returnTime: now + march.oneWayDurationMs,
+                  loot: fLoot,
+                  kingLoot: fKing,
+                })
+              } else {
+                gameService.removeMarch(march.id)
               }
             } else if (march.type === 'reinforce') {
               // Marcha de refuerzo a base aliada del mismo clan
@@ -913,6 +1071,12 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                 loot: { wood: 0, stone: 0, food: 0 },
                 kingLoot: 0,
               })
+              gameService.updateMarch(march.id, {
+                status: 'returning',
+                returnTime: now + march.oneWayDurationMs,
+                loot: { wood: 0, stone: 0, food: 0 },
+                kingLoot: 0,
+              })
             }
           }
           // Fase 2: Recolección terminada -> Emprender viaje de regreso
@@ -928,6 +1092,11 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
             updated.push({
               ...march,
+              status: 'returning',
+              returnTime: now + march.oneWayDurationMs,
+              loot,
+            })
+            gameService.updateMarch(march.id, {
               status: 'returning',
               returnTime: now + march.oneWayDurationMs,
               loot,
@@ -1043,6 +1212,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                   distanceTiles,
                 }
                 setMarches((m) => [...m, rallyMarch])
+                gameService.registerMarch(playerId, rallyMarch)
                 setRecentNotification(`¡El Rally contra ${rally.targetName} ha partido con ${totalTroopCount(rally.totalArmy)} tropas combinadas!`)
                 updatedRallies.push({ ...rally, status: 'marching' })
               } else {
@@ -1558,8 +1728,9 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     }
 
     setMarches((prev) => prev.filter((m) => m.id !== marchId))
+    gameService.removeMarch(marchId)
     setRecentNotification('¡Marcha cancelada! Tus tropas han regresado de inmediato a tu castillo.')
-  }, [marches])
+  }, [marches, playerId])
 
   // Acelerar Marcha con KING:
   // Fase 1: Si status === 'traveling', acelera el viaje de IDA.
@@ -1658,6 +1829,11 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
             : m
         )
       )
+      gameService.updateMarch(marchId, {
+        status: 'returning',
+        returnTime: now + returnDuration,
+        loot,
+      })
 
       setRecentNotification(`¡Minería acelerada al 100% (-${cost} KING)! Cargamento listo. Tropas regresando (puedes acelerar el regreso si deseas).`)
       return
@@ -1681,6 +1857,9 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
               : m
           )
         )
+        gameService.updateMarch(marchId, {
+          status: 'gathering',
+        })
         setRecentNotification(`¡Ida acelerada (-${cost} KING)! Tus tropas llegaron a (${march.targetX}, ${march.targetY}) e inician recolección.`)
         return
       }
@@ -1753,6 +1932,13 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                 : m
             )
           )
+          gameService.updateMarch(marchId, {
+            status: 'returning',
+            army: returningArmy,
+            returnTime: now + returnDuration,
+            loot: returningLoot,
+            kingLoot: returningKingLoot,
+          })
           setRecentNotification(`¡Ida acelerada (-${cost} KING)! Batalla resuelta (${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}). Tropas regresando con el botín.`)
         } else {
           setMarches((prev) => prev.filter((m) => m.id !== marchId))
@@ -1828,6 +2014,13 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                 : m
             )
           )
+          gameService.updateMarch(marchId, {
+            status: 'returning',
+            army: returningArmy,
+            returnTime: now + returnDuration,
+            loot: returningLoot,
+            kingLoot: returningKingLoot,
+          })
           setRecentNotification(`¡Ida acelerada (-${cost} KING)! Asalto PvP: ${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'}. Tropas regresando a tu reino.`)
         } else {
           setMarches((prev) => prev.filter((m) => m.id !== marchId))
@@ -1894,6 +2087,13 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
                 : m
             )
           )
+          gameService.updateMarch(marchId, {
+            status: 'returning',
+            army: returningArmy,
+            returnTime: now + returnDuration,
+            loot: returningLoot,
+            kingLoot: returningKingLoot,
+          })
           setRecentNotification(`¡Ida acelerada (-${cost} KING)! Asalto resuelto. Tropas regresando a tu bastión.`)
         } else {
           setMarches((prev) => prev.filter((m) => m.id !== marchId))
@@ -1927,6 +2127,12 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
               : m
           )
         )
+        gameService.updateMarch(marchId, {
+          status: 'returning',
+          returnTime: now + returnDuration,
+          loot: { wood: 0, stone: 0, food: 0 },
+          kingLoot: 0,
+        })
         setRecentNotification(`¡Ida acelerada (-${cost} KING)! Refuerzos entregados inmediatamente. Transporte regresando a casa.`)
         return
       }

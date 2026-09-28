@@ -154,6 +154,56 @@ export const gameService = {
   },
 
   /**
+   * Actualiza el estado y datos de una marcha activa en Supabase
+   */
+  async updateMarch(marchId, updates) {
+    if (!isSupabaseConfigured || !supabase) return false
+
+    try {
+      const payload = {}
+      if (updates.status !== undefined) payload.status = updates.status
+      if (updates.arriveTime !== undefined) payload.arrive_time = updates.arriveTime ? new Date(updates.arriveTime).toISOString() : null
+      if (updates.returnTime !== undefined) payload.return_time = updates.returnTime ? new Date(updates.returnTime).toISOString() : null
+      if (updates.loot !== undefined) payload.loot = updates.loot
+      if (updates.kingLoot !== undefined) payload.king_loot = updates.kingLoot
+      if (updates.army !== undefined) payload.army = updates.army
+
+      const { error } = await supabase.from('marches').update(payload).eq('id', marchId)
+      if (error) {
+        console.error('[Supabase] Error al actualizar marcha:', error.message)
+        return false
+      }
+      return true
+    } catch (err) {
+      console.error('[Supabase] Excepción en updateMarch:', err)
+      return false
+    }
+  },
+
+  /**
+   * Carga todas las marchas activas de un jugador desde Supabase
+   */
+  async fetchActiveMarches(playerId) {
+    if (!isSupabaseConfigured || !supabase) return []
+
+    try {
+      const { data, error } = await supabase
+        .from('marches')
+        .select('*')
+        .eq('player_id', playerId)
+
+      if (error) {
+        console.error('[Supabase] Error al cargar marchas activas:', error.message)
+        return []
+      }
+      return data || []
+    } catch (err) {
+      console.error('[Supabase] Excepción en fetchActiveMarches:', err)
+      return []
+    }
+  },
+
+  /**
    * Elimina una marcha resuelta
    */
   async removeMarch(marchId) {

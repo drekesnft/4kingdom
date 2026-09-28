@@ -279,35 +279,6 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     }
   }, [playerId])
 
-  // 4. Guardar periódicamente en Supabase (cada 20 segundos y al desmontar)
-  useEffect(() => {
-    if (!isSupabaseConfigured || !playerId) return
-
-    const timer = setInterval(() => {
-      const stateToSync = {
-        resources,
-        king,
-        buildings,
-        troops,
-        shieldUntil,
-        kingdomPower,
-      }
-      gameService.syncKingdom(playerId, stateToSync)
-    }, 20000)
-
-    return () => {
-      clearInterval(timer)
-      const stateToSync = {
-        resources,
-        king,
-        buildings,
-        troops,
-        shieldUntil,
-        kingdomPower,
-      }
-      gameService.syncKingdom(playerId, stateToSync)
-    }
-  }, [playerId, resources, king, buildings, troops, shieldUntil, kingdomPower])
 
   // --- CÁLCULOS DINÁMICOS DERIVADOS ---
 
@@ -421,6 +392,36 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   // 5. Límites de marchas simultáneas (Sección 6)
   const maxSimultaneousMarches = castleDef.marches
   const activeMarchesCount = marches.length
+
+  // Sincronización periódica con Supabase Backend (cada 20 segundos y al desmontar)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !playerId) return
+
+    const timer = setInterval(() => {
+      const stateToSync = {
+        resources,
+        king,
+        buildings,
+        troops,
+        shieldUntil,
+        kingdomPower,
+      }
+      gameService.syncKingdom(playerId, stateToSync)
+    }, 20000)
+
+    return () => {
+      clearInterval(timer)
+      const stateToSync = {
+        resources,
+        king,
+        buildings,
+        troops,
+        shieldUntil,
+        kingdomPower,
+      }
+      gameService.syncKingdom(playerId, stateToSync)
+    }
+  }, [playerId, resources, king, buildings, troops, shieldUntil, kingdomPower])
 
   // --- TICKS EN TIEMPO REAL (1s) ---
   useEffect(() => {

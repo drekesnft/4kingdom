@@ -163,7 +163,7 @@ export default function WhitelistDashboard({ user, onLogout }) {
               <small>Panel de Comando del Pre-Registro</small>
               {isSupabaseConfigured ? (
                 <span className="wl-db-status connected" title="Conectado a la base de datos oficial de Supabase">
-                  🟢 Supabase Conectado
+                  🟢 Conectado
                 </span>
               ) : (
                 <span className="wl-db-status disconnected" title="Falta configurar VITE_SUPABASE_ANON_KEY en Vercel">

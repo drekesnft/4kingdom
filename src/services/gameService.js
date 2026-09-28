@@ -230,10 +230,10 @@ export const gameService = {
   },
 
   /**
-   * Obtiene el Top 5 real de reinos ordenados por Poder Militar (⭐)
+   * Obtiene el ranking real de reinos ordenados por Poder Militar (⭐) desde Supabase
    * CERO FALLBACKS: Muestra console.error en caso de error.
    */
-  async fetchTopKingdomsRanking() {
+  async fetchTopKingdomsRanking(limit = 50) {
     if (!isSupabaseConfigured || !supabase) {
       console.error('[Supabase Ranking Error] Backend no configurado para ranking de reinos')
       return []
@@ -242,12 +242,12 @@ export const gameService = {
     try {
       const { data, error } = await supabase
         .from('kingdoms')
-        .select('id, username, power, kingdom_id')
+        .select('id, username, power, buildings, troops, updated_at')
         .order('power', { ascending: false })
-        .limit(5)
+        .limit(limit)
 
       if (error) {
-        console.error('[Supabase Ranking Error] Error al consultar Top 5 Reinos:', {
+        console.error('[Supabase Ranking Error] Error al consultar Ranking de Reinos:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -256,8 +256,32 @@ export const gameService = {
       }
       return data || []
     } catch (err) {
-      console.error('[Supabase Ranking Exception] Error inesperado en Top 5:', err)
+      console.error('[Supabase Ranking Exception] Error inesperado en Ranking:', err)
       return []
+    }
+  },
+
+  /**
+   * Suscribe en tiempo real a cambios en el ranking de reinos (Supabase Realtime)
+   */
+  subscribeToRankingUpdates(onKingdomChanged) {
+    if (!isSupabaseConfigured || !supabase) return () => {}
+
+    const channel = supabase
+      .channel('realtime_all_kingdoms_ranking')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kingdoms' },
+        (payload) => {
+          if (onKingdomChanged && payload.new) {
+            onKingdomChanged(payload.new)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   },
 }

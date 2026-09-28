@@ -1,10 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2, HelpCircle, LogOut, Coins } from 'lucide-react'
+import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2, HelpCircle, LogOut, Coins, Trophy } from 'lucide-react'
 import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap, removeOldestGemTile, spawnGemTile } from './data/tileTypes'
 import LandingPage from './components/LandingPage'
 import BuildView from './components/BuildView'
 import BattleView from './components/BattleView'
 import ClanView from './components/ClanView'
+import RankingView from './components/RankingView'
 import MarketView from './components/MarketView'
 import MarchModal from './components/MarchModal'
 import BattleReportModal from './components/BattleReportModal'
@@ -36,7 +37,7 @@ const MENU_ITEMS = [
   { id: 'build', label: 'Mi Base', src: '/assets/ui/home.png' },
   { id: 'home', label: 'Mapa', isGlobe: true },
   { id: 'battle', label: 'Ejército', src: '/assets/ui/battle.png' },
-  { id: 'clan', label: 'Clan (Pronto)', src: '/assets/ui/clan.png' },
+  { id: 'ranking', label: 'Ranking', isTrophy: true },
   { id: 'market', label: 'Mercado (Pronto)', src: '/assets/ui/market.png' },
 ]
 
@@ -1202,7 +1203,13 @@ export default function App() {
             onOpenReport={(rep) => setSelectedReport(rep)}
           />
         )}
-        {activeMenu === 'clan' && <ClanView gameState={gameState} onClose={() => setActiveMenu('home')} />}
+        {activeMenu === 'ranking' && (
+          <RankingView
+            gameState={gameState}
+            currentUser={currentUser}
+            onClose={() => setActiveMenu('home')}
+          />
+        )}
         {activeMenu === 'market' && <MarketView gameState={gameState} onClose={() => setActiveMenu('home')} />}
 
         {/* Barra de Notificaciones */}
@@ -1225,6 +1232,10 @@ export default function App() {
               {item.isGlobe ? (
                 <div className="nav-globe-wrap">
                   <Globe2 className="nav-globe-icon" size={24} />
+                </div>
+              ) : item.isTrophy ? (
+                <div className="nav-globe-wrap nav-trophy-wrap">
+                  <Trophy className="nav-globe-icon nav-trophy-icon" size={24} />
                 </div>
               ) : (
                 <img className="nav-art" src={item.src} alt="" draggable="false" />

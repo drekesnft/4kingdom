@@ -419,6 +419,22 @@ const DEFAULT_ACCOUNTS = [
     onboardingCompleted: false,
     createdAt: new Date().toISOString(),
   },
+  {
+    email: 'jhosielalejandro@gmail.com',
+    tempPassword: 'alpha',
+    passwordHash: 'alpha',
+    role: 'alpha_player',
+    provider: 'email',
+    referralCode: 'FK-JHOS-ALEJ',
+    referredBy: null,
+    referralsCount: 0,
+    airdropTokens: 0,
+    mustChangePassword: true,
+    assignedKingdom: null,
+    baseCoord: null,
+    onboardingCompleted: false,
+    createdAt: new Date().toISOString(),
+  },
 ]
 
 export function normalizeBaseCoord(raw) {

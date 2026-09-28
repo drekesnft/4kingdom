@@ -457,11 +457,6 @@ export default function ReferralModal({ isOpen, onClose, user }) {
 
                       <div className="col-user">
                         <span className={`user-name ${ref.isVacant ? 'vacant-text' : ''}`}>{ref.name}</span>
-                        {ref.hasVip && (
-                          <span className="vip-badge" title="Pase VIP Fundador Alpha">
-                            👑 PASE VIP
-                          </span>
-                        )}
                         {isUser && !ref.isVacant && <span className="you-pill">TÚ</span>}
                       </div>
 
@@ -477,7 +472,6 @@ export default function ReferralModal({ isOpen, onClose, user }) {
                         <div className="prize-wrap">
                           <span className="king-amt">+{ref.prizeKing} KING</span>
                           <small className="usd-prize-tag">≈ ${(ref.prizeKing * 0.005).toFixed(3)} USD</small>
-                          {ref.hasVip && <small className="vip-tag">+ Pase VIP</small>}
                         </div>
                       </div>
                     </div>

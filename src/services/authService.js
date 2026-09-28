@@ -50,17 +50,17 @@ export const COMMUNITY_MILESTONES = [
   },
   {
     target: 2000,
-    title: '👑 Meta Suprema (Primeros 2,000): Plano Exclusivo + VIP',
-    reward: 'Plano Exclusivo de Ciudadela + Distinción VIP Fundador para los primeros 2,000',
+    title: '👑 Meta Suprema (Primeros 2,000): Plano Exclusivo',
+    reward: 'Plano Exclusivo de Ciudadela para los primeros 2,000',
     badge: 'Soberano Fundador',
-    desc: 'Plano indispensable de alta arquitectura para fortificaciones y distinción permanente de Fundador Alpha.',
+    desc: 'Plano indispensable de alta arquitectura para fortificaciones y expansiones avanzadas.',
   },
 ]
 
 export const TOP_REFERRAL_PRIZES = [
-  { rank: 1, king: 40, vip: true, label: '🥇 Top 1' },
-  { rank: 2, king: 25, vip: true, label: '🥈 Top 2' },
-  { rank: 3, king: 15, vip: true, label: '🥉 Top 3' },
+  { rank: 1, king: 40, vip: false, label: '🥇 Top 1' },
+  { rank: 2, king: 25, vip: false, label: '🥈 Top 2' },
+  { rank: 3, king: 15, vip: false, label: '🥉 Top 3' },
   { rank: 4, king: 12, vip: false, label: '🎖️ Top 4' },
   { rank: 5, king: 8, vip: false, label: '🎖️ Top 5' },
 ]

@@ -97,30 +97,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   const [hungerStartTime, setHungerStartTime] = useState(null)
   const resourceAccRef = useRef({ wood: 0, stone: 0, food: 0 })
   const lastLocalSaveTimeRef = useRef(0)
+  const lastTickTimeRef = useRef(Date.now())
   const latestStateRef = useRef(null)
-
-  // Guardar estado local
-  useEffect(() => {
-    const stateToSave = {
-      savedAt: Date.now(),
-      resources,
-      king,
-      buildings,
-      buildingUnderConstruction,
-      troops,
-      trainingQueue,
-      marches,
-      hero,
-      shieldUntil,
-      clan,
-      clanRallies,
-      battleReports: battleReports.slice(0, 30),
-    }
-    try {
-      localStorage.setItem(userStorageKey, JSON.stringify(stateToSave))
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
-    } catch {}
-  }, [userStorageKey, resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, clan, clanRallies, battleReports])
 
   // Sincronización y Realtime con Supabase Backend (PC y Celular sincronizados sin feedback loop)
   useEffect(() => {
@@ -149,25 +127,94 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       console.info('[Supabase Backend] Reino cargado 100% desde backend:', playerId, remoteKingdom)
 
       // Cargar edificios directamente del backend
-      if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
-        setBuildings({ ...INITIAL_PLAYER_DATA.buildings, ...remoteKingdom.buildings })
-      }
-
-      // Cargar recursos directamente del backend
-      if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
-        setResources({
-          wood: Math.floor(Number(remoteKingdom.wood) || 0),
-          stone: Math.floor(Number(remoteKingdom.stone) || 0),
-          food: Math.floor(Number(remoteKingdom.food) || 0),
-        })
-      }
+      const loadedBuildings = (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object')
+        ? { ...INITIAL_PLAYER_DATA.buildings, ...remoteKingdom.buildings }
+        : { ...INITIAL_PLAYER_DATA.buildings }
+      setBuildings(loadedBuildings)
 
       // Cargar tropas directamente del backend
-      if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
-        setTroops({ ...INITIAL_PLAYER_DATA.troops, ...remoteKingdom.troops })
+      const loadedTroops = (remoteKingdom.troops && typeof remoteKingdom.troops === 'object')
+        ? { ...INITIAL_PLAYER_DATA.troops, ...remoteKingdom.troops }
+        : { ...INITIAL_PLAYER_DATA.troops }
+      setTroops(loadedTroops)
+
+      // CÁLCULO DE PRODUCCIÓN OFFLINE (Recursos acumulados mientras el jugador estuvo ausente)
+      let baseWood = Math.floor(Number(remoteKingdom.wood) || 0)
+      let baseStone = Math.floor(Number(remoteKingdom.stone) || 0)
+      let baseFood = Math.floor(Number(remoteKingdom.food) || 0)
+
+      if (remoteKingdom.updated_at) {
+        const lastUpdatedMs = new Date(remoteKingdom.updated_at).getTime()
+        const nowMs = Date.now()
+        // Tiempo transcurrido en segundos (tope máximo 24h = 86400s)
+        const elapsedSec = Math.max(0, Math.min(86400, Math.floor((nowMs - lastUpdatedMs) / 1000)))
+
+        if (elapsedSec >= 10) {
+          const castleLvl = loadedBuildings.castle || 1
+          const castleDef = BUILDINGS_CONFIG.castle.levels[castleLvl] || BUILDINGS_CONFIG.castle.levels[1]
+          const passiveRates = castleDef.passivePerHour || { wood: 50, stone: 40, food: 60 }
+
+          // Consumo de comida según tropas y capacidad logística
+          const granaryLvl = loadedBuildings.granary || 1
+          const granaryDef = BUILDINGS_CONFIG.granary.levels[granaryLvl] || BUILDINGS_CONFIG.granary.levels[1]
+          const logCap = granaryDef.logisticsCapacity || 100
+          const troopTotal = (loadedTroops.infantry || 0) + (loadedTroops.archer || 0) + (loadedTroops.cavalry || 0)
+          const logRatio = logCap > 0 ? (troopTotal / logCap) : 1
+          let logMult = 1
+          for (const step of LOGISTICS_PENALTIES) {
+            if (logRatio <= step.threshold) {
+              logMult = step.multiplier
+              break
+            }
+          }
+          if (logRatio > 2.00) logMult = 3.00
+
+          const baseUpkeep = (loadedTroops.infantry || 0) * 1 + (loadedTroops.archer || 0) * 1 + (loadedTroops.cavalry || 0) * 2
+          const foodUpkeepPerHour = Math.round(baseUpkeep * logMult)
+
+          const hoursElapsed = elapsedSec / 3600
+          const offlineWood = Math.floor(passiveRates.wood * hoursElapsed)
+          const offlineStone = Math.floor(passiveRates.stone * hoursElapsed)
+          const netFoodPerHour = passiveRates.food - foodUpkeepPerHour
+          const offlineFood = Math.floor(netFoodPerHour * hoursElapsed)
+
+          baseWood += offlineWood
+          baseStone += offlineStone
+          baseFood = Math.max(0, baseFood + offlineFood)
+
+          console.info(`[Offline Production] Transcurrieron ${elapsedSec}s offline. Producido: +${offlineWood}W, +${offlineStone}S, ${offlineFood >= 0 ? '+' : ''}${offlineFood}F`)
+
+          if (offlineWood > 0 || offlineStone > 0) {
+            const timeDesc = elapsedSec >= 3600
+              ? `${(elapsedSec / 3600).toFixed(1)}h`
+              : `${Math.round(elapsedSec / 60)} min`
+            setRecentNotification(`¡Bienvenido de vuelta! Tu reino acumuló +${offlineWood} Madera, +${offlineStone} Piedra y ${offlineFood >= 0 ? '+' : ''}${offlineFood} Comida en tu ausencia (${timeDesc}).`)
+          }
+
+          // Sincronizar de inmediato la acumulación offline con el backend
+          lastLocalSaveTimeRef.current = Date.now()
+          gameService.syncKingdom(playerId, {
+            resources: { wood: baseWood, stone: baseStone, food: baseFood },
+            king: {
+              claimed: Number(remoteKingdom.king_claimed || 0),
+              pending: Number(remoteKingdom.king_pending || 0),
+              vault: Number(remoteKingdom.king_vault || 0),
+            },
+            buildings: loadedBuildings,
+            troops: loadedTroops,
+            shieldUntil: Number(remoteKingdom.shield_until || 0),
+            kingdomPower: Number(remoteKingdom.power || 300),
+          })
+        }
       }
 
-      // Cargar KING directamente del backend
+      setResources({
+        wood: baseWood,
+        stone: baseStone,
+        food: baseFood,
+      })
+
+      // Cargar KING directamente del backend (cero generación pasiva de KING)
       if (remoteKingdom.king_claimed !== undefined) {
         setKing((prev) => ({
           ...prev,
@@ -197,17 +244,26 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       },
       (remoteKingdom) => {
         if (!remoteKingdom) return
-        // Evitar bucle de eco si acabamos de guardar nosotros mismos
-        if (Date.now() - lastLocalSaveTimeRef.current < 3000) {
+        // Evitar bucle de eco si acabamos de guardar nosotros mismos (ventana de 15s)
+        if (Date.now() - lastLocalSaveTimeRef.current < 15000) {
           return
         }
 
         console.info('[Supabase Realtime] Sincronización instantánea desde otro dispositivo:', remoteKingdom)
         if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
-          setResources({
-            wood: Math.floor(Number(remoteKingdom.wood) || 0),
-            stone: Math.floor(Number(remoteKingdom.stone) || 0),
-            food: Math.floor(Number(remoteKingdom.food) || 0),
+          setResources((prev) => {
+            const diffWood = Math.abs(prev.wood - remoteKingdom.wood)
+            const diffStone = Math.abs(prev.stone - remoteKingdom.stone)
+            const diffFood = Math.abs(prev.food - remoteKingdom.food)
+            // Solo sobrescribir si el cambio es significativo (> 5), representando acciones en otro dispositivo
+            if (diffWood > 5 || diffStone > 5 || diffFood > 5) {
+              return {
+                wood: Math.floor(Number(remoteKingdom.wood) || 0),
+                stone: Math.floor(Number(remoteKingdom.stone) || 0),
+                food: Math.floor(Number(remoteKingdom.food) || 0),
+              }
+            }
+            return prev
           })
         }
         if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
@@ -391,6 +447,50 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         handleExitSync()
+      } else if (document.visibilityState === 'visible') {
+        // Al regresar del segundo plano en móvil o PC, recuperar producción de inmediato
+        const now = Date.now()
+        const lastTick = lastTickTimeRef.current || now
+        const elapsedSec = (now - lastTick) / 1000
+        if (elapsedSec >= 2) {
+          const deltaSec = Math.min(1800, elapsedSec)
+          lastTickTimeRef.current = now
+
+          const woodRate = (passiveProductionPerHour.wood / 3600) * deltaSec
+          const stoneRate = (passiveProductionPerHour.stone / 3600) * deltaSec
+          const netFoodRate = ((passiveProductionPerHour.food - totalFoodUpkeepPerHour) / 3600) * deltaSec
+
+          resourceAccRef.current.wood += woodRate
+          resourceAccRef.current.stone += stoneRate
+          resourceAccRef.current.food += netFoodRate
+
+          let woodAdd = 0
+          if (resourceAccRef.current.wood >= 1) {
+            woodAdd = Math.floor(resourceAccRef.current.wood)
+            resourceAccRef.current.wood -= woodAdd
+          }
+          let stoneAdd = 0
+          if (resourceAccRef.current.stone >= 1) {
+            stoneAdd = Math.floor(resourceAccRef.current.stone)
+            resourceAccRef.current.stone -= stoneAdd
+          }
+          let foodAdd = 0
+          if (resourceAccRef.current.food >= 1) {
+            foodAdd = Math.floor(resourceAccRef.current.food)
+            resourceAccRef.current.food -= foodAdd
+          } else if (resourceAccRef.current.food <= -1) {
+            foodAdd = Math.ceil(resourceAccRef.current.food)
+            resourceAccRef.current.food -= foodAdd
+          }
+
+          if (woodAdd !== 0 || stoneAdd !== 0 || foodAdd !== 0) {
+            setResources((prev) => ({
+              wood: prev.wood + woodAdd,
+              stone: prev.stone + stoneAdd,
+              food: Math.max(0, prev.food + foodAdd),
+            }))
+          }
+        }
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -400,7 +500,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       window.removeEventListener('pagehide', handleExitSync)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [playerId, triggerBackendSync])
+  }, [playerId, triggerBackendSync, passiveProductionPerHour, totalFoodUpkeepPerHour])
 
   // Sincronizar inmediatamente al completar o cambiar edificios, tropas o escudo
   useEffect(() => {
@@ -413,11 +513,16 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
   // --- TICKS EN TIEMPO REAL (1s) ---
   useEffect(() => {
+    lastTickTimeRef.current = Date.now()
     const interval = setInterval(() => {
       const now = Date.now()
 
-      // A. Producción Pasiva & Consumo de Comida por segundo (acumulación exacta en enteros)
-      const deltaSec = 1
+      // A. Producción Pasiva & Consumo de Comida por segundo (acumulación con delta real)
+      const lastTick = lastTickTimeRef.current || now
+      lastTickTimeRef.current = now
+      const rawDeltaSec = (now - lastTick) / 1000
+      // Absorbe retrasos del navegador o suspensión en móviles (máx 1800s = 30m)
+      const deltaSec = Math.max(0.1, Math.min(1800, rawDeltaSec))
       const woodRate = (passiveProductionPerHour.wood / 3600) * deltaSec
       const stoneRate = (passiveProductionPerHour.stone / 3600) * deltaSec
       const netFoodRate = ((passiveProductionPerHour.food - totalFoodUpkeepPerHour) / 3600) * deltaSec

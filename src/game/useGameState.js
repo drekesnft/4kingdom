@@ -29,91 +29,81 @@ import { getOrCreatePlayerId, isSupabaseConfigured } from '../services/supabaseC
 
 const STORAGE_KEY = 'fourkingdoms_alpha_save_v2'
 
-export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 12 }) {
+export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 12 }, userEmail = null) {
   const normalizedBase = useMemo(() => {
     const bx = baseCoord?.worldX ?? baseCoord?.x ?? -12
     const by = baseCoord?.worldY ?? baseCoord?.y ?? 12
     return { worldX: bx, worldY: by, x: bx, y: by }
   }, [baseCoord?.worldX, baseCoord?.x, baseCoord?.worldY, baseCoord?.y])
 
+  const resolvedPlayerId = (userEmail && typeof userEmail === 'string' && userEmail.includes('@'))
+    ? userEmail.trim().toLowerCase()
+    : getOrCreatePlayerId()
+
+  const playerId = useMemo(() => resolvedPlayerId, [resolvedPlayerId])
+  const userStorageKey = useMemo(() => `fourkingdoms_alpha_save_${playerId}`, [playerId])
+
+  const loadSavedState = () => {
+    try {
+      if (typeof window === 'undefined') return null
+      const perUser = localStorage.getItem(`fourkingdoms_alpha_save_${resolvedPlayerId}`)
+      if (perUser) return JSON.parse(perUser)
+      const fallback = localStorage.getItem(STORAGE_KEY)
+      if (fallback) return JSON.parse(fallback)
+    } catch {}
+    return null
+  }
+
   // Estado persistente o inicial
   const [resources, setResources] = useState(() => {
     try {
       localStorage.removeItem('fourkingdoms_alpha_save_v1')
     } catch {}
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).resources } catch {}
-    }
-    return { ...INITIAL_PLAYER_DATA.resources }
+    const saved = loadSavedState()
+    return saved?.resources || { ...INITIAL_PLAYER_DATA.resources }
   })
 
   const [king, setKing] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (parsed.king) {
-          if (parsed.king.claimed === 120) {
-            parsed.king.claimed = INITIAL_PLAYER_DATA.king.claimed
-          }
-          return parsed.king
-        }
-      } catch {}
+    const saved = loadSavedState()
+    if (saved?.king) {
+      if (saved.king.claimed === 120) {
+        saved.king.claimed = INITIAL_PLAYER_DATA.king.claimed
+      }
+      return saved.king
     }
     return { ...INITIAL_PLAYER_DATA.king }
   })
 
   const [buildings, setBuildings] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved).buildings
-        if (parsed && typeof parsed.castle === 'number') return parsed
-      } catch {}
+    const saved = loadSavedState()
+    if (saved?.buildings && typeof saved.buildings.castle === 'number') {
+      return saved.buildings
     }
     return { ...INITIAL_PLAYER_DATA.buildings }
   })
 
   const [buildingUnderConstruction, setBuildingUnderConstruction] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).buildingUnderConstruction } catch {}
-    }
-    return null // { buildingId, targetLevel, finishTime, totalSec }
+    return loadSavedState()?.buildingUnderConstruction || null
   })
 
   const [troops, setTroops] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).troops } catch {}
-    }
-    return { ...INITIAL_PLAYER_DATA.troops }
+    return loadSavedState()?.troops || { ...INITIAL_PLAYER_DATA.troops }
   })
 
   const [trainingQueue, setTrainingQueue] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).trainingQueue } catch {}
-    }
-    return [] // [{ id, troopId, count, finishTime, totalSec }]
+    return loadSavedState()?.trainingQueue || []
   })
 
   const [marches, setMarches] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved).marches
-        if (Array.isArray(parsed)) {
-          const bx = baseCoord?.worldX ?? baseCoord?.x ?? -12
-          const by = baseCoord?.worldY ?? baseCoord?.y ?? 12
-          return parsed.map((m) => ({
-            ...m,
-            originX: typeof m.originX === 'number' ? m.originX : bx,
-            originY: typeof m.originY === 'number' ? m.originY : by,
-          }))
-        }
-      } catch {}
+    const saved = loadSavedState()
+    if (saved && Array.isArray(saved.marches)) {
+      const bx = baseCoord?.worldX ?? baseCoord?.x ?? -12
+      const by = baseCoord?.worldY ?? baseCoord?.y ?? 12
+      return saved.marches.map((m) => ({
+        ...m,
+        originX: typeof m.originX === 'number' ? m.originX : bx,
+        originY: typeof m.originY === 'number' ? m.originY : by,
+      }))
     }
     return []
   })
@@ -147,42 +137,26 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   })
 
   const [shieldUntil, setShieldUntil] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).shieldUntil } catch {}
-    }
-    return Date.now() + 24 * 3600 * 1000 // 24h inicial
+    const saved = loadSavedState()
+    return saved?.shieldUntil || (Date.now() + 24 * 3600 * 1000) // 24h inicial
   })
 
   const [battleReports, setBattleReports] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).battleReports } catch {}
-    }
-    return []
+    const saved = loadSavedState()
+    return saved?.battleReports || []
   })
 
   // Cero Fallbacks: el jugador no pertenece a ningún clan hasta crearlo o unirse
   const [clan, setClan] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (parsed.clan && parsed.clan.id !== 'clan_valyria') return parsed.clan
-      } catch {}
-    }
+    const saved = loadSavedState()
+    if (saved?.clan && saved.clan.id !== 'clan_valyria') return saved.clan
     return null
   })
 
   // Cero Fallbacks: sin rallies bots simulados
   const [clanRallies, setClanRallies] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (parsed.clanRallies) return parsed.clanRallies.filter((r) => r.id !== 'rally_demo_1')
-      } catch {}
-    }
+    const saved = loadSavedState()
+    if (saved?.clanRallies) return saved.clanRallies.filter((r) => r.id !== 'rally_demo_1')
     return []
   })
 
@@ -192,8 +166,9 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   const [recentNotification, setRecentNotification] = useState(null)
   const [speedMultiplier, setSpeedMultiplier] = useState(1) // 1x normal, configurable para testing
   const [hungerStartTime, setHungerStartTime] = useState(null)
+  const resourceAccRef = useRef({ wood: 0, stone: 0, food: 0 })
 
-  // Guardar estado
+  // Guardar estado local
   useEffect(() => {
     const stateToSave = {
       resources,
@@ -209,40 +184,130 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       clanRallies,
       battleReports: battleReports.slice(0, 30),
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
-  }, [resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, clan, clanRallies, battleReports])
+    try {
+      localStorage.setItem(userStorageKey, JSON.stringify(stateToSave))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
+    } catch {}
+  }, [userStorageKey, resources, king, buildings, buildingUnderConstruction, troops, trainingQueue, marches, hero, shieldUntil, clan, clanRallies, battleReports])
 
-  const playerId = useMemo(() => getOrCreatePlayerId(), [])
-
-  // Sincronización y Realtime con Supabase Backend
+  // Sincronización y Realtime con Supabase Backend (PC y Celular sincronizados)
   useEffect(() => {
-    if (!isSupabaseConfigured) return
+    if (!isSupabaseConfigured || !playerId) return
+    let isCancelled = false
 
-    gameService.fetchReports(playerId).then((remoteReports) => {
-      if (remoteReports && remoteReports.length > 0) {
-        setBattleReports((prev) => {
-          const ids = new Set(prev.map((r) => r.id))
-          const merged = [...prev]
-          for (const rep of remoteReports) {
-            if (!ids.has(rep.id)) {
-              merged.push(rep)
-              ids.add(rep.id)
-            }
-          }
-          return merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+    // 1. Cargar Reino Oficial desde Supabase
+    gameService.loadKingdom(playerId).then((remoteKingdom) => {
+      if (isCancelled || !remoteKingdom) return
+      console.info('[Supabase Sync] Reino sincronizado desde el Backend:', playerId)
+
+      if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
+        setResources({
+          wood: Math.floor(Number(remoteKingdom.wood) || 0),
+          stone: Math.floor(Number(remoteKingdom.stone) || 0),
+          food: Math.floor(Number(remoteKingdom.food) || 0),
         })
+      }
+      if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
+        setBuildings((prev) => ({ ...prev, ...remoteKingdom.buildings }))
+      }
+      if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
+        setTroops((prev) => ({ ...prev, ...remoteKingdom.troops }))
+      }
+      if (remoteKingdom.king_claimed !== undefined) {
+        setKing((prev) => ({
+          ...prev,
+          claimed: Number(remoteKingdom.king_claimed || 0),
+          pending: Number(remoteKingdom.king_pending || 0),
+        }))
+      }
+      if (remoteKingdom.shield_until !== undefined && remoteKingdom.shield_until > 0) {
+        setShieldUntil(Number(remoteKingdom.shield_until))
       }
     })
 
+    // 2. Cargar reportes de combate y recolección
+    gameService.fetchReports(playerId).then((remoteReports) => {
+      if (isCancelled || !remoteReports || remoteReports.length === 0) return
+      setBattleReports((prev) => {
+        const ids = new Set(prev.map((r) => r.id))
+        const merged = [...prev]
+        for (const rep of remoteReports) {
+          if (!ids.has(rep.id)) {
+            merged.push(rep)
+            ids.add(rep.id)
+          }
+        }
+        return merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      })
+    })
+
+    // 3. Suscripción en Tiempo Real para cambios simultáneos entre PC y Celular
     const unsubscribe = gameService.subscribeToUpdates(
       playerId,
       (newReport) => {
         setBattleReports((prev) => [newReport, ...prev.filter((r) => r.id !== newReport.id)])
+      },
+      (remoteKingdom) => {
+        if (!remoteKingdom) return
+        console.info('[Supabase Realtime] Actualización de reino detectada desde otro dispositivo:', remoteKingdom)
+        if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
+          setResources({
+            wood: Math.floor(Number(remoteKingdom.wood) || 0),
+            stone: Math.floor(Number(remoteKingdom.stone) || 0),
+            food: Math.floor(Number(remoteKingdom.food) || 0),
+          })
+        }
+        if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
+          setBuildings((prev) => ({ ...prev, ...remoteKingdom.buildings }))
+        }
+        if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
+          setTroops((prev) => ({ ...prev, ...remoteKingdom.troops }))
+        }
+        if (remoteKingdom.king_claimed !== undefined) {
+          setKing((prev) => ({
+            ...prev,
+            claimed: Number(remoteKingdom.king_claimed || 0),
+            pending: Number(remoteKingdom.king_pending || 0),
+          }))
+        }
       }
     )
 
-    return () => unsubscribe()
+    return () => {
+      isCancelled = true
+      if (unsubscribe) unsubscribe()
+    }
   }, [playerId])
+
+  // 4. Guardar periódicamente en Supabase (cada 20 segundos y al desmontar)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !playerId) return
+
+    const timer = setInterval(() => {
+      const stateToSync = {
+        resources,
+        king,
+        buildings,
+        troops,
+        shieldUntil,
+        kingdomPower,
+      }
+      gameService.syncKingdom(playerId, stateToSync)
+    }, 20000)
+
+    return () => {
+      clearInterval(timer)
+      const stateToSync = {
+        resources,
+        king,
+        buildings,
+        troops,
+        shieldUntil,
+        kingdomPower,
+      }
+      gameService.syncKingdom(playerId, stateToSync)
+    }
+  }, [playerId, resources, king, buildings, troops, shieldUntil, kingdomPower])
 
   // --- CÁLCULOS DINÁMICOS DERIVADOS ---
 
@@ -362,24 +427,49 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     const interval = setInterval(() => {
       const now = Date.now()
 
-      // A. Producción Pasiva & Consumo de Comida por segundo (100% tiempo real en enteros)
-      let isZeroFood = false
-      setResources((prev) => {
-        const deltaSec = 1
-        const woodAdd = Math.max(1, Math.floor((passiveProductionPerHour.wood / 3600) * deltaSec))
-        const stoneAdd = Math.max(1, Math.floor((passiveProductionPerHour.stone / 3600) * deltaSec))
-        const foodProd = Math.max(1, Math.floor((passiveProductionPerHour.food / 3600) * deltaSec))
-        const foodUpkeep = (totalFoodUpkeepPerHour / 3600) * deltaSec
-        const netFoodDelta = foodProd - foodUpkeep
-        const nextFood = Math.max(0, Math.floor(prev.food + netFoodDelta))
+      // A. Producción Pasiva & Consumo de Comida por segundo (acumulación exacta en enteros)
+      const deltaSec = 1
+      const woodRate = (passiveProductionPerHour.wood / 3600) * deltaSec
+      const stoneRate = (passiveProductionPerHour.stone / 3600) * deltaSec
+      const netFoodRate = ((passiveProductionPerHour.food - totalFoodUpkeepPerHour) / 3600) * deltaSec
 
-        if (nextFood <= 0) isZeroFood = true
-        return {
-          wood: Math.floor(prev.wood + woodAdd),
-          stone: Math.floor(prev.stone + stoneAdd),
-          food: nextFood,
-        }
-      })
+      resourceAccRef.current.wood += woodRate
+      resourceAccRef.current.stone += stoneRate
+      resourceAccRef.current.food += netFoodRate
+
+      let woodAdd = 0
+      if (resourceAccRef.current.wood >= 1) {
+        woodAdd = Math.floor(resourceAccRef.current.wood)
+        resourceAccRef.current.wood -= woodAdd
+      }
+
+      let stoneAdd = 0
+      if (resourceAccRef.current.stone >= 1) {
+        stoneAdd = Math.floor(resourceAccRef.current.stone)
+        resourceAccRef.current.stone -= stoneAdd
+      }
+
+      let foodAdd = 0
+      if (resourceAccRef.current.food >= 1) {
+        foodAdd = Math.floor(resourceAccRef.current.food)
+        resourceAccRef.current.food -= foodAdd
+      } else if (resourceAccRef.current.food <= -1) {
+        foodAdd = Math.ceil(resourceAccRef.current.food)
+        resourceAccRef.current.food -= foodAdd
+      }
+
+      let isZeroFood = false
+      if (woodAdd !== 0 || stoneAdd !== 0 || foodAdd !== 0) {
+        setResources((prev) => {
+          const nextFood = Math.max(0, prev.food + foodAdd)
+          if (nextFood <= 0 && foodAdd < 0) isZeroFood = true
+          return {
+            wood: prev.wood + woodAdd,
+            stone: prev.stone + stoneAdd,
+            food: nextFood,
+          }
+        })
+      }
 
       // Control de hambre y deserción progresiva tras más de 1 hora (3600s)
       setHungerStartTime((currentStart) => {

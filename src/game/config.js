@@ -181,11 +181,11 @@ export const BUILDINGS_CONFIG = {
     description: 'Edificio principal del reino. Define el nivel máximo de otros edificios, marchas y poder.',
     icon: '🏰',
     levels: {
-      1: { power: 100, marches: 1, passivePerHour: { wood: 3600, stone: 3600, food: 3600 }, upgradeTimeSec: 0, cost: { wood: 0, stone: 0, food: 0 } }, // +1/s
-      2: { power: 250, marches: 2, passivePerHour: { wood: 7200, stone: 7200, food: 7200 }, upgradeTimeSec: 28800, cost: { wood: 3000, stone: 2500, food: 2000 } }, // +2/s
-      3: { power: 500, marches: 2, passivePerHour: { wood: 14400, stone: 10800, food: 14400 }, upgradeTimeSec: 86400, cost: { wood: 8000, stone: 7000, food: 5000 } }, // +4/s, +3/s, +4/s
-      4: { power: 900, marches: 3, passivePerHour: { wood: 25200, stone: 21600, food: 28800 }, upgradeTimeSec: 259200, cost: { wood: 18000, stone: 16000, food: 12000 } }, // +7/s, +6/s, +8/s
-      5: { power: 1500, marches: 3, passivePerHour: { wood: 43200, stone: 36000, food: 50400 }, upgradeTimeSec: 604800, cost: { wood: 40000, stone: 36000, food: 28000 } }, // +12/s, +10/s, +14/s
+      1: { power: 100, marches: 1, passivePerHour: { wood: 50, stone: 40, food: 60 }, upgradeTimeSec: 0, cost: { wood: 0, stone: 0, food: 0 } },
+      2: { power: 250, marches: 2, passivePerHour: { wood: 80, stone: 65, food: 95 }, upgradeTimeSec: 28800, cost: { wood: 3000, stone: 2500, food: 2000 } }, // 8h
+      3: { power: 500, marches: 2, passivePerHour: { wood: 125, stone: 100, food: 150 }, upgradeTimeSec: 86400, cost: { wood: 8000, stone: 7000, food: 5000 } }, // 24h
+      4: { power: 900, marches: 3, passivePerHour: { wood: 190, stone: 150, food: 225 }, upgradeTimeSec: 259200, cost: { wood: 18000, stone: 16000, food: 12000 } }, // 72h
+      5: { power: 1500, marches: 3, passivePerHour: { wood: 280, stone: 225, food: 335 }, upgradeTimeSec: 604800, cost: { wood: 40000, stone: 36000, food: 28000 } }, // 168h
     },
   },
   barracks: {

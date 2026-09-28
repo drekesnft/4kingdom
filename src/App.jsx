@@ -146,7 +146,7 @@ export default function App() {
     return `${bx + CENTER_INDEX}-${CENTER_INDEX - by}`
   }, [currentBase])
 
-  const gameState = useGameState(currentBase)
+  const gameState = useGameState(currentBase, currentUser?.email)
 
   const initialMap = useMemo(() => {
     const generated = generateMap(MAP_SIZE)

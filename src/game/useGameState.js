@@ -124,10 +124,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   }, [normalizedBase.worldX, normalizedBase.worldY])
 
   const [hero, setHero] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try { return JSON.parse(saved).hero } catch {}
-    }
+    const saved = loadSavedState()
+    if (saved?.hero) return saved.hero
     return {
       energy: 3,
       maxEnergy: 3,
@@ -173,6 +171,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   // Guardar estado local
   useEffect(() => {
     const stateToSave = {
+      savedAt: Date.now(),
       resources,
       king,
       buildings,
@@ -201,7 +200,12 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     gameService.loadKingdom(playerId).then((remoteKingdom) => {
       if (isCancelled || !remoteKingdom) return
 
-      // Cargar edificios fusionando con el progreso más avanzado
+      const localSaved = loadSavedState()
+      const hasLocalUserSave = Boolean(playerId && localStorage.getItem(`fk_save_${playerId.toLowerCase()}`))
+      const remoteUpdatedAt = remoteKingdom.updated_at ? new Date(remoteKingdom.updated_at).getTime() : 0
+      const localSavedAt = localSaved?.savedAt || 0
+
+      // Cargar edificios fusionando con el progreso más avanzado (nunca degradar niveles)
       if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
         setBuildings((prev) => {
           const merged = { ...prev }
@@ -212,25 +216,31 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         })
       }
 
-      // Cargar recursos respetando progreso local si es mayor
+      // Cargar recursos:
+      // Si el dispositivo es nuevo (sin guardado local previo) o el backend es más reciente, cargar de backend
       if (remoteKingdom.wood !== undefined && remoteKingdom.stone !== undefined && remoteKingdom.food !== undefined) {
         setResources((prev) => {
-          const localTotal = (prev.wood || 0) + (prev.stone || 0) + (prev.food || 0)
-          const remoteTotal = (Number(remoteKingdom.wood) || 0) + (Number(remoteKingdom.stone) || 0) + (Number(remoteKingdom.food) || 0)
-          if (localTotal > remoteTotal && localTotal > 0) return prev
-          return {
-            wood: Math.floor(Number(remoteKingdom.wood) || 0),
-            stone: Math.floor(Number(remoteKingdom.stone) || 0),
-            food: Math.floor(Number(remoteKingdom.food) || 0),
+          if (!hasLocalUserSave || remoteUpdatedAt >= localSavedAt) {
+            return {
+              wood: Math.floor(Number(remoteKingdom.wood) || 0),
+              stone: Math.floor(Number(remoteKingdom.stone) || 0),
+              food: Math.floor(Number(remoteKingdom.food) || 0),
+            }
           }
+          return prev
         })
       }
 
       if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
         setTroops((prev) => {
-          const localCount = totalTroopCount(prev)
-          const remoteCount = totalTroopCount(remoteKingdom.troops)
-          return remoteCount >= localCount ? { ...prev, ...remoteKingdom.troops } : prev
+          if (!hasLocalUserSave || remoteUpdatedAt >= localSavedAt) {
+            return { ...prev, ...remoteKingdom.troops }
+          }
+          const merged = { ...prev }
+          for (const [tId, count] of Object.entries(remoteKingdom.troops)) {
+            merged[tId] = Math.max(prev[tId] || 0, Number(count) || 0)
+          }
+          return merged
         })
       }
 
@@ -449,6 +459,45 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       }
     }
   }, [playerId])
+
+  // Guardado inmediato en Supabase al cerrar pestaña, cambiar de aplicación en móvil o bloquear pantalla
+  useEffect(() => {
+    if (!isSupabaseConfigured || !playerId) return
+
+    const handleExitSync = () => {
+      if (latestStateRef.current) {
+        lastLocalSaveTimeRef.current = Date.now()
+        gameService.syncKingdom(playerId, latestStateRef.current)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleExitSync)
+    window.addEventListener('pagehide', handleExitSync)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleExitSync()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleExitSync)
+      window.removeEventListener('pagehide', handleExitSync)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [playerId])
+
+  // Sincronizar inmediatamente al completar o cambiar edificios, tropas o escudo
+  useEffect(() => {
+    if (!isSupabaseConfigured || !playerId) return
+    const debounceTimer = setTimeout(() => {
+      if (latestStateRef.current) {
+        lastLocalSaveTimeRef.current = Date.now()
+        gameService.syncKingdom(playerId, latestStateRef.current)
+      }
+    }, 1500)
+    return () => clearTimeout(debounceTimer)
+  }, [playerId, buildings, troops, shieldUntil])
 
   // --- TICKS EN TIEMPO REAL (1s) ---
   useEffect(() => {

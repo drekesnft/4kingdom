@@ -623,6 +623,48 @@ export const authService = {
   },
 
   /**
+   * Refresca la sesión activa consultando directamente el backend de Supabase.
+   * Garantiza que cualquier cambio realizado desde PC o Celular se refleje de inmediato.
+   */
+  async refreshSessionFromBackend(emailInput) {
+    if (!isSupabaseConfigured || !supabase) return null
+    const email = (emailInput || '').trim().toLowerCase()
+    if (!email) return null
+
+    try {
+      const { data, error } = await supabase
+        .from('user_accounts')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle()
+
+      if (error || !data) return null
+
+      const current = this.getCurrentUser() || {}
+
+      const updated = {
+        ...current,
+        email: data.email,
+        role: data.role || current.role || 'alpha_player',
+        provider: data.provider || current.provider || 'email',
+        referralCode: data.referral_code || current.referralCode || generateReferralCode(data.email),
+        referredBy: data.referred_by || current.referredBy || null,
+        assignedKingdom: data.assigned_kingdom || current.assignedKingdom || null,
+        baseCoord: normalizeBaseCoord(data.base_coord) || current.baseCoord || null,
+        onboardingCompleted: Boolean(data.onboarding_completed ?? current.onboardingCompleted),
+        referralsCount: data.referrals_count ?? current.referralsCount ?? 0,
+        airdropTokens: data.airdrop_tokens ?? current.airdropTokens ?? 0,
+        sessionExpiresAt: Date.now() + SEVEN_DAYS_MS,
+      }
+
+      this.setCurrentUser(updated)
+      return updated
+    } catch {
+      return null
+    }
+  },
+
+  /**
    * Cierra la sesión activa
    */
   logout() {

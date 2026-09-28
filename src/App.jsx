@@ -167,7 +167,7 @@ export default function App() {
   const [notice, setNotice] = useState('FourKingdoms Alpha v0.1 · Toca recursos, bases, o campamentos para interactuar.')
   const [activeMenu, setActiveMenu] = useState('build')
   const [coordQuery, setCoordQuery] = useState('')
-  const [currentView, setCurrentView] = useState('landing')
+  const [currentView, setCurrentView] = useState(() => (authService.getCurrentUser() ? 'game' : 'landing'))
   const [forceUnlocked, setForceUnlocked] = useState(false)
 
   useEffect(() => {
@@ -192,6 +192,12 @@ export default function App() {
       }
     } catch (err) {
       console.warn('[URL Cleaner Exception]:', err)
+    }
+
+    if (currentUser?.email) {
+      authService.refreshSessionFromBackend(currentUser.email).then((refreshed) => {
+        if (refreshed) setCurrentUser(refreshed)
+      })
     }
 
     const unsubscribe = authService.initSupabaseAuthListener((authenticatedUser) => {

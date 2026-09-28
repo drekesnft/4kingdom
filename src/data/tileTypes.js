@@ -61,13 +61,13 @@ export function assignPlayerBase(tiles, targetId, owner = 'Jugador', clanTag = n
     const dx = Math.abs(tile.worldX - target.worldX)
     const dy = Math.abs(tile.worldY - target.worldY)
     const distance = Math.max(dx, dy)
-    return distance >= 2 && distance <= 3
+    return distance >= 4 && distance <= 8
   })
 
   const ordered = seededOrder(ring, target.worldX, target.worldY)
-  const woodCount = 2 + (hash(target.worldX, target.worldY, 31) % 2)
-  const stoneCount = 2 + (hash(target.worldX, target.worldY, 47) % 2)
-  const foodCount = 4
+  const woodCount = 1 + (hash(target.worldX, target.worldY, 31) % 2)
+  const stoneCount = 1 + (hash(target.worldX, target.worldY, 47) % 2)
+  const foodCount = 2
   const needed = woodCount + stoneCount + foodCount
   if (ordered.length < needed) return { tiles, assigned: false, reason: 'No hay espacio suficiente alrededor de esta casilla.' }
 

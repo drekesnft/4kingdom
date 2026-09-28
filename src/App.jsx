@@ -161,7 +161,51 @@ export default function App() {
     return `${bx + CENTER_INDEX}-${CENTER_INDEX - by}`
   }, [currentBase])
 
-  const gameState = useGameState(currentBase, currentUser?.email)
+  const [pendingRespawns, setPendingRespawns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('fourkingdoms_pending_respawns_v1')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const speedMultiplierRef = useRef(1)
+
+  const handleNodeDepleted = useCallback(({ targetX, targetY, resourceType, targetLevel = 1 }) => {
+    setTiles((prevTiles) => {
+      const targetTile = prevTiles.find((t) => t.worldX === targetX && t.worldY === targetY)
+      if (!targetTile || targetTile.isPlayerBase || targetTile.type === 'base') return prevTiles
+
+      const originalType = targetTile.type
+      const respawnDelaySec = Math.max(30, (RESOURCE_TIERS[targetLevel]?.respawnSec || 1800) / (speedMultiplierRef.current || 1))
+      const respawnTime = Date.now() + respawnDelaySec * 1000
+
+      setPendingRespawns((prev) => {
+        const next = [
+          ...prev,
+          {
+            id: `resp_${Date.now()}_${Math.random()}`,
+            tileId: targetTile.id,
+            resourceType: originalType,
+            respawnAt: respawnTime,
+            level: targetLevel,
+          },
+        ]
+        try {
+          localStorage.setItem('fourkingdoms_pending_respawns_v1', JSON.stringify(next))
+        } catch {}
+        return next
+      })
+
+      return prevTiles.map((t) => (t.id === targetTile.id ? { ...t, type: 'base' } : t))
+    })
+
+    setNotice(`¡Yacimiento agotado en (${targetX}, ${targetY})! Ha desaparecido y reaparecerá en otra ubicación tras el respawn.`)
+  }, [])
+
+  const gameState = useGameState(currentBase, currentUser?.email, { onNodeDepleted: handleNodeDepleted })
+  speedMultiplierRef.current = gameState.speedMultiplier || 1
 
   const initialMap = useMemo(() => {
     const generated = generateMap(MAP_SIZE)
@@ -173,7 +217,10 @@ export default function App() {
     return demo.assigned ? demo.tiles : generated
   }, [currentBaseId, currentUser?.assignedKingdom, currentUser?.email])
 
-  const [tiles, setTiles] = useState(() => initialMap.map((t) => t.type === 'gems' ? { ...t, type: 'base' } : t))
+  const [tiles, setTiles] = useState(() => {
+    const pendingTileIds = new Set(pendingRespawns.map((r) => r.tileId))
+    return initialMap.map((t) => (t.type === 'gems' || pendingTileIds.has(t.id) ? { ...t, type: 'base' } : t))
+  })
   const [selectedId, setSelectedId] = useState(currentBaseId)
   const [popupOpen, setPopupOpen] = useState(false)
   const [scale, setScale] = useState(INITIAL_SCALE)
@@ -185,9 +232,47 @@ export default function App() {
   const [forceUnlocked, setForceUnlocked] = useState(false)
 
   useEffect(() => {
-    setTiles(initialMap.map((t) => t.type === 'gems' ? { ...t, type: 'base' } : t))
+    const pendingTileIds = new Set(pendingRespawns.map((r) => r.tileId))
+    setTiles(initialMap.map((t) => (t.type === 'gems' || pendingTileIds.has(t.id) ? { ...t, type: 'base' } : t)))
     setSelectedId(currentBaseId)
-  }, [initialMap, currentBaseId])
+  }, [initialMap, currentBaseId, pendingRespawns])
+
+  // Verificación periódica para reaparición (respawn) de yacimientos agotados en nuevas casillas
+  useEffect(() => {
+    if (!pendingRespawns.length) return
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const ready = pendingRespawns.filter((r) => now >= r.respawnAt)
+      if (ready.length > 0) {
+        const remaining = pendingRespawns.filter((r) => now < r.respawnAt)
+        setPendingRespawns(remaining)
+        try {
+          localStorage.setItem('fourkingdoms_pending_respawns_v1', JSON.stringify(remaining))
+        } catch {}
+
+        setTiles((prev) => {
+          let nextTiles = [...prev]
+          const bx = currentBase?.worldX ?? currentBase?.x ?? 0
+          const by = currentBase?.worldY ?? currentBase?.y ?? 0
+
+          for (const item of ready) {
+            const candidates = nextTiles.filter(
+              (t) => t.type === 'base' && !t.isPlayerBase &&
+                     Math.max(Math.abs(t.worldX - bx), Math.abs(t.worldY - by)) >= 4
+            )
+            if (candidates.length > 0) {
+              const chosen = candidates[Math.floor(Math.random() * candidates.length)]
+              nextTiles = nextTiles.map((t) => (t.id === chosen.id ? { ...t, type: item.resourceType } : t))
+              console.info(`[Resource Respawn] ${item.resourceType} respawned at (${chosen.worldX}, ${chosen.worldY})`)
+              setNotice(`¡Nuevo yacimiento de recursos ha surgido en el continente en (${chosen.worldX}, ${chosen.worldY})!`)
+            }
+          }
+          return nextTiles
+        })
+      }
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [pendingRespawns, currentBase])
 
   // Escuchar retorno de Google OAuth y persistencia de 7 días
   useEffect(() => {

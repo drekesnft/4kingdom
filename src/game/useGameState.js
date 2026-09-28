@@ -29,7 +29,11 @@ import { getOrCreatePlayerId, isSupabaseConfigured } from '../services/supabaseC
 
 const STORAGE_KEY = 'fourkingdoms_alpha_save_v2'
 
-export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 12 }, userEmail = null) {
+export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 12 }, userEmail = null, options = {}) {
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+  const isLoadedRef = useRef(false)
+
   const normalizedBase = useMemo(() => {
     const bx = baseCoord?.worldX ?? baseCoord?.x ?? -12
     const by = baseCoord?.worldY ?? baseCoord?.y ?? 12
@@ -318,42 +322,18 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         activeQueue = remainingQueue
       }
 
-      setBuildings(loadedBuildings)
-      setBuildingUnderConstruction(activeConstruction)
-      setTroops(loadedTroops)
-      setTrainingQueue(activeQueue)
-      setMarches(ongoingMarches)
-
-      if (marchesChangedState || constructionChangedOffline || queueChangedOffline) {
-        lastLocalSaveTimeRef.current = Date.now()
-        gameService.syncKingdom(playerId, {
-          resources: { wood: baseWood, stone: baseStone, food: baseFood },
-          king: {
-            claimed: Number(remoteKingdom.king_claimed || 0),
-            pending: Number(baseKingPending.toFixed(4)),
-            vault: Number(remoteKingdom.king_vault || 0),
-          },
-          buildings: loadedBuildings,
-          troops: loadedTroops,
-          shieldUntil: Number(remoteKingdom.shield_until || 0),
-          kingdomPower: (loadedBuildings.castle || 1) * 300 + (loadedTroops.infantry || 0) * 10 + (loadedTroops.archer || 0) * 15 + (loadedTroops.cavalry || 0) * 20,
-          buildingUnderConstruction: activeConstruction,
-          trainingQueue: activeQueue,
-        })
-      }
-
       // CÁLCULO DE PRODUCCIÓN OFFLINE (Recursos acumulados mientras el jugador estuvo ausente)
-
+      let offlineProductionAdded = false
       if (remoteKingdom.updated_at) {
         const lastUpdatedMs = new Date(remoteKingdom.updated_at).getTime()
         const nowMs = Date.now()
         // Tiempo transcurrido en segundos (tope máximo 24h = 86400s)
         const elapsedSec = Math.max(0, Math.min(86400, Math.floor((nowMs - lastUpdatedMs) / 1000)))
 
-        if (elapsedSec >= 10) {
+        if (elapsedSec >= 5) {
           const castleLvl = loadedBuildings.castle || 1
           const castleDef = BUILDINGS_CONFIG.castle.levels[castleLvl] || BUILDINGS_CONFIG.castle.levels[1]
-          const passiveRates = castleDef.passivePerHour || { wood: 50, stone: 40, food: 60 }
+          const passiveRates = castleDef.passivePerHour || { wood: 300, stone: 240, food: 360 }
 
           // Consumo de comida según tropas y capacidad logística
           const granaryLvl = loadedBuildings.granary || 1
@@ -382,6 +362,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           baseWood += offlineWood
           baseStone += offlineStone
           baseFood = Math.max(0, baseFood + offlineFood)
+          offlineProductionAdded = true
 
           console.info(`[Offline Production] Transcurrieron ${elapsedSec}s offline. Producido: +${offlineWood}W, +${offlineStone}S, ${offlineFood >= 0 ? '+' : ''}${offlineFood}F`)
 
@@ -391,31 +372,39 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
               : `${Math.round(elapsedSec / 60)} min`
             setRecentNotification(`¡Bienvenido de vuelta! Tu reino acumuló +${offlineWood} Madera, +${offlineStone} Piedra y ${offlineFood >= 0 ? '+' : ''}${offlineFood} Comida en tu ausencia (${timeDesc}).`)
           }
-
-          // Sincronizar de inmediato la acumulación offline con el backend
-          lastLocalSaveTimeRef.current = Date.now()
-          gameService.syncKingdom(playerId, {
-            resources: { wood: baseWood, stone: baseStone, food: baseFood },
-            king: {
-              claimed: Number(remoteKingdom.king_claimed || 0),
-              pending: Number(remoteKingdom.king_pending || 0),
-              vault: Number(remoteKingdom.king_vault || 0),
-            },
-            buildings: loadedBuildings,
-            troops: loadedTroops,
-            shieldUntil: Number(remoteKingdom.shield_until || 0),
-            kingdomPower: Number(remoteKingdom.power || 300),
-            buildingUnderConstruction: activeConstruction,
-            trainingQueue: activeQueue,
-          })
         }
       }
 
+      setBuildings(loadedBuildings)
+      setBuildingUnderConstruction(activeConstruction)
+      setTroops(loadedTroops)
+      setTrainingQueue(activeQueue)
+      setMarches(ongoingMarches)
       setResources({
         wood: baseWood,
         stone: baseStone,
         food: baseFood,
       })
+
+      if (marchesChangedState || constructionChangedOffline || queueChangedOffline || offlineProductionAdded) {
+        lastLocalSaveTimeRef.current = Date.now()
+        gameService.syncKingdom(playerId, {
+          resources: { wood: baseWood, stone: baseStone, food: baseFood },
+          king: {
+            claimed: Number(remoteKingdom.king_claimed || 0),
+            pending: Number(baseKingPending.toFixed(4)),
+            vault: Number(remoteKingdom.king_vault || 0),
+          },
+          buildings: loadedBuildings,
+          troops: loadedTroops,
+          shieldUntil: Number(remoteKingdom.shield_until || 0),
+          kingdomPower: (loadedBuildings.castle || 1) * 300 + (loadedTroops.infantry || 0) * 10 + (loadedTroops.archer || 0) * 15 + (loadedTroops.cavalry || 0) * 20,
+          buildingUnderConstruction: activeConstruction,
+          trainingQueue: activeQueue,
+        })
+      }
+
+      isLoadedRef.current = true
 
       // Cargar KING directamente del backend (cero generación pasiva de KING)
       if (remoteKingdom.king_claimed !== undefined) {
@@ -633,7 +622,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
   // Disparador de sincronización directa con Supabase Backend (Cero almacenamiento local)
   const triggerBackendSync = useCallback((override = null) => {
-    if (!isSupabaseConfigured || !playerId) return
+    if (!isSupabaseConfigured || !playerId || !isLoadedRef.current) return
     const stateToSync = override || latestStateRef.current
     if (stateToSync) {
       lastLocalSaveTimeRef.current = Date.now()
@@ -716,7 +705,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         const lastTick = lastTickTimeRef.current || now
         const elapsedSec = (now - lastTick) / 1000
         if (elapsedSec >= 2) {
-          const deltaSec = Math.min(1800, elapsedSec)
+          const deltaSec = Math.max(0.1, Math.min(86400, elapsedSec))
           lastTickTimeRef.current = now
 
           const woodRate = (passiveProductionPerHour.wood / 3600) * deltaSec
@@ -784,8 +773,8 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       const lastTick = lastTickTimeRef.current || now
       lastTickTimeRef.current = now
       const rawDeltaSec = (now - lastTick) / 1000
-      // Absorbe retrasos del navegador o suspensión en móviles (máx 1800s = 30m)
-      const deltaSec = Math.max(0.1, Math.min(1800, rawDeltaSec))
+      // Absorbe retrasos del navegador o suspensión en móviles (máx 86400s = 24h)
+      const deltaSec = Math.max(0.1, Math.min(86400, rawDeltaSec))
       const woodRate = (passiveProductionPerHour.wood / 3600) * deltaSec
       const stoneRate = (passiveProductionPerHour.stone / 3600) * deltaSec
       const netFoodRate = ((passiveProductionPerHour.food - totalFoodUpkeepPerHour) / 3600) * deltaSec
@@ -1252,6 +1241,14 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
               returnTime: now + march.oneWayDurationMs,
               loot,
             })
+            if (optionsRef.current?.onNodeDepleted) {
+              optionsRef.current.onNodeDepleted({
+                targetX: march.targetX,
+                targetY: march.targetY,
+                resourceType: march.resourceType,
+                targetLevel: march.targetLevel || 1,
+              })
+            }
             setRecentNotification(`Recolección finalizada en (${march.targetX}, ${march.targetY}). Marcha regresando a casa con el cargamento.`)
           }
           // Fase 3: Regreso completado -> Tropas vuelven a casa y se acredita el botín
@@ -1991,6 +1988,15 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         returnTime: now + returnDuration,
         loot,
       })
+
+      if (optionsRef.current?.onNodeDepleted) {
+        optionsRef.current.onNodeDepleted({
+          targetX: march.targetX,
+          targetY: march.targetY,
+          resourceType: march.resourceType,
+          targetLevel: march.targetLevel || 1,
+        })
+      }
 
       setRecentNotification(`¡Minería acelerada al 100% (-${cost} KING)! Cargamento listo. Tropas regresando (puedes acelerar el regreso si deseas).`)
       return

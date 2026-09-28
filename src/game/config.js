@@ -95,9 +95,9 @@ export function getRankingPayoutSchedule() {
 
 export const INITIAL_PLAYER_DATA = {
   resources: {
-    wood: 1500,
-    stone: 1500,
-    food: 1800,
+    wood: 1200,
+    stone: 1200,
+    food: 1200,
   },
   king: {
     pending: 0,
@@ -181,11 +181,11 @@ export const BUILDINGS_CONFIG = {
     description: 'Edificio principal del reino. Define el nivel máximo de otros edificios, marchas y poder.',
     icon: '🏰',
     levels: {
-      1: { power: 100, marches: 1, passivePerHour: { wood: 50, stone: 40, food: 60 }, upgradeTimeSec: 0, cost: { wood: 0, stone: 0, food: 0 } },
-      2: { power: 250, marches: 2, passivePerHour: { wood: 80, stone: 65, food: 95 }, upgradeTimeSec: 28800, cost: { wood: 3000, stone: 2500, food: 2000 } }, // 8h
-      3: { power: 500, marches: 2, passivePerHour: { wood: 125, stone: 100, food: 150 }, upgradeTimeSec: 86400, cost: { wood: 8000, stone: 7000, food: 5000 } }, // 24h
-      4: { power: 900, marches: 3, passivePerHour: { wood: 190, stone: 150, food: 225 }, upgradeTimeSec: 259200, cost: { wood: 18000, stone: 16000, food: 12000 } }, // 72h
-      5: { power: 1500, marches: 3, passivePerHour: { wood: 280, stone: 225, food: 335 }, upgradeTimeSec: 604800, cost: { wood: 40000, stone: 36000, food: 28000 } }, // 168h
+      1: { power: 100, marches: 1, passivePerHour: { wood: 300, stone: 240, food: 360 }, upgradeTimeSec: 0, cost: { wood: 0, stone: 0, food: 0 } },
+      2: { power: 250, marches: 2, passivePerHour: { wood: 520, stone: 430, food: 620 }, upgradeTimeSec: 28800, cost: { wood: 3000, stone: 2500, food: 2000 } }, // 8h
+      3: { power: 500, marches: 2, passivePerHour: { wood: 850, stone: 700, food: 1020 }, upgradeTimeSec: 86400, cost: { wood: 8000, stone: 7000, food: 5000 } }, // 24h
+      4: { power: 900, marches: 3, passivePerHour: { wood: 1400, stone: 1150, food: 1680 }, upgradeTimeSec: 259200, cost: { wood: 18000, stone: 16000, food: 12000 } }, // 72h
+      5: { power: 1500, marches: 3, passivePerHour: { wood: 2200, stone: 1800, food: 2640 }, upgradeTimeSec: 604800, cost: { wood: 40000, stone: 36000, food: 28000 } }, // 168h
     },
   },
   barracks: {

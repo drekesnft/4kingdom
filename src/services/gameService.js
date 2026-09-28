@@ -372,5 +372,125 @@ export const gameService = {
       supabase.removeChannel(channel)
     }
   },
+
+  /**
+   * Valida si un nombre de usuario / gobernante está disponible en Supabase
+   * CERO DUPLICADOS: Compara con 'kingdoms' y 'user_accounts' excluyendo el usuario actual
+   */
+  async checkUsernameAvailable(username, currentUserId = '') {
+    const clean = (username || '').trim()
+    const myId = (currentUserId || '').trim().toLowerCase()
+
+    if (!clean || clean.length < 3) {
+      return { available: false, error: 'El nombre debe tener al menos 3 caracteres.' }
+    }
+    if (clean.length > 20) {
+      return { available: false, error: 'El nombre no puede exceder 20 caracteres.' }
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(clean)) {
+      return { available: false, error: 'Solo se permiten letras, números y guiones bajos (_).' }
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      return { available: true, cleanUsername: clean }
+    }
+
+    try {
+      // 1. Validar en tabla kingdoms (case-insensitive)
+      const { data: kingData, error: kingErr } = await supabase
+        .from('kingdoms')
+        .select('id, username')
+        .ilike('username', clean)
+
+      if (kingErr) {
+        console.error('[Supabase] Error validando username en kingdoms:', kingErr.message)
+      } else if (kingData && kingData.length > 0) {
+        const isTakenByOther = kingData.some((k) => (k.id || '').toLowerCase() !== myId)
+        if (isTakenByOther) {
+          return { available: false, error: 'Este nombre de gobernante ya está registrado por otro jugador.' }
+        }
+      }
+
+      // 2. Validar en tabla user_accounts
+      const { data: accData, error: accErr } = await supabase
+        .from('user_accounts')
+        .select('email, username')
+        .ilike('username', clean)
+
+      if (accErr) {
+        console.warn('[Supabase] Aviso validando username en user_accounts:', accErr.message)
+      } else if (accData && accData.length > 0) {
+        const isTakenByOtherAcc = accData.some((a) => (a.email || '').toLowerCase() !== myId)
+        if (isTakenByOtherAcc) {
+          return { available: false, error: 'Este nombre de gobernante ya está registrado por otro jugador.' }
+        }
+      }
+
+      return { available: true, cleanUsername: clean }
+    } catch (err) {
+      console.error('[Supabase] Excepción en checkUsernameAvailable:', err)
+      return { available: false, error: 'Error de conexión al validar el nombre. Intenta nuevamente.' }
+    }
+  },
+
+  /**
+   * Actualiza el nombre de gobernante en Supabase (kingdoms y user_accounts) y en sesión local
+   */
+  async updateKingdomUsername(playerId, newUsername) {
+    if (!playerId) {
+      return { ok: false, error: 'ID de jugador no válido.' }
+    }
+
+    const check = await this.checkUsernameAvailable(newUsername, playerId)
+    if (!check.available) {
+      return { ok: false, error: check.error }
+    }
+
+    const cleanUsername = check.cleanUsername
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // Actualizar en 'kingdoms'
+        const { error: kingError } = await supabase
+          .from('kingdoms')
+          .update({
+            username: cleanUsername,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', playerId)
+
+        if (kingError) {
+          console.error('[Supabase] Error actualizando username en kingdoms:', kingError.message)
+          return { ok: false, error: 'No se pudo guardar en el servidor: ' + kingError.message }
+        }
+
+        // Actualizar en 'user_accounts' si existe
+        await supabase
+          .from('user_accounts')
+          .update({ username: cleanUsername })
+          .eq('email', playerId)
+          .catch(() => {})
+      } catch (err) {
+        console.error('[Supabase] Excepción en updateKingdomUsername:', err)
+        return { ok: false, error: 'Error inesperado al guardar en el servidor.' }
+      }
+    }
+
+    // Actualizar sesión activa en localStorage si corresponde
+    try {
+      const rawSession = localStorage.getItem('fourkingdoms_alpha_session_v1')
+      if (rawSession) {
+        const session = JSON.parse(rawSession)
+        if (session && session.email && session.email.toLowerCase() === playerId.toLowerCase()) {
+          session.username = cleanUsername
+          localStorage.setItem('fourkingdoms_alpha_session_v1', JSON.stringify(session))
+        }
+      }
+    } catch (e) {
+      console.warn('[Session] No se pudo actualizar username en localStorage:', e)
+    }
+
+    return { ok: true, username: cleanUsername }
+  },
 }
 

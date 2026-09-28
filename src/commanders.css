@@ -1,0 +1,827 @@
+/* ============================================================================
+   FourKingdom — Guardia de Comandantes & Temporada 1 (Commanders & Season)
+   Inspirado en estética Hood Cars: Dark Luxury, Neon Highlights, Yield Ticker
+   ============================================================================ */
+
+.commanders-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: radial-gradient(circle at top, #111a28 0%, #070b12 100%);
+  color: #f1f5f9;
+  overflow-y: auto;
+  padding-bottom: 90px;
+}
+
+/* Stats Header Superior (Estilo Hood Cars: Cars 1/50, Players, /Hour, In-Game, Pool) */
+.commanders-top-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(10, 16, 26, 0.95);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 10px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(18, 28, 45, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.stat-chip.gold-chip {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.stat-chip.pool-chip {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.stat-chip .stat-icon {
+  font-size: 13px;
+}
+
+.stat-chip .stat-label {
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.stat-chip .stat-value {
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+.stat-chip .stat-value.neon-green {
+  color: #4ade80;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.stat-chip .stat-value.neon-gold {
+  color: #fcd34d;
+}
+
+.stat-chip .stat-value.neon-red {
+  color: #f87171;
+}
+
+/* Hero Box de Botín Unclaimed (Ticking en Vivo) */
+.unclaimed-hero-card {
+  margin: 16px;
+  background: linear-gradient(135deg, rgba(22, 34, 54, 0.85) 0%, rgba(11, 18, 30, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .unclaimed-hero-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.unclaimed-info h3 {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unclaimed-counter-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ticker-value {
+  font-size: 34px;
+  font-weight: 900;
+  font-family: 'Courier New', Courier, monospace;
+  color: #4ade80;
+  text-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+  letter-spacing: -0.5px;
+}
+
+.ticker-unit {
+  font-size: 16px;
+  color: #cbd5e1;
+  font-weight: 800;
+}
+
+.unclaimed-rate-sub {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.btn-claim-loot {
+  background: linear-gradient(180deg, #e11d48 0%, #be123c 100%);
+  color: #ffffff;
+  border: 1px solid #f43f5e;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
+}
+
+.btn-claim-loot:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.6);
+}
+
+.btn-claim-loot:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+/* Grid de Comandantes Activos */
+.commanders-section-title {
+  padding: 0 16px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.commanders-section-title h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.commanders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 0 16px;
+}
+
+.commander-card {
+  background: linear-gradient(180deg, rgba(20, 30, 48, 0.9) 0%, rgba(12, 19, 32, 0.95) 100%);
+  border-radius: 14px;
+  border: 1px solid;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.commander-card:hover {
+  transform: translateY(-3px);
+}
+
+.card-banner-top {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rarity-pill {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.cmd-power-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.commander-card-body {
+  padding: 14px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.commander-avatar-frame {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  border: 2px solid;
+  overflow: hidden;
+  background: #0b111c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.commander-avatar-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.commander-details h5 {
+  margin: 0 0 2px 0;
+  font-size: 15px;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.cmd-title {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.cmd-yield-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.commander-card-footer {
+  padding: 10px 14px;
+  background: rgba(8, 14, 24, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.military-perk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffd269;
+  font-weight: 700;
+}
+
+/* ============================================================================
+   PESTAÑA: INVOCACIÓN REAL (DEALERSHIP)
+   ============================================================================ */
+.summon-dealership-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.summon-hero-banner {
+  background: linear-gradient(135deg, rgba(28, 18, 22, 0.9) 0%, rgba(14, 17, 26, 0.95) 100%);
+  border: 1px solid rgba(225, 29, 72, 0.4);
+  border-radius: 16px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.summon-hero-banner::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.summon-badge-burn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.summon-hero-banner h3 {
+  font-size: 22px;
+  font-weight: 900;
+  margin: 0 0 8px 0;
+  color: #ffffff;
+}
+
+.summon-desc {
+  max-width: 520px;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.tokenomics-split-box {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 440px;
+  margin-bottom: 20px;
+}
+
+.split-pill {
+  flex: 1;
+  background: rgba(10, 16, 26, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.split-pill small {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.split-pill strong {
+  font-size: 13px;
+  color: #f1f5f9;
+}
+
+.split-pill.burn-split strong {
+  color: #f87171;
+}
+
+.split-pill.pool-split strong {
+  color: #fcd34d;
+}
+
+.btn-summon-action {
+  background: linear-gradient(180deg, #e11d48 0%, #9f1239 100%);
+  color: #ffffff;
+  border: 1px solid #f43f5e;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(225, 29, 72, 0.5);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-summon-action:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(225, 29, 72, 0.7);
+}
+
+.btn-summon-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Tabla de Probabilidades y Retorno (Idéntica a Hood Cars) */
+.drop-rates-card {
+  background: rgba(15, 23, 38, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.drop-rates-card h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+}
+
+.drop-rates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.drop-rate-box {
+  background: rgba(8, 14, 24, 0.8);
+  border-radius: 10px;
+  padding: 12px 10px;
+  border-top: 3px solid;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drop-rate-box .tier-name {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.drop-rate-box .tier-percent {
+  font-size: 16px;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.drop-rate-box .tier-yield {
+  font-size: 11px;
+  color: #4ade80;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+}
+
+/* Modal de Invocación con Revelación de Carta */
+.summon-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.summon-reveal-modal {
+  background: linear-gradient(180deg, #162032 0%, #0c121e 100%);
+  border-radius: 20px;
+  border: 2px solid;
+  padding: 28px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+  animation: modalPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPopIn {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.reveal-avatar-frame {
+  width: 120px;
+  height: 120px;
+  border-radius: 20px;
+  border: 3px solid;
+  overflow: hidden;
+  margin: 16px 0;
+  box-shadow: 0 0 30px;
+}
+
+.reveal-avatar-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.btn-confirm-reveal {
+  background: #38bdf8;
+  color: #070b12;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 30px;
+  font-weight: 900;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 18px;
+  width: 100%;
+}
+
+/* ============================================================================
+   PESTAÑA: ROADMAP DE TEMPORADA (SEASON TIMELINE - HOOD CARS STYLE)
+   ============================================================================ */
+.roadmap-container {
+  padding: 20px 16px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.roadmap-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.roadmap-season-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(225, 29, 72, 0.15);
+  border: 1px solid rgba(225, 29, 72, 0.4);
+  color: #fb7185;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.roadmap-header h3 {
+  font-size: 24px;
+  font-weight: 900;
+  margin: 0 0 6px 0;
+  color: #ffffff;
+}
+
+.roadmap-header p {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0 0 16px 0;
+}
+
+.roadmap-progress-bar-wrap {
+  background: rgba(255, 255, 255, 0.05);
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  max-width: 320px;
+  margin: 0 auto 8px;
+}
+
+.roadmap-progress-fill {
+  background: linear-gradient(90deg, #e11d48, #fbbf24);
+  height: 100%;
+  border-radius: 999px;
+}
+
+.roadmap-progress-label {
+  font-size: 11px;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+/* Timeline Vertical */
+.timeline-list {
+  position: relative;
+  padding-left: 32px;
+  margin-top: 24px;
+}
+
+.timeline-list::before {
+  content: '';
+  position: absolute;
+  top: 15px;
+  bottom: 20px;
+  left: 11px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -32px;
+  top: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 2px solid #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  z-index: 2;
+}
+
+.timeline-item.done .timeline-marker {
+  background: #10b981;
+  border-color: #34d399;
+  color: #ffffff;
+}
+
+.timeline-item.active .timeline-marker {
+  background: #e11d48;
+  border-color: #f43f5e;
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.8);
+}
+
+.timeline-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.timeline-item.active .timeline-card {
+  background: rgba(22, 34, 54, 0.85);
+  border-color: rgba(225, 29, 72, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.timeline-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.timeline-date {
+  font-size: 11px;
+  font-weight: 800;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.timeline-status-tag {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.timeline-status-tag.done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.timeline-status-tag.active {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fb7185;
+  border: 1px solid rgba(225, 29, 72, 0.5);
+}
+
+.timeline-status-tag.locked {
+  background: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+}
+
+.timeline-card h4 {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.timeline-card p {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+   PESTAÑA: RANKING & PREMIACIÓN NFT
+   ============================================================================ */
+.prizes-container {
+  padding: 16px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.pool-glory-banner {
+  background: linear-gradient(135deg, rgba(30, 24, 12, 0.9) 0%, rgba(14, 18, 28, 0.95) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.pool-glory-banner h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #fbbf24;
+  letter-spacing: 1px;
+  margin: 0 0 6px 0;
+}
+
+.pool-big-number {
+  font-size: 38px;
+  font-weight: 900;
+  color: #fef08a;
+  font-family: 'Courier New', Courier, monospace;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+  margin-bottom: 6px;
+}
+
+.prizes-table {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.prize-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.prize-row:last-child {
+  border-bottom: none;
+}
+
+.prize-rank-col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prize-badge-rank {
+  font-size: 18px;
+}
+
+.prize-rank-col strong {
+  display: block;
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.prize-nft-tag {
+  font-size: 11px;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prize-share-col {
+  text-align: right;
+}
+
+.prize-percent-tag {
+  font-size: 16px;
+  font-weight: 900;
+  color: #fbbf24;
+}
+
+.prize-est-king {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: 'Courier New', Courier, monospace;
+}

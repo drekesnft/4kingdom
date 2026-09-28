@@ -3,6 +3,7 @@ import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangl
 import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap } from './data/tileTypes'
 import LandingPage from './components/LandingPage'
 import BuildView from './components/BuildView'
+import CommandersView from './components/CommandersView'
 import BattleView from './components/BattleView'
 import ClanView from './components/ClanView'
 import RankingView from './components/RankingView'
@@ -35,6 +36,7 @@ const MAX_COORD = MAP_SIZE - CENTER_INDEX - 1
 const MENU_ITEMS = [
   { id: 'build', label: 'Mi Base', src: '/assets/ui/home.png' },
   { id: 'home', label: 'Mapa', src: '/assets/ui/world.png' },
+  { id: 'commanders', label: 'Guardia T1', src: '/assets/ui/events.png' },
   { id: 'battle', label: 'Ejército', src: '/assets/ui/battle.png' },
   { id: 'ranking', label: 'Ranking', src: '/assets/ui/ranking.png' },
   { id: 'market', label: 'Mercado (Pronto)', src: '/assets/ui/market.png' },
@@ -1010,6 +1012,31 @@ export default function App() {
             <div className="top-bar-controls">
               <button
                 type="button"
+                className="btn-top-commanders"
+                onClick={() => {
+                  setActiveMenu('commanders')
+                  setPopupOpen(false)
+                }}
+                title="Guardia de Comandantes & Temporada 1"
+                style={{
+                  background: 'linear-gradient(180deg, #e11d48, #9f1239)',
+                  border: '1px solid #f43f5e',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 10px rgba(225, 29, 72, 0.4)',
+                }}
+              >
+                <span>👑 Guardia T1</span>
+              </button>
+              <button
+                type="button"
                 className="btn-top-tutorial"
                 onClick={() => setManualOnboardingOpen(true)}
                 title="Ver Tutorial y Guía de Edificios / KING"
@@ -1338,6 +1365,9 @@ export default function App() {
         )}
 
         {activeMenu === 'build' && <BuildView gameState={gameState} onClose={() => setActiveMenu('home')} />}
+        {activeMenu === 'commanders' && (
+          <CommandersView gameState={gameState} onClose={() => setActiveMenu('home')} />
+        )}
         {activeMenu === 'battle' && (
           <BattleView
             gameState={gameState}

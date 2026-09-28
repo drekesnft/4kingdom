@@ -411,21 +411,7 @@ export const gameService = {
         }
       }
 
-      // 2. Validar en tabla user_accounts
-      const { data: accData, error: accErr } = await supabase
-        .from('user_accounts')
-        .select('email, username')
-        .ilike('username', clean)
-
-      if (accErr) {
-        console.warn('[Supabase] Aviso validando username en user_accounts:', accErr.message)
-      } else if (accData && accData.length > 0) {
-        const isTakenByOtherAcc = accData.some((a) => (a.email || '').toLowerCase() !== myId)
-        if (isTakenByOtherAcc) {
-          return { available: false, error: 'Este nombre de gobernante ya está registrado por otro jugador.' }
-        }
-      }
-
+      // kingdoms es la fuente de la verdad para usernames de gobernantes
       return { available: true, cleanUsername: clean }
     } catch (err) {
       console.error('[Supabase] Excepción en checkUsernameAvailable:', err)
@@ -434,7 +420,7 @@ export const gameService = {
   },
 
   /**
-   * Actualiza el nombre de gobernante en Supabase (kingdoms y user_accounts) y en sesión local
+   * Actualiza el nombre de gobernante en Supabase (kingdoms) y en sesión local
    */
   async updateKingdomUsername(playerId, newUsername) {
     if (!playerId) {
@@ -450,7 +436,7 @@ export const gameService = {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        // Actualizar en 'kingdoms'
+        // Actualizar en 'kingdoms' (tabla oficial del perfil de gobernante)
         const { error: kingError } = await supabase
           .from('kingdoms')
           .update({
@@ -463,13 +449,6 @@ export const gameService = {
           console.error('[Supabase] Error actualizando username en kingdoms:', kingError.message)
           return { ok: false, error: 'No se pudo guardar en el servidor: ' + kingError.message }
         }
-
-        // Actualizar en 'user_accounts' si existe
-        await supabase
-          .from('user_accounts')
-          .update({ username: cleanUsername })
-          .eq('email', playerId)
-          .catch(() => {})
       } catch (err) {
         console.error('[Supabase] Excepción en updateKingdomUsername:', err)
         return { ok: false, error: 'Error inesperado al guardar en el servidor.' }

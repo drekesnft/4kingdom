@@ -102,14 +102,18 @@ export default function RankingView({ gameState, currentUser, onClose }) {
       else if (rank === 4) { dailyKingReward = 5; tierLabel = '🎖️ Top 4' }
       else if (rank === 5) { dailyKingReward = 3; tierLabel = '🎖️ Top 5' }
 
-      const rawName = k.username || k.id?.split('@')[0] || 'Comandante'
-      const maskedName = isMe ? `${rawName} (Tú)` : (rawName.length > 4 ? `${rawName.slice(0, 3)}***` : rawName)
+      // Nombre completo del comandante visible para todos en el ranking:
+      // Si el username es el genérico por defecto 'Lord Conquistador', muestra el identificador de su cuenta (ej. sergiowalterdullar, antoniox4253, etc.)
+      const rawName = (k.username && k.username !== 'Lord Conquistador')
+        ? k.username
+        : (k.id?.includes('@') ? k.id.split('@')[0] : (k.username || 'Comandante'))
+      const displayName = isMe ? `${rawName} (Tú)` : rawName
 
       return {
         ...k,
         rank,
         isMe,
-        displayName: maskedName,
+        displayName,
         castleLevel,
         troopsTotal,
         dailyKingReward,

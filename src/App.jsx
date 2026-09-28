@@ -860,7 +860,7 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <section className={`game-phone ${activeMenu === 'ranking' ? 'ranking-expanded' : ''}`} aria-label="FourKingdoms App">
+      <section className={`game-phone desktop-expanded ${activeMenu === 'ranking' ? 'ranking-expanded' : ''}`} aria-label="FourKingdoms App">
         {/* Barra Superior de Recursos Reales */}
         <header className="top-bar">
           <div className="brand-row">

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, Globe2, HelpCircle, LogOut, Coins, Trophy } from 'lucide-react'
-import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap, removeOldestGemTile, spawnGemTile } from './data/tileTypes'
+import { Crosshair, Crown, MapPin, Search, X, ZoomIn, ZoomOut, Zap, AlertTriangle, Info, HelpCircle, LogOut, Coins } from 'lucide-react'
+import { TILE_TYPES, assignPlayerBase, assignRandomPlayerBase, generateMap } from './data/tileTypes'
 import LandingPage from './components/LandingPage'
 import BuildView from './components/BuildView'
 import BattleView from './components/BattleView'
@@ -23,8 +23,6 @@ import { calculateArmyAttack, totalTroopCount } from './game/combat'
 
 const MAP_SIZE = 50
 const TILE_SIZE = 112
-const GEM_SPAWN_MS = 30_000
-const MAX_ACTIVE_GEMS = 4
 const CENTER_INDEX = Math.floor(MAP_SIZE / 2)
 const CENTER_ID = `${CENTER_INDEX}-${CENTER_INDEX}`
 const INITIAL_SCALE = 0.68
@@ -36,9 +34,9 @@ const MAX_COORD = MAP_SIZE - CENTER_INDEX - 1
 
 const MENU_ITEMS = [
   { id: 'build', label: 'Mi Base', src: '/assets/ui/home.png' },
-  { id: 'home', label: 'Mapa', isGlobe: true },
+  { id: 'home', label: 'Mapa', src: '/assets/ui/world.png' },
   { id: 'battle', label: 'Ejército', src: '/assets/ui/battle.png' },
-  { id: 'ranking', label: 'Ranking', isTrophy: true },
+  { id: 'ranking', label: 'Ranking', src: '/assets/ui/ranking.png' },
   { id: 'market', label: 'Mercado (Pronto)', src: '/assets/ui/market.png' },
 ]
 
@@ -76,7 +74,7 @@ const TileButton = memo(function TileButton({ tile, def, important, isSelected, 
     <button
       type="button"
       tabIndex={-1}
-      className={`tile tile-${def.role} ${important ? 'tile-interactive' : ''} ${tile.type === 'gems' ? 'gem-spawn' : ''} ${isOwnBase ? 'player-base-own' : tile.isPlayerBase ? 'player-base' : ''} ${isSelected ? 'selected' : ''}`}
+      className={`tile tile-${def.role} ${important ? 'tile-interactive' : ''} ${isOwnBase ? 'player-base-own' : tile.isPlayerBase ? 'player-base' : ''} ${isSelected ? 'selected' : ''}`}
       onClick={() => onSelect(tile)}
       aria-haspopup={important ? 'dialog' : undefined}
       aria-label={`${def.name}, coordenadas ${tile.worldX}, ${tile.worldY}${important ? ', abrir información' : ''}`}
@@ -175,12 +173,11 @@ export default function App() {
     return demo.assigned ? demo.tiles : generated
   }, [currentBaseId, currentUser?.assignedKingdom, currentUser?.email])
 
-  const [tiles, setTiles] = useState(initialMap)
+  const [tiles, setTiles] = useState(() => initialMap.map((t) => t.type === 'gems' ? { ...t, type: 'base' } : t))
   const [selectedId, setSelectedId] = useState(currentBaseId)
   const [popupOpen, setPopupOpen] = useState(false)
   const [scale, setScale] = useState(INITIAL_SCALE)
   const [offset, setOffset] = useState({ x: -1500, y: -1500 })
-  const [nextGemIn, setNextGemIn] = useState(GEM_SPAWN_MS)
   const [notice, setNotice] = useState('FourKingdoms Alpha v0.1 · Toca recursos, bases, o campamentos para interactuar.')
   const [activeMenu, setActiveMenu] = useState('build')
   const [coordQuery, setCoordQuery] = useState('')
@@ -188,7 +185,7 @@ export default function App() {
   const [forceUnlocked, setForceUnlocked] = useState(false)
 
   useEffect(() => {
-    setTiles(initialMap)
+    setTiles(initialMap.map((t) => t.type === 'gems' ? { ...t, type: 'base' } : t))
     setSelectedId(currentBaseId)
   }, [initialMap, currentBaseId])
 
@@ -257,7 +254,6 @@ export default function App() {
   })
 
   const selected = selectedId ? tiles.find((tile) => tile.id === selectedId) : null
-  const activeGemCount = tiles.filter((tile) => tile.type === 'gems').length
 
   // Sincronizar notificación reciente
   useEffect(() => {
@@ -329,22 +325,6 @@ export default function App() {
     }
   }, [currentView, activeMenu, focusTile, updateViewportSize, currentBase])
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNextGemIn((remaining) => {
-        if (remaining <= 1000) {
-          setTiles((current) => {
-            const gemCount = current.filter((tile) => tile.type === 'gems').length
-            const pruned = gemCount >= MAX_ACTIVE_GEMS ? removeOldestGemTile(current) : current
-            return spawnGemTile(pruned)
-          })
-          return GEM_SPAWN_MS
-        }
-        return remaining - 1000
-      })
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     const recenter = () => {
@@ -754,20 +734,6 @@ export default function App() {
       }
     }
 
-    if (def.resource === 'gems') return {
-      title: 'Gemas doradas',
-      subtitle: `${tileLabel} · Evento temporal`,
-      lines: [
-        `Posición: (${targetTile.worldX}, ${targetTile.worldY})`,
-        'Aparición especial limitada en el mapa.',
-      ],
-      image: def.assets?.[0],
-      action: 'Recolectar Gemas',
-      onClick: () => {
-        setPopupOpen(false)
-        setMarchModalTarget(targetTile)
-      },
-    }
 
     if (def.role === 'enemy') {
       const dx = Math.abs(targetTile.worldX - baseX)
@@ -1233,14 +1199,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Estado de Gemas Temporales */}
-            <div className="gem-status">
-              <span className="gem-dot">◆</span>
-              <div>
-                <strong>{activeGemCount}/{MAX_ACTIVE_GEMS} gemas</strong>
-                <small>Nueva en {Math.ceil(nextGemIn / 1000)}s</small>
-              </div>
-            </div>
+
 
             {/* Popup Informativo de Casilla */}
             {popupOpen && selected && detail && (
@@ -1328,17 +1287,7 @@ export default function App() {
                 setPopupOpen(false)
               }}
             >
-              {item.isGlobe ? (
-                <div className="nav-globe-wrap">
-                  <Globe2 className="nav-globe-icon" size={24} />
-                </div>
-              ) : item.isTrophy ? (
-                <div className="nav-globe-wrap nav-trophy-wrap">
-                  <Trophy className="nav-globe-icon nav-trophy-icon" size={24} />
-                </div>
-              ) : (
-                <img className="nav-art" src={item.src} alt="" draggable="false" />
-              )}
+              <img className="nav-art" src={item.src} alt="" draggable="false" />
               <span>{item.label}</span>
             </button>
           ))}

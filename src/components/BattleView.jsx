@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { TROOPS_CONFIG, BUILDINGS_CONFIG, HERO_MISSIONS } from '../game/config'
-import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles, ArrowRight, Compass } from 'lucide-react'
+import { Swords, ShieldAlert, Zap, AlertTriangle, ScrollText, Sparkles, ArrowRight, Compass, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function BattleView({ gameState, onOpenReport, onClose, onGoToBuild }) {
   const {
@@ -28,6 +28,8 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
 
   const [activeTab, setActiveTab] = useState('recruit') // 'recruit' | 'hero' | 'reports'
   const [recruitCounts, setRecruitCounts] = useState({ infantry: 5, archer: 5, cavalry: 5 })
+  const [reportPage, setReportPage] = useState(1)
+  const REPORTS_PER_PAGE = 10
 
   const [now, setNow] = useState(() => Date.now())
 
@@ -493,68 +495,109 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
               <h4>Sin actividad bélica reciente</h4>
               <p>Envía marchas o convoca Rallies contra campamentos NPC, fortalezas o rivales en el mapa para ver el registro táctico.</p>
             </div>
-          ) : (
-            <div className="reports-list">
-              {battleReports.map((r) => {
-                const isHero = r.type === 'hero'
-                const isGather = r.type === 'gather'
-                const isReinforce = r.type === 'reinforce'
-                const isVic = r.isVictory ?? (r.result === 'VICTORIA' || r.result === 'MISIÓN EXITOSA')
-                const totalCasualties = (r.casualties?.infantry || 0) + (r.casualties?.archer || 0) + (r.casualties?.cavalry || 0)
-                const cardClass = isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
-                const timeStr = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (r.date || 'Reciente')
+          ) : (() => {
+            const totalReportPages = Math.max(1, Math.ceil(battleReports.length / REPORTS_PER_PAGE))
+            const safeCurrentPage = Math.min(Math.max(1, reportPage), totalReportPages)
+            const paginatedReports = battleReports.slice((safeCurrentPage - 1) * REPORTS_PER_PAGE, safeCurrentPage * REPORTS_PER_PAGE)
 
-                return (
-                  <div
-                    key={r.id}
-                    className={`report-item-card ${cardClass}`}
-                    onClick={() => onOpenReport(r)}
-                  >
-                    <div className={`report-badge-result ${cardClass}`}>
-                      {isHero
-                        ? (isVic ? '🎖️ HÉROE: ÉXITO' : '💀 HÉROE: FALLO')
-                        : isGather
-                        ? '🌾 RECOLECCIÓN'
-                        : isReinforce
-                        ? '🛡️ REFUERZOS'
-                        : isVic
-                        ? 'VICTORIA'
-                        : 'DERROTA'}
-                    </div>
-                    <div className="report-info">
-                      <strong>{r.targetName || 'Objetivo'}</strong>
-                      <div className="report-mini-meta">
-                        <span>{timeStr}</span>
-                        {isHero ? (
-                          <span className={isVic ? 'green-cas' : 'red-cas'}>
-                            {isVic
-                              ? `🎁 +${r.totalCollected || (r.loot?.wood || 0) + (r.loot?.stone || 0) + (r.loot?.food || 0)} rec.${r.kingLoot > 0 ? ` · +${r.kingLoot} KING` : ''}`
-                              : 'Exploración fallida'}
-                          </span>
-                        ) : isGather ? (
-                          <span className="green-cas">
-                            🌾 +{r.totalCollected || (r.loot?.wood || 0) + (r.loot?.stone || 0) + (r.loot?.food || 0)} rec. ({r.totalSent || 0} tropas)
-                          </span>
-                        ) : isReinforce ? (
-                          <span className="blue-cas">
-                            🛡️ Guarnición aliada: {r.totalSent || 0} tropas
-                          </span>
-                        ) : (
-                          <>
-                            <span className={totalCasualties > 0 ? 'red-cas' : ''}>
-                              Bajas: -{totalCasualties}
-                            </span>
-                            {r.kingLoot > 0 && <span className="gold-drop">+{r.kingLoot} KING</span>}
-                          </>
-                        )}
+            return (
+              <>
+                <div className="reports-list">
+                  {paginatedReports.map((r) => {
+                    const isHero = r.type === 'hero'
+                    const isGather = r.type === 'gather'
+                    const isReinforce = r.type === 'reinforce'
+                    const isVic = r.isVictory ?? (r.result === 'VICTORIA' || r.result === 'MISIÓN EXITOSA')
+                    const totalCasualties = (r.casualties?.infantry || 0) + (r.casualties?.archer || 0) + (r.casualties?.cavalry || 0)
+                    const cardClass = isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
+                    const timeStr = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (r.date || 'Reciente')
+
+                    return (
+                      <div
+                        key={r.id}
+                        className={`report-item-card ${cardClass}`}
+                        onClick={() => onOpenReport(r)}
+                      >
+                        <div className={`report-badge-result ${cardClass}`}>
+                          {isHero
+                            ? (isVic ? '🎖️ HÉROE: ÉXITO' : '💀 HÉROE: FALLO')
+                            : isGather
+                            ? '🌾 RECOLECCIÓN'
+                            : isReinforce
+                            ? '🛡️ REFUERZOS'
+                            : isVic
+                            ? 'VICTORIA'
+                            : 'DERROTA'}
+                        </div>
+                        <div className="report-info">
+                          <strong>{r.targetName || 'Objetivo'}</strong>
+                          <div className="report-mini-meta">
+                            <span>{timeStr}</span>
+                            {isHero ? (
+                              <span className={isVic ? 'green-cas' : 'red-cas'}>
+                                {isVic
+                                  ? `🎁 +${r.totalCollected || (r.loot?.wood || 0) + (r.loot?.stone || 0) + (r.loot?.food || 0)} rec.${r.kingLoot > 0 ? ` · +${r.kingLoot} KING` : ''}`
+                                  : 'Exploración fallida'}
+                              </span>
+                            ) : isGather ? (
+                              <span className="green-cas">
+                                🌾 +{r.totalCollected || (r.loot?.wood || 0) + (r.loot?.stone || 0) + (r.loot?.food || 0)} rec. ({r.totalSent || 0} tropas)
+                              </span>
+                            ) : isReinforce ? (
+                              <span className="blue-cas">
+                                🛡️ Guarnición aliada: {r.totalSent || 0} tropas
+                              </span>
+                            ) : (
+                              <>
+                                <span className={totalCasualties > 0 ? 'red-cas' : ''}>
+                                  Bajas: -{totalCasualties}
+                                </span>
+                                {r.kingLoot > 0 && <span className="gold-drop">+{r.kingLoot} KING</span>}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="report-arrow"><ArrowRight size={16} /></div>
                       </div>
+                    )
+                  })}
+                </div>
+
+                {totalReportPages > 1 && (
+                  <div className="reports-pagination-bar">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      disabled={safeCurrentPage <= 1}
+                      onClick={() => setReportPage((p) => Math.max(1, p - 1))}
+                      title="Página anterior"
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Anterior</span>
+                    </button>
+
+                    <div className="pagination-pages-indicator">
+                      <span>Página <strong>{safeCurrentPage}</strong> de <strong>{totalReportPages}</strong></span>
+                      <small className="pagination-range-text">
+                        ({(safeCurrentPage - 1) * REPORTS_PER_PAGE + 1} - {Math.min(safeCurrentPage * REPORTS_PER_PAGE, battleReports.length)} de {battleReports.length} informes)
+                      </small>
                     </div>
-                    <div className="report-arrow"><ArrowRight size={16} /></div>
+
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      disabled={safeCurrentPage >= totalReportPages}
+                      onClick={() => setReportPage((p) => Math.min(totalReportPages, p + 1))}
+                      title="Página siguiente"
+                    >
+                      <span>Siguiente</span>
+                      <ChevronRight size={16} />
+                    </button>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
     </div>

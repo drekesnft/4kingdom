@@ -296,8 +296,6 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 
 .tile .base-layer { position: absolute; z-index: 5; left: 50%; top: 50%; width: 106%; height: 106%; object-fit: contain; transform: translate(-50%, -50%); transform-origin: center; display: block; pointer-events: none; user-select: none; filter: drop-shadow(0 7px 5px rgba(23, 45, 61, .32)); }
 
-.gem-spawn { animation: gemArrival .9s ease-out; }
-@keyframes gemArrival { 0% { filter: brightness(1.65); transform: scale(.94); } 55% { filter: brightness(1.22); } 100% { filter: brightness(1); transform: scale(1); } }
 
 .map-search {
   position: absolute;
@@ -324,11 +322,7 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
 
 .zoom-controls { position: absolute; right: 12px; top: 12px; z-index: 24; display: grid; gap: 7px; }
 .zoom-controls button { width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; color: white; background: rgba(8,20,34,.88); display: grid; place-items: center; cursor: pointer; }
-.gem-status { position: absolute; right: 12px; bottom: 12px; z-index: 20; display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 12px; color: #eff8ff; background: rgba(8,20,34,.84); backdrop-filter: blur(6px); font-size: 11px; font-weight: 800; }
-.gem-status div { display: grid; line-height: 1.1; }
-.gem-status strong { font-size: 10px; }
-.gem-status small { margin-top: 2px; color: #a9bed0; font-size: 8px; }
-.gem-dot { color: #ffd45a; font-size: 15px; text-shadow: 0 0 8px rgba(255,212,90,.75); }
+
 
 /* FLOATING MARCHES BAR */
 .floating-marches-bar {
@@ -1788,6 +1782,60 @@ h1 { margin: 0; font-size: 18px; line-height: 1; letter-spacing: .05em; }
   color: white;
   font-size: 9px;
   cursor: pointer;
+}
+
+/* PAGINACIÓN DE REPORTES */
+.reports-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: rgba(11, 25, 41, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(43, 138, 214, 0.2);
+  border: 1px solid rgba(83, 170, 226, 0.4);
+  border-radius: 8px;
+  color: #cce7ff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pagination-btn:hover:not(:disabled) {
+  background: rgba(43, 138, 214, 0.4);
+  color: #ffffff;
+  border-color: #64b5f6;
+}
+.pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #8fa8c2;
+}
+.pagination-pages-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: #e2e8f0;
+}
+.pagination-pages-indicator strong {
+  color: #ffcf56;
+}
+.pagination-range-text {
+  font-size: 9px;
+  color: #94a3b8;
 }
 
 /* CLAN & KINGDOMS VIEW */

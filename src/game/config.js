@@ -160,7 +160,7 @@ export const TROOPS_CONFIG = {
     name: 'Caballería',
     line: 'Segunda línea',
     order: 2,
-    image: '/assets/troops/cavalry.jpg',
+    image: '/assets/troops/cavalry.png',
     attack: 24,
     defense: 0.25, // 25% absorción
     hp: 26,

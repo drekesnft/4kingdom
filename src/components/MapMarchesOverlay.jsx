@@ -155,7 +155,7 @@ export default function MapMarchesOverlay({
 
         // Selección de imagen representativa según la tropa dominante
         let troopImg = '/assets/troops/infantry.png'
-        if ((m.army.cavalry || 0) > 0) troopImg = '/assets/troops/cavalry.jpg'
+        if ((m.army.cavalry || 0) > 0) troopImg = '/assets/troops/cavalry.png'
         else if ((m.army.archer || 0) > 0) troopImg = '/assets/troops/archer.png'
 
         const costKing = calculateKingCostForSec ? calculateKingCostForSec(remSec) : 1

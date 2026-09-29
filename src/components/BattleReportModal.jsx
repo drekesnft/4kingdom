@@ -7,9 +7,10 @@ export default function BattleReportModal({ report, onClose }) {
   const isGather = report.type === 'gather'
   const isReinforce = report.type === 'reinforce'
   const isHero = report.type === 'hero'
+  const isRanking = report.type === 'ranking' || report.data?.type === 'ranking'
   const isVic = report.isVictory ?? (report.result === 'VICTORIA' || report.result === 'MISIÓN EXITOSA')
 
-  const headerClass = isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
+  const headerClass = isRanking ? 'victory' : isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -17,7 +18,9 @@ export default function BattleReportModal({ report, onClose }) {
         {/* Encabezado del Reporte */}
         <div className={`report-modal-header ${headerClass}`}>
           <div className="report-title-group">
-            {isHero ? (
+            {isRanking ? (
+              <Trophy size={28} className="gold" />
+            ) : isHero ? (
               <Compass size={28} className="report-header-icon hero" />
             ) : isGather ? (
               <Wheat size={28} className="report-header-icon gather" />
@@ -29,16 +32,61 @@ export default function BattleReportModal({ report, onClose }) {
               <Skull size={28} />
             )}
             <div>
-              <h2>{report.result}</h2>
-              <small>{report.targetName} · {new Date(report.timestamp).toLocaleString()}</small>
+              <h2>{isRanking ? '👑 Premio de Ranking Diario' : report.result}</h2>
+              <small>{report.targetName} · {new Date(report.timestamp || report.created_at).toLocaleString()}</small>
             </div>
           </div>
           <button type="button" className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>
 
         <div className="report-body">
+          {/* CASO 0: REPORTE DE RANKING DIARIO */}
+          {isRanking && (
+            <>
+              <div className="report-section">
+                <h4>🏆 Liquidación Oficial de Ranking Diario</h4>
+                <div style={{
+                  background: 'rgba(255, 215, 0, 0.08)',
+                  border: '1px solid rgba(255, 215, 0, 0.3)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  margin: '8px 0',
+                }}>
+                  <p style={{ margin: '0 0 12px', fontSize: '14px', color: '#e0e6ed', lineHeight: '1.5' }}>
+                    {report.data?.description || report.result || 'Premio oficial acreditado en tu tesorería.'}
+                  </p>
+                  <div className="loot-badges-grid">
+                    <div className="loot-badge king" style={{ background: 'rgba(255, 215, 0, 0.15)', borderColor: '#ffd700' }}>
+                      <span>👑</span>
+                      <strong style={{ color: '#ffd700', fontSize: '18px' }}>
+                        +{report.data?.rewardKing || report.data?.kingLoot || report.kingLoot || 0} KING
+                      </strong>
+                      <small>Premio Acreditado</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="report-section">
+                <h4>Detalles de Auditoría Militar (00:00 UTC)</h4>
+                <div className="report-comparison-grid">
+                  <div className="comp-col">
+                    <small>Posición Top 5</small>
+                    <strong className="gold-val">#{report.data?.rank || 1} Continental</strong>
+                    <p>Cuota asignada: <span className="green-val">{report.data?.sharePercent || 0}% del pool</span></p>
+                  </div>
+                  <div className="comp-col">
+                    <small>Poder Militar Auditado</small>
+                    <strong className="green-val">⭐ {Number(report.data?.power || 0).toLocaleString()}</strong>
+                    <p>Corte diario completado</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* CASO 1: REPORTE DE RECOLECCIÓN DE RECURSOS */}
-          {isGather && (
+          {!isRanking && isGather && (
             <>
               <div className="report-section">
                 <h4>🌾 Recursos Recolectados</h4>
@@ -141,7 +189,7 @@ export default function BattleReportModal({ report, onClose }) {
           )}
 
           {/* CASO 4: REPORTES BÉLICOS (NPC, PVP, BASTIONES) */}
-          {!isGather && !isReinforce && !isHero && (
+          {!isRanking && !isGather && !isReinforce && !isHero && (
             <>
               {/* Tropas Enviadas vs Que Regresan */}
               <div className="report-section">

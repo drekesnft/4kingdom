@@ -507,9 +507,10 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
                     const isHero = r.type === 'hero'
                     const isGather = r.type === 'gather'
                     const isReinforce = r.type === 'reinforce'
+                    const isRanking = r.type === 'ranking' || r.data?.type === 'ranking'
                     const isVic = r.isVictory ?? (r.result === 'VICTORIA' || r.result === 'MISIÓN EXITOSA')
                     const totalCasualties = (r.casualties?.infantry || 0) + (r.casualties?.archer || 0) + (r.casualties?.cavalry || 0)
-                    const cardClass = isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
+                    const cardClass = isRanking ? 'victory' : isHero ? (isVic ? 'victory' : 'defeat') : isGather ? 'gather' : isReinforce ? 'reinforce' : isVic ? 'victory' : 'defeat'
                     const timeStr = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (r.date || 'Reciente')
 
                     return (
@@ -519,7 +520,9 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
                         onClick={() => onOpenReport(r)}
                       >
                         <div className={`report-badge-result ${cardClass}`}>
-                          {isHero
+                          {isRanking
+                            ? `👑 TOP ${r.data?.rank || ''} RANKING`
+                            : isHero
                             ? (isVic ? '🎖️ HÉROE: ÉXITO' : '💀 HÉROE: FALLO')
                             : isGather
                             ? '🌾 RECOLECCIÓN'
@@ -533,7 +536,11 @@ export default function BattleView({ gameState, onOpenReport, onClose, onGoToBui
                           <strong>{r.targetName || 'Objetivo'}</strong>
                           <div className="report-mini-meta">
                             <span>{timeStr}</span>
-                            {isHero ? (
+                            {isRanking ? (
+                              <span className="gold-drop" style={{ color: '#ffd700', fontWeight: 'bold' }}>
+                                👑 +{r.data?.rewardKing || r.data?.kingLoot || r.kingLoot || 0} KING (Top #{r.data?.rank || 1})
+                              </span>
+                            ) : isHero ? (
                               <span className={isVic ? 'green-cas' : 'red-cas'}>
                                 {isVic
                                   ? `🎁 +${r.totalCollected || (r.loot?.wood || 0) + (r.loot?.stone || 0) + (r.loot?.food || 0)} rec.${r.kingLoot > 0 ? ` · +${r.kingLoot} KING` : ''}`

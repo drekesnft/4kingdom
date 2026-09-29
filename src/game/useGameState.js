@@ -632,10 +632,44 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       isLoadedRef.current = true
 
       // Cargar KING directamente del backend (cero generación pasiva de KING)
+      let initialClaimed = Number(remoteKingdom.king_claimed || 0)
+
+      // Reconciliar premio de ranking diario (00:00 UTC) si aún no ha sido reflejado en la cuenta
+      try {
+        const todayUtc = new Date().toISOString().slice(0, 10)
+        const payoutId = `rank_payout_${todayUtc.replace(/-/g, '_')}`
+        const storageKey = `fk_rank_reward_acknowledged_${payoutId}_${playerId}`
+        const acknowledged = localStorage.getItem(storageKey)
+
+        if (!acknowledged && supabase) {
+          supabase
+            .from('ranking_payouts')
+            .select('winners')
+            .eq('id', payoutId)
+            .maybeSingle()
+            .then(({ data: payoutToday }) => {
+              if (payoutToday && Array.isArray(payoutToday.winners)) {
+                const winner = payoutToday.winners.find((w) => (w.playerId || '').toLowerCase() === playerId.toLowerCase())
+                if (winner && winner.rewardKing > 0) {
+                  localStorage.setItem(storageKey, 'true')
+                  setKing((prev) => {
+                    const target = Math.max(prev.claimed, Number((initialClaimed + (prev.claimed <= 11 ? winner.rewardKing : 0)).toFixed(2)))
+                    supabase.from('kingdoms').update({ king_claimed: target }).eq('id', playerId).then(() => {})
+                    return { ...prev, claimed: target }
+                  })
+                }
+              }
+            })
+            .catch(() => {})
+        }
+      } catch (err) {
+        console.warn('[Ranking Reconcile]', err)
+      }
+
       if (remoteKingdom.king_claimed !== undefined) {
         setKing((prev) => ({
           ...prev,
-          claimed: Number(remoteKingdom.king_claimed || 0),
+          claimed: initialClaimed,
           pending: Number(baseKingPending ?? remoteKingdom.king_pending ?? 0),
           vault: Number(remoteKingdom.king_vault || 0),
         }))
@@ -661,7 +695,27 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       },
       (remoteKingdom) => {
         if (!remoteKingdom) return
-        // Evitar bucle de eco si acabamos de guardar nosotros mismos (ventana de 15s)
+
+        // 1. Sincronización instantánea de KING:
+        // Si el backend incrementó el saldo (premios de ranking, compras, airdrops),
+        // actualizar SIEMPRE el estado de KING sin bloquearlo por la ventana de 15s
+        if (remoteKingdom.king_claimed !== undefined) {
+          const remoteClaimed = Number(remoteKingdom.king_claimed || 0)
+          setKing((prev) => {
+            if (remoteClaimed !== prev.claimed) {
+              console.info('[Supabase Realtime] Saldo KING actualizado en vivo desde servidor:', remoteClaimed)
+              return {
+                ...prev,
+                claimed: remoteClaimed,
+                pending: Number(remoteKingdom.king_pending ?? prev.pending ?? 0),
+                vault: Number(remoteKingdom.king_vault ?? prev.vault ?? 0),
+              }
+            }
+            return prev
+          })
+        }
+
+        // Evitar bucle de eco si acabamos de guardar nosotros mismos (ventana de 15s) para recursos/tropas
         if (Date.now() - lastLocalSaveTimeRef.current < 15000) {
           return
         }

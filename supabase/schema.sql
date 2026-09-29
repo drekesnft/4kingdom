@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS public.kingdoms (
 CREATE TABLE IF NOT EXISTS public.reports (
     id TEXT PRIMARY KEY,
     player_id TEXT NOT NULL REFERENCES public.kingdoms(id) ON DELETE CASCADE,
-    type TEXT NOT NULL CHECK (type IN ('gather', 'npc', 'pvp', 'fortress', 'capital', 'reinforce', 'combat', 'hero')),
+    type TEXT NOT NULL CHECK (type IN ('gather', 'npc', 'pvp', 'fortress', 'capital', 'reinforce', 'combat', 'hero', 'ranking')),
     target_name TEXT NOT NULL,
     target_x INTEGER,
     target_y INTEGER,
@@ -310,7 +310,8 @@ BEGIN
                 'timestamp', extract(epoch from v_now) * 1000
             ),
             v_now
-        );
+        )
+        ON CONFLICT (id) DO NOTHING;
 
         -- Registrar en historial de ganadores
         v_winner_obj := jsonb_build_object(

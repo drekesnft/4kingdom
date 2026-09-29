@@ -48,6 +48,9 @@ export default function RankingView({ gameState, currentUser, onClose }) {
     const loadData = async () => {
       setIsLoading(true)
       try {
+        // Auditar y liquidar automáticamente si el corte de 00:00 UTC está pendiente
+        await gameService.processDailyRankingPayoutIfDue()
+
         const data = await gameService.fetchTopKingdomsRanking(50)
         if (isMounted) {
           setRankings(data)
@@ -88,6 +91,7 @@ export default function RankingView({ gameState, currentUser, onClose }) {
 
   const handleManualRefresh = async () => {
     setIsLoading(true)
+    await gameService.processDailyRankingPayoutIfDue()
     const data = await gameService.fetchTopKingdomsRanking(50)
     setRankings(data)
     setIsLoading(false)

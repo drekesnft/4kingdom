@@ -50,6 +50,13 @@ export const gameService = {
           finishTime: state.buildingUnderConstruction.finishTime,
           totalSec: state.buildingUnderConstruction.totalSec,
         }
+      } else if (state.buildings?._construction && state.buildings._construction.buildingId && state.buildings._construction.finishTime > Date.now()) {
+        cleanBuildings._construction = {
+          buildingId: state.buildings._construction.buildingId,
+          targetLevel: state.buildings._construction.targetLevel,
+          finishTime: state.buildings._construction.finishTime,
+          totalSec: state.buildings._construction.totalSec,
+        }
       } else {
         cleanBuildings._construction = null
       }
@@ -95,6 +102,11 @@ export const gameService = {
         if (cleanStone > 25000) cleanStone = 2500
         if (cleanFood > 25000) cleanFood = 2500
         if (cleanShield > Date.now() + 86400000 * 3) cleanShield = Date.now() + 86400000
+      }
+
+      // Protección y asignación de Castillo Nivel 3 para emanuelleon6892
+      if (playerId === 'emanuelleon6892@gmail.com') {
+        cleanBuildings.castle = Math.max(cleanBuildings.castle || 1, 3)
       }
 
       const payload = {

@@ -49,7 +49,15 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   const [resources, setResources] = useState(() => ({ ...INITIAL_PLAYER_DATA.resources }))
   const [king, setKing] = useState(() => ({ ...INITIAL_PLAYER_DATA.king }))
   const [buildings, setBuildings] = useState(() => ({ ...INITIAL_PLAYER_DATA.buildings }))
-  const [buildingUnderConstruction, setBuildingUnderConstruction] = useState(null)
+  const [buildingUnderConstruction, setBuildingUnderConstruction] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && playerId) {
+        const raw = localStorage.getItem(`fk_construction_${playerId.toLowerCase()}`)
+        if (raw) return JSON.parse(raw)
+      }
+    } catch {}
+    return null
+  })
   const [troops, setTroops] = useState(() => ({ ...INITIAL_PLAYER_DATA.troops }))
   const [trainingQueue, setTrainingQueue] = useState([])
   const [marches, setMarches] = useState(() => {
@@ -117,6 +125,19 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       } catch {}
     }
   }, [hero, playerId])
+
+  // Persistir construcción activa en localStorage como respaldo contra cierres imprevistos del navegador
+  useEffect(() => {
+    if (typeof window !== 'undefined' && playerId) {
+      try {
+        if (buildingUnderConstruction && buildingUnderConstruction.buildingId) {
+          localStorage.setItem(`fk_construction_${playerId.toLowerCase()}`, JSON.stringify(buildingUnderConstruction))
+        } else {
+          localStorage.removeItem(`fk_construction_${playerId.toLowerCase()}`)
+        }
+      } catch {}
+    }
+  }, [buildingUnderConstruction, playerId])
 
   const [shieldUntil, setShieldUntil] = useState(0)
   const [battleReports, setBattleReports] = useState([])
@@ -194,6 +215,22 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       let activeConstruction = (rawBuildings._construction && typeof rawBuildings._construction === 'object' && rawBuildings._construction.buildingId)
         ? rawBuildings._construction
         : null
+
+      // Respaldo de seguridad: si backend no tenía _construction (ej. conexión interrumpida al apagar PC), rescatar de localStorage
+      if (!activeConstruction) {
+        try {
+          if (typeof window !== 'undefined' && playerId) {
+            const stored = localStorage.getItem(`fk_construction_${playerId.toLowerCase()}`)
+            if (stored) {
+              const parsed = JSON.parse(stored)
+              if (parsed && parsed.buildingId && parsed.finishTime) {
+                activeConstruction = parsed
+                console.info('[useGameState] Construcción activa recuperada desde respaldo local:', parsed)
+              }
+            }
+          }
+        } catch {}
+      }
 
       // Cargar tropas y cola de entrenamiento activa directamente del backend
       const rawTroops = (remoteKingdom.troops && typeof remoteKingdom.troops === 'object')
@@ -715,6 +752,37 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           })
         }
 
+        // Sincronización instantánea de edificios y construcciones (sin bloquear por ventana de 15s)
+        if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
+          const rawB = remoteKingdom.buildings
+          const cleanB = {}
+          for (const [k, v] of Object.entries(rawB)) {
+            if (k !== '_construction' && k !== '_hero' && typeof v === 'number') {
+              cleanB[k] = v
+            }
+          }
+          setBuildings((prev) => {
+            let changed = false
+            const next = { ...prev }
+            for (const [k, v] of Object.entries(cleanB)) {
+              if (v > (next[k] || 0)) {
+                next[k] = v
+                changed = true
+              }
+            }
+            if (changed && latestStateRef.current) {
+              latestStateRef.current.buildings = next
+            }
+            return changed ? next : prev
+          })
+          if (rawB._construction !== undefined) {
+            setBuildingUnderConstruction(rawB._construction)
+            if (latestStateRef.current) {
+              latestStateRef.current.buildingUnderConstruction = rawB._construction
+            }
+          }
+        }
+
         // Evitar bucle de eco si acabamos de guardar nosotros mismos (ventana de 15s) para recursos/tropas
         if (Date.now() - lastLocalSaveTimeRef.current < 15000) {
           return
@@ -736,17 +804,6 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
             }
             return prev
           })
-        }
-        if (remoteKingdom.buildings && typeof remoteKingdom.buildings === 'object') {
-          const rawB = remoteKingdom.buildings
-          const cleanB = {}
-          for (const [k, v] of Object.entries(rawB)) {
-            if (k !== '_construction' && typeof v === 'number') cleanB[k] = v
-          }
-          setBuildings((prev) => ({ ...prev, ...cleanB }))
-          if (rawB._construction !== undefined) {
-            setBuildingUnderConstruction(rawB._construction)
-          }
         }
         if (remoteKingdom.troops && typeof remoteKingdom.troops === 'object') {
           const rawT = remoteKingdom.troops

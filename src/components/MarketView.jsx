@@ -18,6 +18,7 @@ export default function MarketView({ gameState, onClose }) {
     withdrawKingToVault,
     buyPeaceShield,
     buyFounderPack,
+    buyBlueprint,
     shieldUntil,
   } = gameState
 
@@ -337,6 +338,7 @@ export default function MarketView({ gameState, onClose }) {
                 <button
                   type="button"
                   className="buy-king-btn"
+                  onClick={() => buyBlueprint && buyBlueprint(bp)}
                   disabled={king.claimed < bp.kingCost}
                 >
                   {bp.kingCost} KING
@@ -346,7 +348,7 @@ export default function MarketView({ gameState, onClose }) {
           </div>
 
           {/* Founder Packs (Sección 66) */}
-          <h4 className="store-section-title">Founder Packs Exclusivos</h4>
+          <h4 className="store-section-title">Packs de Recursos y Tropas (Comprados con KING)</h4>
           <div className="founder-packs-grid">
             {STORE_ITEMS.founderPacks.map((pack) => (
               <div key={pack.id} className="pack-card">
@@ -356,10 +358,9 @@ export default function MarketView({ gameState, onClose }) {
                 <div className="pack-body">
                   <div className="pack-top">
                     <h4>{pack.name}</h4>
-                    <span className="pack-price">${pack.priceUsd} USD</span>
+                    <span className="pack-price">{pack.kingCost} KING</span>
                   </div>
                   <ul className="pack-perks">
-                    <li>👑 +{pack.kingBonus} KING directo</li>
                     <li>🌲 {pack.resources.wood.toLocaleString()} Madera, 🪨 {pack.resources.stone.toLocaleString()} Piedra, 🌾 {pack.resources.food.toLocaleString()} Comida</li>
                     <li>⚔️ {pack.troops.infantry} Infanterías, {pack.troops.archer} Arqueros, {pack.troops.cavalry} Caballerías</li>
                     <li>🛡️ {pack.shieldHours}h Escudo de Paz</li>
@@ -369,8 +370,9 @@ export default function MarketView({ gameState, onClose }) {
                     type="button"
                     className="buy-pack-btn"
                     onClick={() => buyFounderPack(pack)}
+                    disabled={king.claimed < pack.kingCost}
                   >
-                    Canjear Pack
+                    Comprar ({pack.kingCost} KING)
                   </button>
                 </div>
               </div>

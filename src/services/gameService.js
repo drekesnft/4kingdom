@@ -36,10 +36,10 @@ export const gameService = {
     if (!isSupabaseConfigured || !supabase || !playerId || !playerId.includes('@')) return false
 
     try {
-      // Limpiar y empaquetar edificios con el proceso de construcción activo (si existe)
+      // Limpiar y empaquetar edificios con el proceso de construcción activo y el héroe/expediciones
       const cleanBuildings = {}
       for (const [k, v] of Object.entries(state.buildings || {})) {
-        if (k !== '_construction' && typeof v === 'number') {
+        if (k !== '_construction' && k !== '_hero' && typeof v === 'number') {
           cleanBuildings[k] = v
         }
       }
@@ -52,6 +52,15 @@ export const gameService = {
         }
       } else {
         cleanBuildings._construction = null
+      }
+
+      if (state.hero) {
+        cleanBuildings._hero = {
+          energy: typeof state.hero.energy === 'number' ? state.hero.energy : 3,
+          maxEnergy: state.hero.maxEnergy || 3,
+          nextEnergyAt: state.hero.nextEnergyAt || null,
+          activeMission: state.hero.activeMission || null,
+        }
       }
 
       // Limpiar y empaquetar tropas con la cola de reclutamiento activa (si existe)
@@ -73,16 +82,31 @@ export const gameService = {
         cleanTroops._trainingQueue = []
       }
 
+      let cleanWood = Math.floor(state.resources?.wood || 0)
+      let cleanStone = Math.floor(state.resources?.stone || 0)
+      let cleanFood = Math.floor(state.resources?.food || 0)
+      let cleanKingClaimed = Number(state.king?.claimed?.toFixed(2) || 0)
+      let cleanShield = state.shieldUntil
+
+      // Sanitización anti-exploit para reinos afectados por el bug del mercado
+      if (playerId === 'cegarramichael@gmail.com' || playerId === 'juanchaval83@gmail.com') {
+        if (cleanKingClaimed > 25) cleanKingClaimed = 10.00
+        if (cleanWood > 25000) cleanWood = 2500
+        if (cleanStone > 25000) cleanStone = 2500
+        if (cleanFood > 25000) cleanFood = 2500
+        if (cleanShield > Date.now() + 86400000 * 3) cleanShield = Date.now() + 86400000
+      }
+
       const payload = {
         id: playerId,
-        wood: Math.floor(state.resources.wood),
-        stone: Math.floor(state.resources.stone),
-        food: Math.floor(state.resources.food),
-        king_claimed: Number(state.king.claimed.toFixed(2)),
-        king_pending: Number(state.king.pending.toFixed(4)),
+        wood: cleanWood,
+        stone: cleanStone,
+        food: cleanFood,
+        king_claimed: cleanKingClaimed,
+        king_pending: Number(state.king?.pending?.toFixed(4) || 0),
         buildings: cleanBuildings,
         troops: cleanTroops,
-        shield_until: state.shieldUntil,
+        shield_until: cleanShield,
         power: state.kingdomPower,
         updated_at: new Date().toISOString(),
       }

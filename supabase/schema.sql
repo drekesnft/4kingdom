@@ -47,7 +47,12 @@ VALUES
     ('jhill.sanchez@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JHIL-SANC'),
     ('juegosapp723@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JUEG-APP7'),
     ('puenteyornay22.05@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-PUEN-YORN'),
-    ('kleiberdejesusgp2106@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-KLEI-JESU')
+    ('kleiberdejesusgp2106@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-KLEI-JESU'),
+    ('ayvangaming7@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-AYVA-GAM7'),
+    ('luiscelis38@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-LUIS-CELI'),
+    ('jhosielalejandro@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-JHOS-ALEJ'),
+    ('sergiowalterdullar@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-SERG-WALT'),
+    ('robin7rm@gmail.com', 'alpha', 'alpha', true, 'alpha_player', 'FK-ROBI-EP7M')
 ON CONFLICT (email) DO UPDATE SET 
     role = 'alpha_player',
     referral_code = COALESCE(public.user_accounts.referral_code, EXCLUDED.referral_code);

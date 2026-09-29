@@ -419,9 +419,9 @@ export const STORE_ITEMS = {
   founderPacks: [
     {
       id: 'pack_explorer',
-      name: 'Pack Explorador ($5)',
+      name: 'Pack Explorador',
+      kingCost: 50,
       priceUsd: 5,
-      kingBonus: 250,
       resources: { wood: 5000, stone: 5000, food: 6000 },
       troops: { infantry: 20, archer: 10, cavalry: 0 },
       shieldHours: 48,
@@ -430,9 +430,9 @@ export const STORE_ITEMS = {
     },
     {
       id: 'pack_conqueror',
-      name: 'Pack Conquistador ($15)',
+      name: 'Pack Conquistador',
+      kingCost: 150,
       priceUsd: 15,
-      kingBonus: 850,
       resources: { wood: 16000, stone: 16000, food: 20000 },
       troops: { infantry: 50, archer: 25, cavalry: 10 },
       shieldHours: 72,
@@ -441,9 +441,9 @@ export const STORE_ITEMS = {
     },
     {
       id: 'pack_sovereign',
-      name: 'Pack Soberano ($25)',
+      name: 'Pack Soberano',
+      kingCost: 350,
       priceUsd: 25,
-      kingBonus: 1600,
       resources: { wood: 35000, stone: 35000, food: 45000 },
       troops: { infantry: 100, archer: 60, cavalry: 30 },
       shieldHours: 120,

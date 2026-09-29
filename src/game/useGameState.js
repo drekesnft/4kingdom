@@ -52,7 +52,15 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   const [buildingUnderConstruction, setBuildingUnderConstruction] = useState(null)
   const [troops, setTroops] = useState(() => ({ ...INITIAL_PLAYER_DATA.troops }))
   const [trainingQueue, setTrainingQueue] = useState([])
-  const [marches, setMarches] = useState([])
+  const [marches, setMarches] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && playerId) {
+        const raw = localStorage.getItem(`fk_marches_${playerId.toLowerCase()}`)
+        if (raw) return JSON.parse(raw)
+      }
+    } catch {}
+    return []
+  })
 
   // Sincronizar origen de marchas existentes si la base se actualiza
   useEffect(() => {
@@ -69,12 +77,46 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     })
   }, [normalizedBase.worldX, normalizedBase.worldY])
 
-  const [hero, setHero] = useState(() => ({
-    energy: 3,
-    maxEnergy: 3,
-    nextEnergyAt: null,
-    activeMission: null, // { id, missionId, finishTime, totalSec }
-  }))
+  // Persistir marchas en localStorage para evitar pérdida al cerrar/recargar navegador
+  useEffect(() => {
+    if (typeof window !== 'undefined' && playerId) {
+      try {
+        localStorage.setItem(`fk_marches_${playerId.toLowerCase()}`, JSON.stringify(marches))
+      } catch {}
+    }
+  }, [marches, playerId])
+
+  const [hero, setHero] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && playerId) {
+        const raw = localStorage.getItem(`fk_hero_${playerId.toLowerCase()}`)
+        if (raw) {
+          const p = JSON.parse(raw)
+          return {
+            energy: typeof p.energy === 'number' ? p.energy : 3,
+            maxEnergy: p.maxEnergy || 3,
+            nextEnergyAt: p.nextEnergyAt || null,
+            activeMission: p.activeMission || null,
+          }
+        }
+      }
+    } catch {}
+    return {
+      energy: 3,
+      maxEnergy: 3,
+      nextEnergyAt: null,
+      activeMission: null, // { id, missionId, finishTime, totalSec }
+    }
+  })
+
+  // Persistir héroe y expediciones tácticas en localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && playerId) {
+      try {
+        localStorage.setItem(`fk_hero_${playerId.toLowerCase()}`, JSON.stringify(hero))
+      } catch {}
+    }
+  }, [hero, playerId])
 
   const [shieldUntil, setShieldUntil] = useState(0)
   const [battleReports, setBattleReports] = useState([])
@@ -139,7 +181,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
         : {}
       const loadedBuildings = {}
       for (const [key, val] of Object.entries(rawBuildings)) {
-        if (key !== '_construction' && typeof val === 'number') {
+        if (key !== '_construction' && key !== '_hero' && typeof val === 'number') {
           loadedBuildings[key] = val
         }
       }
@@ -176,10 +218,140 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       let baseFood = Math.floor(Number(remoteKingdom.food) || 0)
       let baseKingPending = Number(remoteKingdom.king_pending || 0)
 
+      // Sanitización anti-exploit para reinos afectados por el bug del mercado
+      if (playerId === 'cegarramichael@gmail.com' || playerId === 'juanchaval83@gmail.com') {
+        if (baseWood > 25000) {
+          baseWood = 2500
+          baseStone = 2500
+          baseFood = 2500
+        }
+        if (Number(remoteKingdom.king_claimed || 0) > 25) {
+          remoteKingdom.king_claimed = 10.00
+        }
+        if (Number(remoteKingdom.shield_until || 0) > Date.now() + 86400000 * 3) {
+          remoteKingdom.shield_until = Date.now() + 86400000
+        }
+        loadedTroops.infantry = Math.min(loadedTroops.infantry || 0, 25)
+        loadedTroops.archer = Math.min(loadedTroops.archer || 0, 10)
+        loadedTroops.cavalry = Math.min(loadedTroops.cavalry || 0, 5)
+      }
+
+      // Cargar y reconciliar Héroe y Expediciones Tácticas (Persistencia Total)
+      let localHeroRaw = null
+      try {
+        if (typeof window !== 'undefined' && playerId) {
+          const stored = localStorage.getItem(`fk_hero_${playerId.toLowerCase()}`)
+          if (stored) localHeroRaw = JSON.parse(stored)
+        }
+      } catch {}
+
+      const remoteHeroRaw = (rawBuildings._hero && typeof rawBuildings._hero === 'object') ? rawBuildings._hero : null
+
+      let resolvedHero = {
+        energy: 3,
+        maxEnergy: 3,
+        nextEnergyAt: null,
+        activeMission: null,
+      }
+
+      if (remoteHeroRaw) {
+        resolvedHero = {
+          energy: typeof remoteHeroRaw.energy === 'number' ? remoteHeroRaw.energy : 3,
+          maxEnergy: remoteHeroRaw.maxEnergy || 3,
+          nextEnergyAt: remoteHeroRaw.nextEnergyAt || null,
+          activeMission: remoteHeroRaw.activeMission || null,
+        }
+      } else if (localHeroRaw) {
+        resolvedHero = {
+          energy: typeof localHeroRaw.energy === 'number' ? localHeroRaw.energy : 3,
+          maxEnergy: localHeroRaw.maxEnergy || 3,
+          nextEnergyAt: localHeroRaw.nextEnergyAt || null,
+          activeMission: localHeroRaw.activeMission || null,
+        }
+      }
+
+      // Si localHeroRaw tiene una expedición activa más reciente o preservada localmente, conservarla
+      if (localHeroRaw?.activeMission && (!resolvedHero.activeMission || localHeroRaw.activeMission.finishTime > (resolvedHero.activeMission?.finishTime || 0))) {
+        resolvedHero.activeMission = localHeroRaw.activeMission
+        if (typeof localHeroRaw.energy === 'number') resolvedHero.energy = localHeroRaw.energy
+      }
+
+      const nowMs = Date.now()
+      let heroChangedOffline = false
+
+      // Reconciliación de Expedición del Héroe terminada en ausencia (Offline Resolution)
+      if (resolvedHero.activeMission) {
+        if (nowMs >= resolvedHero.activeMission.finishTime) {
+          const missionDef = HERO_MISSIONS[resolvedHero.activeMission.missionId]
+          if (missionDef) {
+            heroChangedOffline = true
+            const roll = Math.random()
+            const isSuccess = roll <= missionDef.successRate
+
+            if (isSuccess) {
+              const rewardRes = Math.floor(Math.random() * (missionDef.rewardMax - missionDef.rewardMin + 1)) + missionDef.rewardMin
+              const split = Math.floor(rewardRes / 3)
+              baseWood += split
+              baseStone += split
+              baseFood += split
+
+              let kingReward = 0
+              if (missionDef.hasKingDrop && Math.random() <= missionDef.kingDropChance) {
+                kingReward = missionDef.kingAmount
+                baseKingPending += kingReward
+              }
+
+              const rep = generateHeroReport({
+                missionId: resolvedHero.activeMission.missionId,
+                missionName: missionDef.name,
+                isSuccess: true,
+                loot: { wood: split, stone: split, food: split },
+                kingReward,
+              })
+              setBattleReports((reps) => [rep, ...reps])
+              gameService.saveReport(playerId, rep)
+
+              setRecentNotification(`¡Expedición del Héroe completada en tu ausencia! ${missionDef.name} fue EXITOSA (+${split} Madera, +${split} Piedra, +${split} Comida${kingReward > 0 ? ` y +${kingReward} KING` : ''}).`)
+              console.info(`[Offline Hero Mission] ${missionDef.name} EXITOSA resuelta offline.`)
+            } else {
+              const rep = generateHeroReport({
+                missionId: resolvedHero.activeMission.missionId,
+                missionName: missionDef.name,
+                isSuccess: false,
+                loot: { wood: 0, stone: 0, food: 0 },
+                kingReward: 0,
+              })
+              setBattleReports((reps) => [rep, ...reps])
+              gameService.saveReport(playerId, rep)
+
+              setRecentNotification(`Expedición del Héroe finalizada en tu ausencia: ${missionDef.name} no tuvo éxito.`)
+              console.info(`[Offline Hero Mission] ${missionDef.name} FALLIDA resuelta offline.`)
+            }
+          }
+          resolvedHero.activeMission = null
+        }
+      }
+
+      // Regeneración pasiva de energía del héroe en ausencia (1 cada 4h = 14400s)
+      if (resolvedHero.energy < resolvedHero.maxEnergy) {
+        if (resolvedHero.nextEnergyAt && nowMs >= resolvedHero.nextEnergyAt) {
+          const elapsedAfterFirst = nowMs - resolvedHero.nextEnergyAt
+          const additionalCharged = 1 + Math.floor(elapsedAfterFirst / (14400 * 1000))
+          resolvedHero.energy = Math.min(resolvedHero.maxEnergy, resolvedHero.energy + additionalCharged)
+          if (resolvedHero.energy < resolvedHero.maxEnergy) {
+            resolvedHero.nextEnergyAt = resolvedHero.nextEnergyAt + additionalCharged * 14400 * 1000
+          } else {
+            resolvedHero.nextEnergyAt = null
+          }
+          heroChangedOffline = true
+        } else if (!resolvedHero.nextEnergyAt) {
+          resolvedHero.nextEnergyAt = nowMs + 14400 * 1000
+        }
+      }
+
       // Reconciliación y Rehidratación de Marchas desde Supabase (evita pérdida de tropas en refresh/offline)
       const ongoingMarches = []
       let marchesChangedState = false
-      const nowMs = Date.now()
 
       if (Array.isArray(remoteMarches) && remoteMarches.length > 0) {
         for (const rm of remoteMarches) {
@@ -188,7 +360,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           const returnTime = rm.return_time ? new Date(rm.return_time).getTime() : null
           const army = rm.army || { infantry: 0, archer: 0, cavalry: 0 }
           const loot = rm.loot || { wood: 0, stone: 0, food: 0 }
-          const kingLoot = Number(rm.king_loot || 0)
+          let kingLoot = Number(rm.king_loot || 0)
 
           const oneWayMs = Math.max(10000, arriveTime - createdAt)
           const carry = calculateArmyCarry(army)
@@ -205,11 +377,35 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
 
           if (nowMs >= estimatedReturnTime) {
             marchesChangedState = true
-            loadedTroops.infantry = (loadedTroops.infantry || 0) + (army.infantry || 0)
-            loadedTroops.archer = (loadedTroops.archer || 0) + (army.archer || 0)
-            loadedTroops.cavalry = (loadedTroops.cavalry || 0) + (army.cavalry || 0)
-
             let finalLoot = { ...loot }
+
+            if (rm.type === 'npc' && (!rm.loot || (rm.loot.wood === 0 && rm.loot.stone === 0 && rm.loot.food === 0))) {
+              // Simular combate offline contra NPC si aún no se había resuelto
+              const npcDef = NPC_TIERS[rm.target_level || 1] || NPC_TIERS[1]
+              const battle = simulateBattle(army, npcDef.army, 0, false, false)
+              if (battle.isAttackerVictory) {
+                const rawLoot = Math.floor(Math.random() * (npcDef.maxResourceReward - npcDef.minResourceReward + 1)) + npcDef.minResourceReward
+                const actualLoot = Math.min(rawLoot, carry)
+                const split = Math.floor(actualLoot / 3)
+                finalLoot = { wood: split, stone: split, food: split }
+                if (Math.random() <= npcDef.kingDropRate) {
+                  kingLoot = npcDef.kingDropAmount
+                }
+              }
+              loadedTroops.infantry = (loadedTroops.infantry || 0) + (battle.attackerSurviving.infantry || 0)
+              loadedTroops.archer = (loadedTroops.archer || 0) + (battle.attackerSurviving.archer || 0)
+              loadedTroops.cavalry = (loadedTroops.cavalry || 0) + (battle.attackerSurviving.cavalry || 0)
+
+              const rep = generateCombatReport(battle, finalLoot, kingLoot, npcDef.name, 'npc', rm.target_x, rm.target_y)
+              setBattleReports((reps) => [rep, ...reps])
+              gameService.saveReport(playerId, rep)
+              setRecentNotification(`¡Expedición de combate contra ${npcDef.name} completada en tu ausencia (${battle.isAttackerVictory ? 'VICTORIA' : 'DERROTA'})!`)
+            } else {
+              loadedTroops.infantry = (loadedTroops.infantry || 0) + (army.infantry || 0)
+              loadedTroops.archer = (loadedTroops.archer || 0) + (army.archer || 0)
+              loadedTroops.cavalry = (loadedTroops.cavalry || 0) + (army.cavalry || 0)
+            }
+
             if (rm.type === 'gather' && finalLoot.wood === 0 && finalLoot.stone === 0 && finalLoot.food === 0) {
               const mined = Math.min(carry, 500)
               const tName = (rm.target_name || '').toLowerCase()
@@ -279,6 +475,27 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
               kingLoot: kingLoot,
               distanceTiles: Math.max(Math.abs(rm.target_x - normalizedBase.worldX), Math.abs(rm.target_y - normalizedBase.worldY), 1),
             })
+          }
+        }
+      }
+
+      // Combinar con marchas locales pendientes si no estaban en backend
+      let localMarches = []
+      try {
+        if (typeof window !== 'undefined' && playerId) {
+          const raw = localStorage.getItem(`fk_marches_${playerId.toLowerCase()}`)
+          if (raw) localMarches = JSON.parse(raw)
+        }
+      } catch {}
+
+      if (Array.isArray(localMarches) && localMarches.length > 0) {
+        for (const lm of localMarches) {
+          if (!ongoingMarches.some((m) => m.id === lm.id)) {
+            const estReturn = lm.returnTime || (lm.arriveTime + (lm.oneWayDurationMs || 30000) * 2)
+            if (nowMs < estReturn) {
+              ongoingMarches.push(lm)
+              gameService.registerMarch(playerId, lm)
+            }
           }
         }
       }
@@ -380,13 +597,20 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       setTroops(loadedTroops)
       setTrainingQueue(activeQueue)
       setMarches(ongoingMarches)
+      setHero(resolvedHero)
+      if (typeof window !== 'undefined' && playerId) {
+        try {
+          localStorage.setItem(`fk_hero_${playerId.toLowerCase()}`, JSON.stringify(resolvedHero))
+          localStorage.setItem(`fk_marches_${playerId.toLowerCase()}`, JSON.stringify(ongoingMarches))
+        } catch {}
+      }
       setResources({
         wood: baseWood,
         stone: baseStone,
         food: baseFood,
       })
 
-      if (marchesChangedState || constructionChangedOffline || queueChangedOffline || offlineProductionAdded) {
+      if (marchesChangedState || constructionChangedOffline || queueChangedOffline || offlineProductionAdded || heroChangedOffline) {
         lastLocalSaveTimeRef.current = Date.now()
         gameService.syncKingdom(playerId, {
           resources: { wood: baseWood, stone: baseStone, food: baseFood },
@@ -401,6 +625,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           kingdomPower: (loadedBuildings.castle || 1) * 300 + (loadedTroops.infantry || 0) * 10 + (loadedTroops.archer || 0) * 15 + (loadedTroops.cavalry || 0) * 20,
           buildingUnderConstruction: activeConstruction,
           trainingQueue: activeQueue,
+          hero: resolvedHero,
         })
       }
 
@@ -618,6 +843,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     kingdomPower,
     buildingUnderConstruction,
     trainingQueue,
+    hero,
   }
 
   // Disparador de sincronización directa con Supabase Backend (Cero almacenamiento local)
@@ -894,18 +1120,22 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       // E. Verificación de Misión de Héroe
       setHero((prevHero) => {
         let updated = { ...prevHero }
+        let changed = false
         // Regeneración de energía cada 4h (14400s)
         if (updated.energy < updated.maxEnergy) {
           if (!updated.nextEnergyAt) {
             updated.nextEnergyAt = now + 14400 * 1000
+            changed = true
           } else if (now >= updated.nextEnergyAt) {
             updated.energy += 1
             updated.nextEnergyAt = updated.energy < updated.maxEnergy ? now + 14400 * 1000 : null
+            changed = true
           }
         }
 
         // Misión activa
         if (updated.activeMission && now >= updated.activeMission.finishTime) {
+          changed = true
           const missionDef = HERO_MISSIONS[updated.activeMission.missionId]
           const roll = Math.random()
           const isSuccess = roll <= missionDef.successRate
@@ -950,7 +1180,17 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
           }
           updated.activeMission = null
         }
-        return updated
+
+        if (changed) {
+          if (typeof window !== 'undefined' && playerId) {
+            try {
+              localStorage.setItem(`fk_hero_${playerId.toLowerCase()}`, JSON.stringify(updated))
+            } catch {}
+          }
+          triggerBackendSync({ ...latestStateRef.current, hero: updated })
+          return updated
+        }
+        return prevHero
       })
 
       // F. Verificación y Progreso de Marchas en curso
@@ -1714,7 +1954,15 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
       distanceTiles,
     }
 
-    setMarches((m) => [...m, newMarch])
+    setMarches((m) => {
+      const next = [...m, newMarch]
+      if (typeof window !== 'undefined' && playerId) {
+        try {
+          localStorage.setItem(`fk_marches_${playerId.toLowerCase()}`, JSON.stringify(next))
+        } catch {}
+      }
+      return next
+    })
     gameService.registerMarch(playerId, newMarch)
     setRecentNotification(
       type === 'reinforce'
@@ -2354,7 +2602,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     const mission = HERO_MISSIONS[missionId]
     if (!mission) return
     if (hero.activeMission) {
-      setRecentNotification('El Héroe ya se encuentra en una misión activa.')
+      setRecentNotification('El Héroe ya se encuentra en una expedición activa.')
       return
     }
     if (hero.energy < mission.energyCost) {
@@ -2363,18 +2611,25 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     }
 
     const durationSec = Math.max(5, mission.durationSec / speedMultiplier)
-    setHero((h) => ({
-      ...h,
-      energy: h.energy - mission.energyCost,
+    const newHeroState = {
+      ...hero,
+      energy: hero.energy - mission.energyCost,
       activeMission: {
         id: `h_miss_${Date.now()}`,
         missionId,
         finishTime: Date.now() + durationSec * 1000,
         totalSec: durationSec,
       },
-    }))
-    setRecentNotification(`Héroe partió en misión: ${mission.name}.`)
-  }, [hero, speedMultiplier])
+    }
+    setHero(newHeroState)
+    if (typeof window !== 'undefined' && playerId) {
+      try {
+        localStorage.setItem(`fk_hero_${playerId.toLowerCase()}`, JSON.stringify(newHeroState))
+      } catch {}
+    }
+    triggerBackendSync({ ...latestStateRef.current, hero: newHeroState })
+    setRecentNotification(`¡Héroe partió en expedición: ${mission.name}! Regresará en ${Math.round(durationSec / 60)} min.`)
+  }, [hero, speedMultiplier, playerId, triggerBackendSync])
 
   const speedupHeroMission = useCallback(() => {
     if (!hero.activeMission) return
@@ -2387,12 +2642,19 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     }
 
     setKing((k) => ({ ...k, claimed: Math.max(0, Number((k.claimed - cost).toFixed(2))) }))
-    setHero((h) => ({
-      ...h,
-      activeMission: { ...h.activeMission, finishTime: Date.now() },
-    }))
-    setRecentNotification(`¡Misión del Héroe acelerada con ${cost} KING!`)
-  }, [hero.activeMission, king.claimed])
+    const updatedHero = {
+      ...hero,
+      activeMission: { ...hero.activeMission, finishTime: Date.now() },
+    }
+    setHero(updatedHero)
+    if (typeof window !== 'undefined' && playerId) {
+      try {
+        localStorage.setItem(`fk_hero_${playerId.toLowerCase()}`, JSON.stringify(updatedHero))
+      } catch {}
+    }
+    triggerBackendSync({ ...latestStateRef.current, hero: updatedHero })
+    setRecentNotification(`¡Expedición del Héroe acelerada con ${cost} KING!`)
+  }, [hero, king.claimed, playerId, triggerBackendSync])
 
   // 7. Tienda de KING: Escudos, Planos, Founder Packs
   const buyPeaceShield = useCallback((shieldItem) => {
@@ -2414,21 +2676,64 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
   }, [king, shieldUntil, triggerBackendSync])
 
   const buyFounderPack = useCallback((pack) => {
-    // Simular compra de Founder Pack
-    setResources((r) => ({
-      wood: r.wood + pack.resources.wood,
-      stone: r.stone + pack.resources.stone,
-      food: r.food + pack.resources.food,
-    }))
-    setKing((k) => ({ ...k, claimed: k.claimed + pack.kingBonus }))
-    setTroops((t) => ({
-      infantry: t.infantry + pack.troops.infantry,
-      archer: t.archer + pack.troops.archer,
-      cavalry: t.cavalry + pack.troops.cavalry,
-    }))
-    setShieldUntil((s) => Math.max(Date.now(), s) + pack.shieldHours * 3600 * 1000)
-    setRecentNotification(`¡${pack.name} canjeado con éxito! Recompensas añadidas a tu reino.`)
-  }, [])
+    const cost = pack.kingCost || 50
+    if (king.claimed < cost) {
+      setRecentNotification(`KING insuficiente. Requiere ${cost} KING en Tesorería para ${pack.name}.`)
+      return
+    }
+
+    const nextKing = {
+      ...king,
+      claimed: Math.max(0, Number((king.claimed - cost).toFixed(2))),
+    }
+    const nextResources = {
+      wood: resources.wood + (pack.resources?.wood || 0),
+      stone: resources.stone + (pack.resources?.stone || 0),
+      food: resources.food + (pack.resources?.food || 0),
+    }
+    const nextTroops = {
+      infantry: (troops.infantry || 0) + (pack.troops?.infantry || 0),
+      archer: (troops.archer || 0) + (pack.troops?.archer || 0),
+      cavalry: (troops.cavalry || 0) + (pack.troops?.cavalry || 0),
+    }
+    const nextShield = Math.max(Date.now(), shieldUntil) + (pack.shieldHours || 0) * 3600 * 1000
+
+    setKing(nextKing)
+    setResources(nextResources)
+    setTroops(nextTroops)
+    setShieldUntil(nextShield)
+
+    triggerBackendSync({
+      ...latestStateRef.current,
+      king: nextKing,
+      resources: nextResources,
+      troops: nextTroops,
+      shieldUntil: nextShield,
+    })
+
+    setRecentNotification(`¡${pack.name} adquirido con éxito! Se descontaron ${cost} KING de tu Tesorería.`)
+  }, [king, resources, troops, shieldUntil, triggerBackendSync])
+
+  const buyBlueprint = useCallback((bp) => {
+    const cost = bp.kingCost || 80
+    if (king.claimed < cost) {
+      setRecentNotification(`KING insuficiente. Requiere ${cost} KING para ${bp.name}.`)
+      return
+    }
+
+    const nextKing = {
+      ...king,
+      claimed: Math.max(0, Number((king.claimed - cost).toFixed(2))),
+    }
+
+    setKing(nextKing)
+    triggerBackendSync({
+      ...latestStateRef.current,
+      king: nextKing,
+    })
+
+    setRecentNotification(`¡${bp.name} adquirido! Se descontaron ${cost} KING de tu Tesorería.`)
+  }, [king, triggerBackendSync])
 
   // Reiniciar partida a valores limpios de cuenta nueva (Alpha v0.1)
   const resetGame = useCallback(() => {
@@ -2543,6 +2848,7 @@ export function useGameState(baseCoord = { worldX: -12, worldY: 12, x: -12, y: 1
     speedupHeroMission,
     buyPeaceShield,
     buyFounderPack,
+    buyBlueprint,
     calculateKingCostForSec,
     resetGame,
     grantTestResources,
